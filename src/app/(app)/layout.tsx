@@ -1,9 +1,11 @@
 import { requerirUsuario } from '@/lib/dal'
+import { leerAjustes } from '@/lib/ajustes'
 import { salir } from '@/app/login/actions'
 import { Navegacion, type ItemNav } from './navegacion'
 
 export default async function AppLayout({ children }: LayoutProps<'/'>) {
   const u = await requerirUsuario()
+  const { nombre_negocio } = await leerAjustes()
   const esAdmin = u.rol === 'admin'
   const items: ItemNav[] = [
     { href: '/', texto: 'Inicio', icono: 'inicio', exacto: true },
@@ -45,7 +47,7 @@ export default async function AppLayout({ children }: LayoutProps<'/'>) {
 
   return (
     <div className="min-h-screen lg:flex">
-      <Navegacion items={items} pie={pie} />
+      <Navegacion items={items} pie={pie} negocio={nombre_negocio} />
       <main className="min-w-0 flex-1 px-4 py-6 sm:px-8 lg:py-8 print:p-0">
         <div className="mx-auto max-w-6xl">{children}</div>
       </main>

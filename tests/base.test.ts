@@ -86,3 +86,17 @@ describe.skipIf(!url)('base de datos', () => {
     await expect(sql`insert into usuarios (usuario, nombre, password_hash, rol) values ('sofia', 'Sofía', 'x', 'vendedora')`).rejects.toMatchObject({ code: '23514' })
   })
 })
+
+describe.skipIf(!url)('bloqueo de ingreso', () => {
+  const sql = postgres(url!, { prepare: false, max: 1, onnotice: () => {} })
+  afterAll(() => sql.end())
+  it('bloquea tras 5 intentos fallidos y deja entrar tras limpiar', async () => {
+    const { verificarIngreso } = await import('../src/lib/ingreso')
+    await sql`truncate intentos_login`
+    await sql`insert into usuarios (usuario, nombre, password_hash, rol) values ('lucia', 'Lucía', ${await hashPassword('buena123')}, 'admin') on conflict do nothing`
+    for (let i = 0; i < 5; i++) expect(await verificarIngreso(sql, 'lucia', 'mala')).toEqual({ ok: false, motivo: 'incorrecto' })
+    expect(await verificarIngreso(sql, 'lucia', 'buena123')).toMatchObject({ ok: false, motivo: 'bloqueado', minutos: 15 })
+    await sql`delete from intentos_login where usuario = 'lucia'`
+    expect(await verificarIngreso(sql, 'lucia', 'buena123')).toMatchObject({ ok: true })
+  })
+})

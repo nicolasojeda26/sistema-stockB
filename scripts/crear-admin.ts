@@ -26,5 +26,6 @@ await sql`
   on conflict (usuario) do update set
     nombre = excluded.nombre, password_hash = excluded.password_hash, rol = 'admin',
     activo = true, version_sesion = usuarios.version_sesion + 1`
+await sql`delete from intentos_login where usuario = ${usuario.toLowerCase()}`
 await sql.end()
 console.log(`Listo: ${usuario.toLowerCase()} es administradora.`)

@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { db } from '@/lib/db'
+import { coincide, ordenRelevancia } from '@/lib/busqueda'
 import { requerirUsuario } from '@/lib/dal'
 import { puedeUsarDeposito } from '@/lib/depositos'
 import { mensajeError } from '@/lib/errores'
@@ -31,11 +32,10 @@ export async function buscarProducto(q: string, depositoId: number | null): Prom
   if (!texto) return { sugerencias: [] }
   const [exacto] = await db()<ProductoLinea[]>`${lineas(depositoId)} where lower(p.codigo) = lower(${texto})`
   if (exacto) return { exacto, sugerencias: [] }
-  const patron = `%${texto.toLowerCase().replace(/[\\%_]/g, '\\$&')}%`
   const sugerencias = await db()<ProductoLinea[]>`
     ${lineas(depositoId)}
-    where p.activo and (lower(p.nombre) like ${patron} or lower(p.codigo) like ${patron})
-    order by (lower(p.nombre) like ${texto.toLowerCase() + '%'}) desc, lower(p.nombre) limit 8`
+    where p.activo and ${coincide(db(), texto)}
+    order by ${ordenRelevancia(db(), texto)} limit 8`
   return { sugerencias }
 }
 

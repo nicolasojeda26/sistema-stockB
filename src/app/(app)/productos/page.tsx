@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { db } from '@/lib/db'
+import { coincide } from '@/lib/busqueda'
 import { requerirUsuario } from '@/lib/dal'
 import { formatoEntero, formatoPesos } from '@/lib/formato'
 import { BotonLink, Encabezado, Etiqueta, Input, Select, Tarjeta, Vacio, tablaCls as t } from '@/components/ui'
@@ -39,10 +40,9 @@ export default async function ProductosPage(props: PageProps<'/productos'>) {
   // La vendedora ve el stock de su sucursal; la administradora, el total.
   const filtroStock =
     u.rol === 'admin' ? sql`` : sql`and s.deposito_id in (select id from depositos where sucursal_id = ${u.sucursal_id})`
-  const patron = `%${q.toLowerCase().replace(/[\\%_]/g, '\\$&')}%`
   const where = sql`
     where true
-    ${q ? sql`and (lower(p.nombre) like ${patron} or lower(p.codigo) like ${patron})` : sql``}
+    ${q ? sql`and ${coincide(sql, q)}` : sql``}
     ${categoria ? sql`and p.categoria_id = ${categoria}` : sql``}
     ${estado === 'inactivos' ? sql`and not p.activo` : estado === 'todos' ? sql`` : sql`and p.activo`}`
   const bajo = estado === 'stock-bajo'
@@ -81,7 +81,19 @@ export default async function ProductosPage(props: PageProps<'/productos'>) {
       <Encabezado
         titulo="Productos"
         detalle={`${formatoEntero(total)} producto${total === 1 ? '' : 's'}${u.rol === 'vendedora' ? ` · stock de ${u.sucursal_nombre}` : ' · stock total'}`}
-        acciones={u.rol === 'admin' && <BotonLink href="/productos/nuevo">Nuevo producto</BotonLink>}
+        acciones={
+          u.rol === 'admin' && (
+            <>
+              <a
+                href={`/productos/exportar?${new URLSearchParams({ ...(q ? { q } : {}), ...(categoria ? { categoria: String(categoria) } : {}), estado })}`}
+                className="inline-flex h-10 items-center rounded-lg border border-linea bg-papel px-4 text-sm font-medium hover:bg-fondo"
+              >
+                Excel
+              </a>
+              <BotonLink href="/productos/nuevo">Nuevo producto</BotonLink>
+            </>
+          )
+        }
       />
 
       <form className="mb-4 grid gap-2 sm:grid-cols-[1fr_200px_170px_auto]">

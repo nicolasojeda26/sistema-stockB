@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { db } from '@/lib/db'
-import { requerirUsuario } from '@/lib/dal'
+import { requerirAdmin, requerirUsuario } from '@/lib/dal'
 import { parseNumero } from '@/lib/numeros'
 import { cajaAbierta, cerrarCaja, ErrorVenta, movimientoCaja } from '@/lib/ventas'
 import type { Resultado } from '@/components/form-accion'
@@ -38,4 +38,23 @@ export async function cerrar(_: Resultado, f: FormData): Promise<Resultado> {
   }
   revalidatePath('/caja')
   redirect(`/caja/${caja.id}?cerrada=1`)
+}
+
+/** La administradora cierra una caja que alguien dejó abierta. */
+export async function cerrarOtra(_: Resultado, f: FormData): Promise<Resultado> {
+  const u = await requerirAdmin()
+  const cajaId = Number(f.get('caja_id'))
+  const contado = parseNumero(String(f.get('contado') ?? ''))
+  if (!Number.isInteger(cajaId)) return { error: 'Falta la caja.' }
+  if (contado === null) return { error: 'Poné cuánto efectivo hay en esa caja.' }
+  try {
+    const nota = String(f.get('nota') ?? '').trim()
+    await cerrarCaja(db(), { cajaId, usuarioId: u.id, efectivoContado: Math.round(contado * 100) / 100, nota: `Cerrada por ${u.nombre}${nota ? `: ${nota}` : ''}` })
+  } catch (e) {
+    if (e instanceof ErrorVenta) return { error: e.message }
+    throw e
+  }
+  revalidatePath('/caja')
+  revalidatePath(`/caja/${cajaId}`)
+  return { ok: 'Caja cerrada.' }
 }

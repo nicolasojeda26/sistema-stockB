@@ -81,5 +81,7 @@ export async function cambiarPassword(_: Resultado, f: FormData): Promise<Result
   if (password.length < PASSWORD_MIN) return { error: `La contraseña tiene que tener al menos ${PASSWORD_MIN} caracteres.` }
   // Cambiar la contraseña cierra las sesiones abiertas de ese usuario.
   await db()`update usuarios set password_hash = ${await hashPassword(password)}, version_sesion = version_sesion + 1 where id = ${id}`
+  // Si estaba bloqueada por intentos fallidos, con la contraseña nueva ya puede entrar.
+  await db()`delete from intentos_login where usuario = (select usuario from usuarios where id = ${id})`
   return { ok: 'Contraseña cambiada. Las sesiones abiertas se cerraron.' }
 }

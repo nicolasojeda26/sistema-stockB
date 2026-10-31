@@ -2,7 +2,7 @@
 
 import { FormAccion } from '@/components/form-accion'
 import { Boton, Campo, Input, Select } from '@/components/ui'
-import { cerrar, registrarMovimiento } from './actions'
+import { cerrar, cerrarOtra, registrarMovimiento } from './actions'
 
 export function MovimientoCaja() {
   return (
@@ -52,6 +52,36 @@ export function CerrarCaja() {
             }}
           >
             Cerrar caja
+          </Boton>
+        </>
+      )}
+    </FormAccion>
+  )
+}
+
+export function CerrarOtraCaja({ cajaId, usuario }: { cajaId: number; usuario: string }) {
+  return (
+    <FormAccion accion={cerrarOtra} className="space-y-3 p-5">
+      {(_, enviando) => (
+        <>
+          <p className="text-sm text-tinta-suave">{usuario} dejó esta caja abierta. Contá el efectivo y cerrala desde acá.</p>
+          <input type="hidden" name="caja_id" value={cajaId} />
+          <Campo etiqueta="Efectivo contado">
+            <Input name="contado" inputMode="decimal" placeholder="0,00" required />
+          </Campo>
+          <Campo etiqueta="Nota" ayuda="Opcional">
+            <Input name="nota" maxLength={200} />
+          </Campo>
+          <Boton
+            type="submit"
+            variante="secundario"
+            disabled={enviando}
+            className="w-full"
+            onClick={(e) => {
+              if (!confirm(`¿Cerrar la caja de ${usuario}?`)) e.preventDefault()
+            }}
+          >
+            Cerrar esta caja
           </Boton>
         </>
       )}

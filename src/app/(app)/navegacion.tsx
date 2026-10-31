@@ -94,7 +94,9 @@ const iconos = {
   ),
 }
 
-export function Navegacion({ items, pie }: { items: ItemNav[]; pie: ReactNode }) {
+const inicial = (n: string) => (n.trim()[0] ?? 'S').toUpperCase()
+
+export function Navegacion({ items, pie, negocio }: { items: ItemNav[]; pie: ReactNode; negocio: string }) {
   const ruta = usePathname()
   const [abierto, setAbierto] = useState(false)
   const activo = (it: ItemNav) => (it.exacto ? ruta === it.href : ruta.startsWith(it.href))
@@ -102,7 +104,7 @@ export function Navegacion({ items, pie }: { items: ItemNav[]; pie: ReactNode })
   return (
     <>
       <header className="sticky top-0 z-20 flex print:hidden h-14 items-center justify-between bg-tinta px-4 text-white lg:hidden">
-        <span className="font-semibold">Stock y ventas</span>
+        <span className="truncate font-semibold">{negocio}</span>
         <button
           onClick={() => setAbierto((a) => !a)}
           aria-expanded={abierto}
@@ -118,8 +120,8 @@ export function Navegacion({ items, pie }: { items: ItemNav[]; pie: ReactNode })
         className={`${abierto ? 'flex' : 'hidden'} fixed inset-x-0 top-14 bottom-0 z-20 flex-col bg-tinta lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-64 lg:shrink-0 print:hidden`}
       >
         <div className="hidden h-16 items-center gap-3 px-5 lg:flex">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white text-sm font-bold text-tinta">S</div>
-          <span className="font-semibold text-white">Stock y ventas</span>
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-sm font-bold text-tinta">{inicial(negocio)}</div>
+          <span className="truncate font-semibold text-white">{negocio}</span>
         </div>
         <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-3 lg:py-2">
           {items.map((it) => [

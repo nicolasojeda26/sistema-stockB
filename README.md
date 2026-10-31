@@ -118,6 +118,19 @@ Además, se puede activar **facturar cada venta automáticamente** a consumidor 
 - Valor del stock a costo y a precio de venta.
 - Todo se baja en un Excel con una hoja por tema.
 
+## Detalles generales
+
+- **Búsqueda:** por varias palabras en cualquier orden y sin importar acentos ni mayúsculas («remera negra», «panuelo»). Usa índices `pg_trgm` y la función `normalizar` de la base.
+- **Inicio:**
+  - Para la administradora: lo vendido hoy por sucursal, los productos para reponer (en el mínimo o debajo, por sucursal) y las cajas abiertas, con aviso si alguna quedó abierta de un día anterior.
+  - Para la vendedora: lo de su sucursal y su caja.
+- **Cajas olvidadas:** la administradora puede cerrar la caja de otra persona desde su detalle, y queda registrado quién la cerró.
+- **Seguridad:** después de 5 intentos fallidos, ese usuario queda bloqueado 15 minutos. Si una administradora le cambia la contraseña, se desbloquea.
+- **Marca:** el nombre del negocio (Ajustes del negocio) aparece en el menú, en el login y en los tickets.
+- **Excel de productos:** con el stock de cada depósito, respetando los filtros del listado.
+- **Instalar como app:** el sistema se puede instalar en la PC o la tablet de la caja (tiene manifest e íconos).
+- **Pantallas especiales:** de carga, de error y de página no encontrada, en español.
+
 ## Comandos
 
 | Comando | Qué hace |

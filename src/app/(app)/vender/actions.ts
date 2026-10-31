@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { db } from '@/lib/db'
+import { coincide, ordenRelevancia } from '@/lib/busqueda'
 import { requerirUsuario } from '@/lib/dal'
 import { abrirCaja, cajaAbierta, ErrorVenta, registrarVenta } from '@/lib/ventas'
 import { parseNumero } from '@/lib/numeros'
@@ -30,11 +31,10 @@ export async function buscarParaVender(q: string): Promise<{ exacto?: ProductoVe
     if (!(await db()`select 1 from productos where id = ${exacto.id} and activo`).length) return { sugerencias: [], error: `"${exacto.nombre}" está dado de baja.` }
     return { exacto, sugerencias: [] }
   }
-  const patron = `%${texto.toLowerCase().replace(/[\\%_]/g, '\\$&')}%`
   const sugerencias = await db()<ProductoVenta[]>`
     ${conStock(caja.sucursal_id)}
-    where p.activo and (lower(p.nombre) like ${patron} or lower(p.codigo) like ${patron})
-    order by (lower(p.nombre) like ${texto.toLowerCase() + '%'}) desc, lower(p.nombre) limit 8`
+    where p.activo and ${coincide(db(), texto)}
+    order by ${ordenRelevancia(db(), texto)} limit 8`
   return { sugerencias }
 }
 

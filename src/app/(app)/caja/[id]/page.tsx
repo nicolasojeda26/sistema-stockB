@@ -8,6 +8,7 @@ import { resumenCaja } from '@/lib/ventas'
 import { Aviso, Encabezado, Etiqueta, Tarjeta, TituloTarjeta, Vacio, tablaCls as t } from '@/components/ui'
 import { BotonImprimir } from '@/components/boton-imprimir'
 import { ResumenCajaVista } from '../resumen'
+import { CerrarOtraCaja } from '../formularios'
 
 export const metadata: Metadata = { title: 'Detalle de caja' }
 
@@ -51,6 +52,12 @@ export default async function CajaDetallePage(props: PageProps<'/caja/[id]'>) {
         <div className="space-y-5">
           <ResumenCajaVista resumen={resumen} contado={c.efectivo_contado} esperadoGuardado={c.efectivo_esperado} />
           {c.nota_cierre && <p className="rounded-lg bg-papel px-4 py-3 text-sm ring-1 ring-linea">Nota: {c.nota_cierre}</p>}
+          {!c.cerrada && u.rol === 'admin' && c.usuario_id !== u.id && (
+            <Tarjeta className="print:hidden">
+              <TituloTarjeta>Cerrar caja</TituloTarjeta>
+              <CerrarOtraCaja cajaId={id} usuario={c.usuario} />
+            </Tarjeta>
+          )}
           {movimientos.length > 0 && (
             <Tarjeta>
               <TituloTarjeta>Ingresos y retiros</TituloTarjeta>
