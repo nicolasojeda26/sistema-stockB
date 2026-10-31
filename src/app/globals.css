@@ -1,0 +1,44 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@theme {
+  --color-tinta: #16202e;
+  --color-tinta-suave: #4a5568;
+  --color-apagado: #7b8494;
+  --color-linea: #e4e2dc;
+  --color-fondo: #f6f5f1;
+  --color-papel: #ffffff;
+  --color-marca: #1f4e89;
+  --color-marca-oscura: #173c6b;
+  --color-marca-clara: #e8eef7;
+  --color-acento: #f26b3a;
+  --color-ok: #1d7a4a;
+  --color-ok-claro: #e5f3eb;
+  --color-alerta: #b45309;
+  --color-alerta-claro: #fdf1e1;
+  --color-error: #b42318;
+  --color-error-claro: #fdecea;
+}
+
+html {
+  color-scheme: light;
+}
+
+body {
+  background: var(--color-fondo);
+  color: var(--color-tinta);
+}
+
+/* Números alineados en tablas de precios y stock. */
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-marca);
+  outline-offset: 2px;
+}
