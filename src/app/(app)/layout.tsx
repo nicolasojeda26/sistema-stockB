@@ -4,20 +4,25 @@ import { Navegacion, type ItemNav } from './navegacion'
 
 export default async function AppLayout({ children }: LayoutProps<'/'>) {
   const u = await requerirUsuario()
-  const items: ItemNav[] =
-    u.rol === 'admin'
-      ? [
-          { href: '/', texto: 'Inicio', icono: 'inicio' },
-          { href: '/productos', texto: 'Productos', icono: 'productos' },
+  const esAdmin = u.rol === 'admin'
+  const items: ItemNav[] = [
+    { href: '/', texto: 'Inicio', icono: 'inicio', exacto: true },
+    { href: '/productos', texto: 'Productos', icono: 'productos' },
+    { href: '/mercaderia/ingreso', texto: 'Ingreso de mercadería', icono: 'ingreso', seccion: 'Mercadería' },
+    { href: '/mercaderia/transferencia', texto: 'Transferencias', icono: 'transferencia' },
+    ...(esAdmin ? [{ href: '/mercaderia/ajuste', texto: 'Ajustes de stock', icono: 'ajuste' } as ItemNav] : []),
+    { href: '/mercaderia', texto: 'Movimientos', icono: 'movimientos', exacto: true },
+    { href: '/etiquetas', texto: 'Etiquetas', icono: 'etiquetas' },
+    ...(esAdmin
+      ? ([
+          { href: '/precios', texto: 'Actualizar precios', icono: 'precios', seccion: 'Administración' },
           { href: '/categorias', texto: 'Categorías', icono: 'categorias' },
           { href: '/sucursales', texto: 'Sucursales y depósitos', icono: 'sucursales' },
           { href: '/usuarios', texto: 'Usuarios', icono: 'usuarios' },
           { href: '/importar', texto: 'Importar desde Dux', icono: 'importar' },
-        ]
-      : [
-          { href: '/', texto: 'Inicio', icono: 'inicio' },
-          { href: '/productos', texto: 'Productos', icono: 'productos' },
-        ]
+        ] as ItemNav[])
+      : []),
+  ]
 
   const pie = (
     <div className="border-t border-white/10 p-4">
@@ -34,7 +39,7 @@ export default async function AppLayout({ children }: LayoutProps<'/'>) {
   return (
     <div className="min-h-screen lg:flex">
       <Navegacion items={items} pie={pie} />
-      <main className="min-w-0 flex-1 px-4 py-6 sm:px-8 lg:py-8">
+      <main className="min-w-0 flex-1 px-4 py-6 sm:px-8 lg:py-8 print:p-0">
         <div className="mx-auto max-w-6xl">{children}</div>
       </main>
     </div>

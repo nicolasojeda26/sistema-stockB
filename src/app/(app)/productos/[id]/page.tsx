@@ -29,7 +29,7 @@ export default async function ProductoPage(props: PageProps<'/productos/[id]'>) 
     from productos p left join categorias c on c.id = p.categoria_id where p.id = ${id}`
   if (!producto) notFound()
 
-  const [stocks, movimientos, categorias] = await Promise.all([
+  const [stocks, movimientos, categorias, precios] = await Promise.all([
     sql<{ deposito: string; sucursal: string | null; es_principal: boolean; cantidad: number; mia: boolean }[]>`
       select d.nombre as deposito, s.nombre as sucursal, d.es_principal, coalesce(st.cantidad, 0) as cantidad,
              (d.sucursal_id is not distinct from ${u.sucursal_id}) as mia
@@ -43,6 +43,13 @@ export default async function ProductoPage(props: PageProps<'/productos/[id]'>) 
       from movimientos_stock m join depositos d on d.id = m.deposito_id left join usuarios us on us.id = m.usuario_id
       where m.producto_id = ${id} order by m.creado desc, m.id desc limit 20`,
     u.rol === 'admin' ? sql<{ id: number; nombre: string }[]>`select id, nombre from categorias where activa or id = ${producto.categoria_id} order by lower(nombre)` : [],
+    u.rol === 'admin'
+      ? sql<{ id: number; creado: Date; precio_anterior: number; precio_nuevo: number; origen: string | null; usuario: string | null }[]>`
+          select c.id, c.creado, c.precio_anterior, c.precio_nuevo, c.origen, us.nombre as usuario
+          from cambios_precio c left join usuarios us on us.id = c.usuario_id
+          where c.producto_id = ${id} and c.precio_anterior <> c.precio_nuevo
+          order by c.creado desc, c.id desc limit 10`
+      : [],
   ])
   const total = stocks.reduce((a, s) => a + s.cantidad, 0)
 
@@ -57,9 +64,14 @@ export default async function ProductoPage(props: PageProps<'/productos/[id]'>) 
           </>
         }
         acciones={
-          <BotonLink href="/productos" variante="secundario">
-            Volver a productos
-          </BotonLink>
+          <>
+            <BotonLink href={`/etiquetas?producto=${id}`} variante="secundario">
+              Imprimir etiqueta
+            </BotonLink>
+            <BotonLink href="/productos" variante="secundario">
+              Volver a productos
+            </BotonLink>
+          </>
         }
       />
       {creado && (
@@ -145,6 +157,28 @@ export default async function ProductoPage(props: PageProps<'/productos/[id]'>) 
               ))}
             </ul>
           </Tarjeta>
+          {precios.length > 0 && (
+            <Tarjeta className="mt-5">
+              <TituloTarjeta>Cambios de precio</TituloTarjeta>
+              <ul className="divide-y divide-linea">
+                {precios.map((c) => (
+                  <li key={c.id} className="flex items-center justify-between gap-3 px-5 py-3 text-sm">
+                    <span className="min-w-0">
+                      <span className="block text-xs text-apagado">{formatoFecha(c.creado)}</span>
+                      <span className="block truncate text-xs text-tinta-suave">
+                        {c.origen ?? 'Edición'}
+                        {c.usuario ? ` · ${c.usuario}` : ''}
+                      </span>
+                    </span>
+                    <span className="num shrink-0 text-right">
+                      <span className="block text-xs text-apagado line-through">{formatoPesos(c.precio_anterior)}</span>
+                      {formatoPesos(c.precio_nuevo)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </Tarjeta>
+          )}
         </div>
       </div>
     </>

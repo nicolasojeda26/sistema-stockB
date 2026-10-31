@@ -17,6 +17,7 @@
   "dependencies": {
     "geist": "^1.9.0",
     "jose": "^6.2.14",
+    "jsbarcode": "^3.12.3",
     "next": "16.4.3",
     "postgres": "^4.0.0",
     "react": "19.3.0",

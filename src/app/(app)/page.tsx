@@ -55,6 +55,12 @@ export default async function InicioPage() {
         {u.rol === 'admin' && <Dato titulo="Sucursales" valor={r.sucursales} href="/sucursales" />}
       </div>
 
+      <div className="mt-3 grid gap-3 sm:grid-cols-3">
+        <Atajo href="/mercaderia/ingreso" titulo="Ingresar mercadería" detalle="Llegó un pedido" />
+        <Atajo href="/mercaderia/transferencia" titulo="Transferir" detalle="Mandar a otra sucursal o depósito" />
+        <Atajo href="/etiquetas" titulo="Imprimir etiquetas" detalle="Código de barras y precio" />
+      </div>
+
       {u.rol === 'admin' && pasos.some((p) => !p.hecho) && (
         <Tarjeta className="mt-5 p-5">
           <h2 className="font-semibold">Para empezar</h2>
@@ -90,4 +96,18 @@ function Dato({ titulo, valor, href, alerta }: { titulo: string; valor: number; 
     </Tarjeta>
   )
   return href ? <Link href={href}>{cuerpo}</Link> : cuerpo
+}
+
+function Atajo({ href, titulo, detalle }: { href: string; titulo: string; detalle: string }) {
+  return (
+    <Link href={href} className="group flex items-center justify-between rounded-xl border border-linea bg-papel px-4 py-3 transition-colors hover:border-marca/40">
+      <span>
+        <span className="block text-sm font-medium group-hover:text-marca">{titulo}</span>
+        <span className="block text-xs text-apagado">{detalle}</span>
+      </span>
+      <span className="text-apagado group-hover:text-marca" aria-hidden>
+        →
+      </span>
+    </Link>
+  )
 }

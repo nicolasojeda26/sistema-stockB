@@ -19,6 +19,7 @@ export async function importarFilas(
   const json = JSON.stringify(filas)
 
   return sql.begin(async (tx) => {
+    await tx`select set_config('app.usuario_id', ${String(usuarioId)}, true), set_config('app.origen', 'Importación desde Dux', true)`
     const datos = tx`
       select * from jsonb_to_recordset(${json}::text::jsonb)
         as x(fila int, codigo text, nombre text, categoria text, costo numeric, precio numeric, stock int)`

@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState, type ReactNode } from 'react'
 
-export type ItemNav = { href: string; texto: string; icono: keyof typeof iconos }
+export type ItemNav = { href: string; texto: string; icono: keyof typeof iconos; exacto?: boolean; seccion?: string }
 
 const trazo = { fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round' } as const
 const iconos = {
@@ -33,6 +33,32 @@ const iconos = {
       <path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14.5a6.5 6.5 0 0 1 3.5 5.5" />
     </>
   ),
+  ingreso: (
+    <>
+      <path d="M21 8 12 3 3 8v8l9 5 9-5z" />
+      <path d="M12 8v6m-3-3h6" />
+    </>
+  ),
+  transferencia: <path d="M4 8h13m0 0-3-3m3 3-3 3M20 16H7m0 0 3-3m-3 3 3 3" />,
+  ajuste: (
+    <>
+      <path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0" />
+      <circle cx="16" cy="6" r="2" />
+      <circle cx="10" cy="12" r="2" />
+      <circle cx="18" cy="18" r="2" />
+    </>
+  ),
+  movimientos: <path d="M4 6h16M4 12h16M4 18h10" />,
+  precios: (
+    <>
+      <path d="M12 3v18M16.5 7.5c0-1.7-2-3-4.5-3s-4.5 1.3-4.5 3 1.6 2.6 4.5 3.2 4.5 1.6 4.5 3.3-2 3-4.5 3-4.5-1.3-4.5-3" />
+    </>
+  ),
+  etiquetas: (
+    <>
+      <path d="M4 5v14M7 5v14M10 5v14M14 5v14M16 5v14M20 5v14" />
+    </>
+  ),
   importar: (
     <>
       <path d="M12 3v12m0 0-4-4m4 4 4-4" />
@@ -44,11 +70,11 @@ const iconos = {
 export function Navegacion({ items, pie }: { items: ItemNav[]; pie: ReactNode }) {
   const ruta = usePathname()
   const [abierto, setAbierto] = useState(false)
-  const activo = (href: string) => (href === '/' ? ruta === '/' : ruta.startsWith(href))
+  const activo = (it: ItemNav) => (it.exacto ? ruta === it.href : ruta.startsWith(it.href))
 
   return (
     <>
-      <header className="sticky top-0 z-20 flex h-14 items-center justify-between bg-tinta px-4 text-white lg:hidden">
+      <header className="sticky top-0 z-20 flex print:hidden h-14 items-center justify-between bg-tinta px-4 text-white lg:hidden">
         <span className="font-semibold">Stock y ventas</span>
         <button
           onClick={() => setAbierto((a) => !a)}
@@ -62,29 +88,34 @@ export function Navegacion({ items, pie }: { items: ItemNav[]; pie: ReactNode })
         </button>
       </header>
       <aside
-        className={`${abierto ? 'flex' : 'hidden'} fixed inset-x-0 top-14 bottom-0 z-20 flex-col bg-tinta lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-64 lg:shrink-0`}
+        className={`${abierto ? 'flex' : 'hidden'} fixed inset-x-0 top-14 bottom-0 z-20 flex-col bg-tinta lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-64 lg:shrink-0 print:hidden`}
       >
         <div className="hidden h-16 items-center gap-3 px-5 lg:flex">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white text-sm font-bold text-tinta">S</div>
           <span className="font-semibold text-white">Stock y ventas</span>
         </div>
         <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-3 lg:py-2">
-          {items.map((it) => (
+          {items.map((it) => [
+            it.seccion && (
+              <p key={`s-${it.seccion}`} className="px-3 pt-4 pb-1 text-[11px] font-medium uppercase tracking-wider text-white/40">
+                {it.seccion}
+              </p>
+            ),
             <Link
               key={it.href}
               href={it.href}
-              aria-current={activo(it.href) ? 'page' : undefined}
+              aria-current={activo(it) ? 'page' : undefined}
               onClick={() => setAbierto(false)}
               className={`flex h-10 items-center gap-3 rounded-lg px-3 text-sm transition-colors ${
-                activo(it.href) ? 'bg-white/12 font-medium text-white' : 'text-white/70 hover:bg-white/6 hover:text-white'
+                activo(it) ? 'bg-white/12 font-medium text-white' : 'text-white/70 hover:bg-white/6 hover:text-white'
               }`}
             >
               <svg viewBox="0 0 24 24" className="h-[18px] w-[18px] shrink-0" {...trazo}>
                 {iconos[it.icono]}
               </svg>
               {it.texto}
-            </Link>
-          ))}
+            </Link>,
+          ])}
         </nav>
         {pie}
       </aside>

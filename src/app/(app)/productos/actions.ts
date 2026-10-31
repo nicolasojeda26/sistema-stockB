@@ -9,7 +9,7 @@ import { centavos, parseNumero } from '@/lib/numeros'
 import type { Resultado } from '@/components/form-accion'
 
 export async function guardarProducto(_: Resultado, f: FormData): Promise<Resultado> {
-  await requerirAdmin()
+  const u = await requerirAdmin()
   const id = entero(f, 'id')
   const codigo = texto(f, 'codigo')
   const nombre = texto(f, 'nombre')
@@ -30,19 +30,22 @@ export async function guardarProducto(_: Resultado, f: FormData): Promise<Result
 
   let nuevoId = id
   try {
-    if (id) {
-      await db()`
-        update productos set codigo = ${codigo}, nombre = ${nombre}, categoria_id = ${categoriaId},
-          costo = ${centavos(costo!)}, precio = ${centavos(precio!)}, stock_minimo = ${stockMinimo},
-          activo = ${activo}, actualizado = now()
-        where id = ${id}`
-    } else {
-      const [p] = await db()<{ id: number }[]>`
+    nuevoId = await db().begin(async (tx) => {
+      await tx`select set_config('app.usuario_id', ${String(u.id)}, true), set_config('app.origen', 'Edición del producto', true)`
+      if (id) {
+        await tx`
+          update productos set codigo = ${codigo}, nombre = ${nombre}, categoria_id = ${categoriaId},
+            costo = ${centavos(costo!)}, precio = ${centavos(precio!)}, stock_minimo = ${stockMinimo},
+            activo = ${activo}, actualizado = now()
+          where id = ${id}`
+        return id
+      }
+      const [p] = await tx<{ id: number }[]>`
         insert into productos (codigo, nombre, categoria_id, costo, precio, stock_minimo)
         values (${codigo}, ${nombre}, ${categoriaId}, ${centavos(costo!)}, ${centavos(precio!)}, ${stockMinimo})
         returning id`
-      nuevoId = p.id
-    }
+      return p.id
+    })
   } catch (e) {
     const msg = mensajeError(e, 'Ya hay otro producto con ese código.')
     return { error: msg, errores: (e as { code?: string }).code === '23505' ? { codigo: msg } : undefined }

@@ -9,7 +9,7 @@ Sistema de stock y ventas multisucursal y multidepósito, con factura electróni
 | Etapa | Estado |
 | --- | --- |
 | 1. Base y productos: sucursales, depósitos, usuarios, categorías, productos e importación desde Dux | Lista |
-| 2. Stock: ingreso de mercadería, transferencias, ajustes | Pendiente |
+| 2. Stock: ingreso de mercadería, transferencias, ajustes, movimientos, precios masivos y etiquetas | Lista |
 | 3. Caja y ventas: venta, cobro con varias formas de pago, caja diaria, tickets | Pendiente |
 | 4. Facturación ARCA y reportes | Pendiente |
 | 5. Pruebas en sucursal y capacitación | Pendiente |
@@ -43,6 +43,18 @@ En **Importar desde Dux** se sube el Excel (`.xlsx` o `.xls`) o un CSV.
 - **Productos existentes:** los que ya están (mismo código, sin importar mayúsculas) se actualizan. Si el costo o el precio vienen vacíos, no se pisan los anteriores.
 - **Stock:** queda igual al de la planilla en el depósito elegido. La diferencia se registra como movimiento de *carga inicial*.
 - **Velocidad:** se importa en lotes de 400 filas. 1.200 productos tardan menos de un segundo con la base local.
+
+## Mercadería (etapa 2)
+
+- **Ingreso:** cada lectura del escáner suma una unidad. Si el código no existe, el producto se da de alta ahí mismo; para los que no traen código hay un botón **Generar**, que crea un EAN-13 interno que empieza con 20. La lista se guarda en el navegador por si se recarga la página. Al confirmar, se pueden imprimir las etiquetas de lo que entró.
+- **Transferencia:** sale de un depósito y entra en otro en la misma operación. Si se manda más de lo que figura, avisa, pero deja hacerlo: el stock de origen queda en negativo.
+- **Ajuste (solo administradoras):**
+  - *Recuento:* se carga lo contado y el sistema registra la diferencia.
+  - *Rotura* y *Pérdida o robo:* descuentan unidades.
+  - *Otro:* suma o resta la cantidad que se cargue.
+- **Permisos:** la vendedora carga mercadería en los depósitos de su sucursal y transfiere desde ellos. En Movimientos ve solo lo que toca a su sucursal.
+- **Actualizar precios:** aplica un porcentaje a una categoría o a todo, con redondeo hacia arriba y vista previa antes de confirmar. Un trigger guarda cada cambio de precio en `cambios_precio`, con quién lo hizo y desde dónde (edición, importación o actualización masiva).
+- **Etiquetas:** imprime en hoja A4 (3 × 8) o en impresora de etiquetas de 50 × 25 mm. Usa EAN-13 si el código es válido y CODE128 en los demás casos.
 
 ## Comandos
 

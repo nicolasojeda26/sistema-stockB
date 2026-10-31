@@ -42,3 +42,12 @@ body {
   outline: 2px solid var(--color-marca);
   outline-offset: 2px;
 }
+
+@media print {
+  body {
+    background: white;
+  }
+  .zona-etiquetas > div {
+    outline: none !important;
+  }
+}
