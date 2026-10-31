@@ -7,6 +7,9 @@ export default async function AppLayout({ children }: LayoutProps<'/'>) {
   const esAdmin = u.rol === 'admin'
   const items: ItemNav[] = [
     { href: '/', texto: 'Inicio', icono: 'inicio', exacto: true },
+    { href: '/vender', texto: 'Vender', icono: 'vender' },
+    { href: '/caja', texto: 'Caja', icono: 'caja' },
+    { href: '/ventas', texto: 'Ventas', icono: 'ventas' },
     { href: '/productos', texto: 'Productos', icono: 'productos' },
     { href: '/mercaderia/ingreso', texto: 'Ingreso de mercadería', icono: 'ingreso', seccion: 'Mercadería' },
     { href: '/mercaderia/transferencia', texto: 'Transferencias', icono: 'transferencia' },
@@ -20,6 +23,7 @@ export default async function AppLayout({ children }: LayoutProps<'/'>) {
           { href: '/sucursales', texto: 'Sucursales y depósitos', icono: 'sucursales' },
           { href: '/usuarios', texto: 'Usuarios', icono: 'usuarios' },
           { href: '/importar', texto: 'Importar desde Dux', icono: 'importar' },
+          { href: '/ajustes', texto: 'Ajustes del negocio', icono: 'ajustes' },
         ] as ItemNav[])
       : []),
   ]

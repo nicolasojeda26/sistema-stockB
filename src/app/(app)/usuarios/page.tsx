@@ -14,13 +14,14 @@ export type UsuarioFila = {
   sucursal_id: number | null
   sucursal: string | null
   activo: boolean
+  descuento_max: number
 }
 
 export default async function UsuariosPage() {
   const yo = await requerirAdmin()
   const [usuarios, sucursales] = await Promise.all([
     db()<UsuarioFila[]>`
-      select u.id, u.usuario, u.nombre, u.rol, u.sucursal_id, s.nombre as sucursal, u.activo
+      select u.id, u.usuario, u.nombre, u.rol, u.sucursal_id, s.nombre as sucursal, u.activo, u.descuento_max
       from usuarios u left join sucursales s on s.id = u.sucursal_id
       order by u.activo desc, u.rol, lower(u.nombre)`,
     db()<{ id: number; nombre: string }[]>`select id, nombre from sucursales where activa order by nombre`,
@@ -53,6 +54,7 @@ export default async function UsuariosPage() {
                       <p className="mt-0.5 text-sm text-tinta-suave">
                         @{u.usuario}
                         {u.sucursal ? ` · ${u.sucursal}` : u.rol === 'admin' ? ' · Todas las sucursales' : ''}
+                        {u.rol === 'vendedora' ? ` · descuento hasta ${u.descuento_max} %` : ''}
                       </p>
                     </div>
                   </FilaUsuario>

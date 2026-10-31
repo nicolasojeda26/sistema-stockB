@@ -55,7 +55,8 @@ export default async function InicioPage() {
         {u.rol === 'admin' && <Dato titulo="Sucursales" valor={r.sucursales} href="/sucursales" />}
       </div>
 
-      <div className="mt-3 grid gap-3 sm:grid-cols-3">
+      <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <Atajo href="/vender" titulo="Vender" detalle="Escanear y cobrar" />
         <Atajo href="/mercaderia/ingreso" titulo="Ingresar mercadería" detalle="Llegó un pedido" />
         <Atajo href="/mercaderia/transferencia" titulo="Transferir" detalle="Mandar a otra sucursal o depósito" />
         <Atajo href="/etiquetas" titulo="Imprimir etiquetas" detalle="Código de barras y precio" />

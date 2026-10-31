@@ -8,7 +8,17 @@ import type { UsuarioFila } from './page'
 
 type Sucursal = { id: number; nombre: string }
 
-function CamposRol({ rolInicial, sucursalInicial, sucursales }: { rolInicial: string; sucursalInicial?: number | null; sucursales: Sucursal[] }) {
+function CamposRol({
+  rolInicial,
+  sucursalInicial,
+  descuentoInicial = 10,
+  sucursales,
+}: {
+  rolInicial: string
+  sucursalInicial?: number | null
+  descuentoInicial?: number
+  sucursales: Sucursal[]
+}) {
   const [rol, setRol] = useState(rolInicial)
   return (
     <>
@@ -31,6 +41,11 @@ function CamposRol({ rolInicial, sucursalInicial, sucursales }: { rolInicial: st
           ))}
         </Select>
       </Campo>
+      {rol === 'vendedora' && (
+        <Campo etiqueta="Descuento máximo" ayuda="Lo máximo que puede descontar en una venta (%).">
+          <Input name="descuento_max" inputMode="decimal" defaultValue={descuentoInicial} />
+        </Campo>
+      )}
     </>
   )
 }
@@ -89,18 +104,18 @@ export function FilaUsuario({
       {modo === 'editar' && (
         <FormAccion accion={editarUsuario} alGuardar={() => setModo('ver')} className="mt-4 rounded-lg bg-fondo p-4">
           {(_, enviando) => (
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <input type="hidden" name="id" value={usuario.id} />
               <Campo etiqueta="Nombre">
                 <Input name="nombre" defaultValue={usuario.nombre} required />
               </Campo>
-              <CamposRol rolInicial={usuario.rol} sucursalInicial={usuario.sucursal_id} sucursales={sucursales} />
-              <label className="flex items-center gap-2 text-sm sm:col-span-3">
+              <CamposRol rolInicial={usuario.rol} sucursalInicial={usuario.sucursal_id} descuentoInicial={usuario.descuento_max} sucursales={sucursales} />
+              <label className="flex items-center gap-2 text-sm sm:col-span-2 lg:col-span-4">
                 <input type="checkbox" name="activo" defaultChecked={usuario.activo} disabled={esYo} className="h-4 w-4 accent-marca" />
                 {esYo && <input type="hidden" name="activo" value="on" />}
                 Puede entrar al sistema
               </label>
-              <div className="flex gap-2 sm:col-span-3">
+              <div className="flex gap-2 sm:col-span-2 lg:col-span-4">
                 <Boton type="submit" disabled={enviando}>
                   Guardar
                 </Boton>

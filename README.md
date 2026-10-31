@@ -10,7 +10,7 @@ Sistema de stock y ventas multisucursal y multidepósito, con factura electróni
 | --- | --- |
 | 1. Base y productos: sucursales, depósitos, usuarios, categorías, productos e importación desde Dux | Lista |
 | 2. Stock: ingreso de mercadería, transferencias, ajustes, movimientos, precios masivos y etiquetas | Lista |
-| 3. Caja y ventas: venta, cobro con varias formas de pago, caja diaria, tickets | Pendiente |
+| 3. Caja y ventas: venta, cobro con varias formas de pago, caja diaria, tickets | Lista |
 | 4. Facturación ARCA y reportes | Pendiente |
 | 5. Pruebas en sucursal y capacitación | Pendiente |
 
@@ -55,6 +55,21 @@ En **Importar desde Dux** se sube el Excel (`.xlsx` o `.xls`) o un CSV.
 - **Permisos:** la vendedora carga mercadería en los depósitos de su sucursal y transfiere desde ellos. En Movimientos ve solo lo que toca a su sucursal.
 - **Actualizar precios:** aplica un porcentaje a una categoría o a todo, con redondeo hacia arriba y vista previa antes de confirmar. Un trigger guarda cada cambio de precio en `cambios_precio`, con quién lo hizo y desde dónde (edición, importación o actualización masiva).
 - **Etiquetas:** imprime en hoja A4 (3 × 8) o en impresora de etiquetas de 50 × 25 mm. Usa EAN-13 si el código es válido y CODE128 en los demás casos.
+
+## Caja y ventas (etapa 3)
+
+- **Caja:** cada usuario abre su caja con el efectivo inicial; las administradoras eligen en qué sucursal. Mientras está abierta se pueden registrar ingresos y retiros de efectivo, con su motivo. Al cerrarla se carga lo contado y queda guardado lo que tenía que haber y la diferencia. El resumen se puede imprimir.
+- **Vender:**
+  - Cada lectura del escáner suma una unidad; también se puede buscar por nombre.
+  - Se pueden cambiar cantidades y hacer descuentos por producto o generales. Cada vendedora tiene un tope de descuento (en Usuarios); las administradoras, no.
+  - El carrito se guarda en el navegador y se vacía apenas se registra la venta, así una recarga no la cobra dos veces.
+- **Cobrar (F2):**
+  - Medios: efectivo, transferencia, débito y crédito (con cuotas). Se pueden combinar.
+  - En efectivo sugiere billetes y calcula el vuelto.
+  - El servidor recalcula todo con los precios actuales: si alguno cambió, avisa antes de cobrar.
+  - La venta descuenta stock del depósito principal de la sucursal. Puede quedar en negativo: la prenda está en la mano.
+- **Ticket:** en `/ticket/[id]`, para impresora térmica de 58 u 80 mm. Lleva el nombre del negocio y el pie que se cargan en Ajustes del negocio. También se puede mandar el detalle por WhatsApp. No es una factura: eso llega en la etapa 4.
+- **Ventas:** listado por fechas, sucursal, vendedora y medio, con total y ticket promedio. Las administradoras pueden anular una venta: se devuelve el stock y deja de sumar en la caja.
 
 ## Comandos
 
