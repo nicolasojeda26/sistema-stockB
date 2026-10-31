@@ -21,7 +21,7 @@ export function ResumenCajaVista({
         Resumen
       </TituloTarjeta>
       <div className="p-5">
-        <p className="text-sm text-tinta-suave">Total vendido</p>
+        <p className="text-sm text-tinta-suave">Total vendido{r.devoluciones > 0 ? ` (menos ${formatoPesos(r.devoluciones)} devueltos)` : ''}</p>
         <p className="num text-3xl font-semibold tracking-tight">{formatoPesos(r.total)}</p>
         <dl className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
           {(Object.keys(MEDIOS) as MedioPago[]).map((m) => (
@@ -34,7 +34,8 @@ export function ResumenCajaVista({
         <h3 className="mt-6 mb-2 text-sm font-semibold">Efectivo en la caja</h3>
         <dl className="space-y-1.5 text-sm">
           <Fila texto="Al abrir" valor={r.montoInicial} />
-          <Fila texto="Ventas en efectivo" valor={r.porMedio.efectivo} signo="+" />
+          <Fila texto="Ventas en efectivo" valor={Math.round((r.porMedio.efectivo + r.devolucionesEfectivo) * 100) / 100} signo="+" />
+          {r.devolucionesEfectivo > 0 && <Fila texto="Devoluciones en efectivo" valor={r.devolucionesEfectivo} signo="−" />}
           {r.ingresos > 0 && <Fila texto="Ingresos" valor={r.ingresos} signo="+" />}
           {r.retiros > 0 && <Fila texto="Retiros" valor={r.retiros} signo="−" />}
           <div className="flex justify-between border-t border-linea pt-2 font-semibold">

@@ -5,7 +5,7 @@ import { Aviso, Boton } from '@/components/ui'
 import { formatoPesos } from '@/lib/formato'
 import { parseNumero } from '@/lib/numeros'
 import { MEDIOS, aCentavos, aPesos, montosSugeridos, type MedioPago } from '@/lib/venta-calculo'
-import { cobrar } from './actions'
+import { cobrar, facturarConsumidorFinal } from './actions'
 import type { LineaCarrito } from './punto-de-venta'
 
 type Pago = { medio: MedioPago; monto: string; cuotas: number }
@@ -34,7 +34,14 @@ export function Cobro({
   const [pagos, setPagos] = useState<Pago[]>([{ medio: 'efectivo', monto: aTexto(totalCentavos), cuotas: 1 }])
   const [recibido, setRecibido] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const [hecho, setHecho] = useState<{ ventaId: number; vuelto: number } | null>(null)
+  const [hecho, setHecho] = useState<{
+    ventaId: number
+    vuelto: number
+    comprobante?: { id: number; tipo: string; simulado: boolean }
+    errorFactura?: string
+    puedeFacturar?: boolean
+  } | null>(null)
+  const [facturando, iniciarFactura] = useTransition()
   const [telefono, setTelefono] = useState('')
   const [guardando, iniciar] = useTransition()
   const confirmarRef = useRef<HTMLButtonElement>(null)
@@ -85,7 +92,7 @@ export function Cobro({
         totalEsperado: aPesos(total),
       })
       if (r.error || !r.ventaId) return setError(r.error ?? 'No se pudo registrar.')
-      setHecho({ ventaId: r.ventaId, vuelto: r.vuelto ?? 0 })
+      setHecho({ ventaId: r.ventaId, vuelto: r.vuelto ?? 0, comprobante: r.comprobante, errorFactura: r.errorFactura, puedeFacturar: r.puedeFacturar })
       alVender()
     })
   }
@@ -116,15 +123,55 @@ export function Cobro({
                 </p>
               </div>
             )}
+            {hecho.comprobante && (
+              <p className="mt-4 text-sm text-ok">
+                {hecho.comprobante.tipo} emitida{hecho.comprobante.simulado ? ' (simulación)' : ''}
+              </p>
+            )}
+            {hecho.errorFactura && (
+              <div className="mt-4 text-left">
+                <Aviso tipo="alerta">La venta quedó registrada, pero no se pudo facturar: {hecho.errorFactura}</Aviso>
+              </div>
+            )}
             <div className="mt-6 grid gap-2 sm:grid-cols-2">
-              <a
-                href={`/ticket/${hecho.ventaId}?imprimir=1`}
-                target="_blank"
-                rel="noopener"
-                className="inline-flex h-11 items-center justify-center rounded-lg border border-linea text-sm font-medium hover:bg-fondo"
-              >
-                Imprimir ticket
-              </a>
+              {hecho.comprobante ? (
+                <a
+                  href={`/comprobante/${hecho.comprobante.id}?imprimir=1`}
+                  target="_blank"
+                  rel="noopener"
+                  className="inline-flex h-11 items-center justify-center rounded-lg border border-linea text-sm font-medium hover:bg-fondo"
+                >
+                  Imprimir factura
+                </a>
+              ) : (
+                <div className="flex gap-2">
+                  <a
+                    href={`/ticket/${hecho.ventaId}?imprimir=1`}
+                    target="_blank"
+                    rel="noopener"
+                    className="inline-flex h-11 flex-1 items-center justify-center rounded-lg border border-linea text-sm font-medium hover:bg-fondo"
+                  >
+                    Ticket
+                  </a>
+                  {hecho.puedeFacturar && (
+                    <button
+                      disabled={facturando}
+                      onClick={() =>
+                        iniciarFactura(async () => {
+                          const f = await facturarConsumidorFinal(hecho.ventaId)
+                          if (f.comprobante) {
+                            setHecho((h) => (h ? { ...h, comprobante: f.comprobante, errorFactura: undefined } : h))
+                            window.open(`/comprobante/${f.comprobante.id}?imprimir=1`, '_blank')
+                          } else setHecho((h) => (h ? { ...h, errorFactura: f.error } : h))
+                        })
+                      }
+                      className="inline-flex h-11 flex-1 items-center justify-center rounded-lg border border-marca/40 text-sm font-medium text-marca hover:bg-marca-clara"
+                    >
+                      {facturando ? 'Facturando…' : 'Facturar'}
+                    </button>
+                  )}
+                </div>
+              )}
               <div className="flex gap-2">
                 <input
                   value={telefono}

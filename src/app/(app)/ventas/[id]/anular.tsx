@@ -9,7 +9,7 @@ export function AnularVenta({ ventaId }: { ventaId: number }) {
     <FormAccion accion={anular} className="space-y-3 p-5">
       {(_, enviando) => (
         <>
-          <p className="text-sm text-tinta-suave">Devuelve el stock y la saca de los totales. Queda registrado quién la anuló.</p>
+          <p className="text-sm text-tinta-suave">Devuelve el stock y la saca de los totales. Si estaba facturada, se emite la nota de crédito. Queda registrado quién la anuló.</p>
           <input type="hidden" name="id" value={ventaId} />
           <Campo etiqueta="Motivo">
             <Input name="motivo" placeholder="Ej.: se cobró dos veces" required maxLength={200} />

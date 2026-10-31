@@ -11,13 +11,13 @@ Sistema de stock y ventas multisucursal y multidepósito, con factura electróni
 | 1. Base y productos: sucursales, depósitos, usuarios, categorías, productos e importación desde Dux | Lista |
 | 2. Stock: ingreso de mercadería, transferencias, ajustes, movimientos, precios masivos y etiquetas | Lista |
 | 3. Caja y ventas: venta, cobro con varias formas de pago, caja diaria, tickets | Lista |
-| 4. Facturación ARCA y reportes | Pendiente |
+| 4. Facturación ARCA y reportes | Lista (falta cargar los datos fiscales y el certificado reales) |
 | 5. Pruebas en sucursal y capacitación | Pendiente |
 
 ## Puesta en marcha
 
 1. **Base:** creá un proyecto en Supabase y copiá la cadena de conexión en modo *Transaction pooler* (puerto 6543).
-2. **Variables:** copiá `.env.example` a `.env.local` y completá `DATABASE_URL` y `SESSION_SECRET`.
+2. **Variables:** copiá `.env.example` a `.env.local` y completá `DATABASE_URL`, `SESSION_SECRET` y `CLAVE_CIFRADO`.
 3. **Instalar y crear las tablas:**
    ```bash
    npm install
@@ -25,7 +25,7 @@ Sistema de stock y ventas multisucursal y multidepósito, con factura electróni
    npm run crear-admin -- belen "Belen" unaContraseñaSegura
    npm run dev
    ```
-4. **Vercel:** importá el repo y cargá `DATABASE_URL` y `SESSION_SECRET` en *Environment Variables*. Cada vez que haya una migración nueva, corré `npm run db:migrate` contra la base de producción.
+4. **Vercel:** importá el repo y cargá `DATABASE_URL`, `SESSION_SECRET` y `CLAVE_CIFRADO` en *Environment Variables*. En *Settings → Functions* elegí la región **São Paulo (gru1)**, la más cercana a Supabase y a ARCA. Cada vez que haya una migración nueva, corré `npm run db:migrate` contra la base de producción.
 
 Para probar con datos de ejemplo en una base vacía: `npm run db:demo`. Crea dos sucursales, 12 productos y los usuarios `belen`, `sofia` y `camila`, todos con la contraseña `demo1234`.
 
@@ -70,6 +70,53 @@ En **Importar desde Dux** se sube el Excel (`.xlsx` o `.xls`) o un CSV.
   - La venta descuenta stock del depósito principal de la sucursal. Puede quedar en negativo: la prenda está en la mano.
 - **Ticket:** en `/ticket/[id]`, para impresora térmica de 58 u 80 mm. Lleva el nombre del negocio y el pie que se cargan en Ajustes del negocio. También se puede mandar el detalle por WhatsApp. No es una factura: eso llega en la etapa 4.
 - **Ventas:** listado por fechas, sucursal, vendedora y medio, con total y ticket promedio. Las administradoras pueden anular una venta: se devuelve el stock y deja de sumar en la caja.
+
+## Facturación electrónica y reportes (etapa 4)
+
+**Facturación ARCA (`/facturacion`):**
+
+1. Cargar los datos fiscales: CUIT, razón social, condición frente al IVA, domicilio, IIBB e inicio de actividades.
+2. Cargar un punto de venta por sucursal. Se crea en ARCA del tipo *Factura electrónica – Web Services*.
+3. Certificado:
+   - El sistema genera la clave privada (queda cifrada en la base con `CLAVE_CIFRADO`) y el pedido `.csr`.
+   - El `.csr` se sube a ARCA: en *WSASS* para homologación, o en *Administración de Certificados Digitales* para producción, con la relación al servicio de facturación electrónica.
+   - El `.crt` que devuelve ARCA se carga en la misma pantalla.
+   - Con «Probar conexión» se verifica todo.
+4. Elegir el modo de facturación:
+
+| Modo | Qué hace |
+| --- | --- |
+| Desactivada | Solo emite tickets |
+| Simulación | Emite comprobantes de práctica sin ARCA, con la leyenda «sin validez» |
+| Homologación | Factura contra el ARCA de pruebas |
+| Producción | Factura en serio |
+
+Además, se puede activar **facturar cada venta automáticamente** a consumidor final.
+
+**Cómo se arman los comprobantes:**
+- **Tipo:** A, B o C según la condición del emisor y del cliente: el monotributista y el exento emiten C; el inscripto emite A a otro inscripto y B al resto.
+- **IVA:** en A y B se informa el 21 % sobre los precios con IVA incluido. La B muestra el *IVA contenido* (Ley 27.743).
+- **Condición del cliente:** se informa siempre `CondicionIVAReceptorId`, que ARCA exige desde el 1/12/2026.
+- **Identificar al consumidor final:** desde $10.000.000 (RG 5700/2025, configurable) hay que pedir DNI o CUIT.
+- **Comprobante:** se imprime en `/comprobante/[id]`, en formato térmico o A4, con QR (RG 4892) y CAE.
+
+**Notas de crédito:** al **anular** una venta facturada se emite la nota de crédito por el total; si ARCA no la autoriza, la venta no se anula. Las **devoluciones** parciales devuelven stock y plata desde la caja de quien la hace, y emiten la nota de crédito por lo devuelto. Si ARCA falla, la devolución queda hecha y la nota se reintenta desde la venta.
+
+**Técnica:**
+- La numeración usa un bloqueo por punto de venta y tipo, y siempre pide el último número a ARCA (`FECompUltimoAutorizado`).
+- El token del WSAA se guarda unas 12 horas en `arca_credenciales`.
+- Los rechazos quedan registrados con el mensaje de ARCA.
+- Los servidores de ARCA usan claves viejas: las conexiones bajan el nivel de seguridad de OpenSSL solo para ellos.
+- Los tests usan un servidor que imita a ARCA (`tests/arca.test.ts`). Contra la homologación real se comprobó que el servidor responde (`FEDummy`) y que el WSAA lee la firma CMS.
+
+**Comprobantes (`/comprobantes`):** listado por fechas y punto de venta, con totales de neto, IVA y total (las notas de crédito restan) y un Excel para el contador.
+
+**Reportes (`/reportes`):**
+- Lo vendido neto de devoluciones, en cantidad de ventas y ticket promedio.
+- Ventas por día, sucursal, vendedora y medio de pago.
+- Productos más vendidos y productos con stock sin ventas en 60 días.
+- Valor del stock a costo y a precio de venta.
+- Todo se baja en un Excel con una hoja por tema.
 
 ## Comandos
 

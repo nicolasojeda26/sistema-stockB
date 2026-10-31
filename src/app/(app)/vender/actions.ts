@@ -6,6 +6,7 @@ import { db } from '@/lib/db'
 import { requerirUsuario } from '@/lib/dal'
 import { abrirCaja, cajaAbierta, ErrorVenta, registrarVenta } from '@/lib/ventas'
 import { parseNumero } from '@/lib/numeros'
+import { CONSUMIDOR_FINAL, facturarVenta, leerConfig } from '@/lib/arca/facturacion'
 import type { Resultado } from '@/components/form-accion'
 
 export type ProductoVenta = { id: number; codigo: string; nombre: string; precio: number; stock: number }
@@ -56,19 +57,56 @@ const Cobro = z.object({
   totalEsperado: z.number().nonnegative(),
 })
 
-export async function cobrar(datos: z.input<typeof Cobro>): Promise<{ ventaId?: number; vuelto?: number; error?: string }> {
+export type ResultadoCobro = {
+  ventaId?: number
+  vuelto?: number
+  error?: string
+  /** Factura emitida automáticamente (si está activado). */
+  comprobante?: { id: number; tipo: string; simulado: boolean }
+  /** La venta quedó registrada pero la factura no salió. */
+  errorFactura?: string
+  puedeFacturar?: boolean
+}
+
+export async function cobrar(datos: z.input<typeof Cobro>): Promise<ResultadoCobro> {
   const u = await requerirUsuario()
   const r = Cobro.safeParse(datos)
   if (!r.success) return { error: 'Revisá los datos del cobro.' }
+  let res
   try {
-    const res = await registrarVenta(db(), { ...r.data, usuario: { id: u.id, rol: u.rol } })
-    revalidatePath('/caja')
-    revalidatePath('/ventas')
-    return { ventaId: res.ventaId, vuelto: res.vuelto }
+    res = await registrarVenta(db(), { ...r.data, usuario: { id: u.id, rol: u.rol } })
   } catch (e) {
     if (e instanceof ErrorVenta) return { error: e.message }
     console.error(e)
     return { error: 'No se pudo registrar la venta. Probá de nuevo.' }
+  }
+  revalidatePath('/caja')
+  revalidatePath('/ventas')
+  const config = await leerConfig(db())
+  const salida: ResultadoCobro = { ventaId: res.ventaId, vuelto: res.vuelto, puedeFacturar: config.modo !== 'desactivada' }
+  if (config.modo !== 'desactivada' && config.facturar_automatico) {
+    // La venta ya está guardada: si la factura falla, se avisa y se puede reintentar.
+    try {
+      const c = await facturarVenta(db(), { ventaId: res.ventaId, receptor: CONSUMIDOR_FINAL, usuarioId: u.id })
+      salida.comprobante = { id: c.id, tipo: c.tipo, simulado: c.simulado }
+    } catch (e) {
+      salida.errorFactura = (e as Error).message
+    }
+  }
+  return salida
+}
+
+/** Factura a consumidor final desde la pantalla de cobro. */
+export async function facturarConsumidorFinal(ventaId: number): Promise<{ comprobante?: { id: number; tipo: string; simulado: boolean }; error?: string }> {
+  const u = await requerirUsuario()
+  const [v] = await db()<{ usuario_id: number }[]>`select usuario_id from ventas where id = ${ventaId}`
+  if (!v || (u.rol !== 'admin' && v.usuario_id !== u.id)) return { error: 'No encontramos la venta.' }
+  try {
+    const c = await facturarVenta(db(), { ventaId, receptor: CONSUMIDOR_FINAL, usuarioId: u.id })
+    revalidatePath(`/ventas/${ventaId}`)
+    return { comprobante: { id: c.id, tipo: c.tipo, simulado: c.simulado } }
+  } catch (e) {
+    return { error: (e as Error).message }
   }
 }
 

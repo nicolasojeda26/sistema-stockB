@@ -18,7 +18,10 @@ export default async function AppLayout({ children }: LayoutProps<'/'>) {
     { href: '/etiquetas', texto: 'Etiquetas', icono: 'etiquetas' },
     ...(esAdmin
       ? ([
-          { href: '/precios', texto: 'Actualizar precios', icono: 'precios', seccion: 'Administración' },
+          { href: '/reportes', texto: 'Reportes', icono: 'reportes', seccion: 'Administración' },
+          { href: '/comprobantes', texto: 'Comprobantes', icono: 'factura' },
+          { href: '/facturacion', texto: 'Facturación ARCA', icono: 'factura' },
+          { href: '/precios', texto: 'Actualizar precios', icono: 'precios' },
           { href: '/categorias', texto: 'Categorías', icono: 'categorias' },
           { href: '/sucursales', texto: 'Sucursales y depósitos', icono: 'sucursales' },
           { href: '/usuarios', texto: 'Usuarios', icono: 'usuarios' },

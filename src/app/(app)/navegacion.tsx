@@ -63,6 +63,13 @@ const iconos = {
     </>
   ),
   ventas: <path d="M4 19V5M4 19h16M8 15l3-4 3 2 5-6" />,
+  factura: (
+    <>
+      <path d="M6 3h12v18l-3-2-3 2-3-2-3 2z" />
+      <path d="M9 8h6M9 12h6M9 16h3" />
+    </>
+  ),
+  reportes: <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />,
   ajustes: (
     <>
       <circle cx="12" cy="12" r="3" />

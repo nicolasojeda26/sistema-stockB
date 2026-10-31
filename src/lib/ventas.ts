@@ -34,8 +34,12 @@ export async function abrirCaja(sql: Sql, d: { usuarioId: number; sucursalId: nu
 export type ResumenCaja = {
   ventas: number
   anuladas: number
+  /** Vendido menos devuelto. */
   total: number
+  /** Por medio, ya restadas las devoluciones. */
   porMedio: Record<MedioPago, number>
+  devoluciones: number
+  devolucionesEfectivo: number
   ingresos: number
   retiros: number
   montoInicial: number
@@ -44,7 +48,7 @@ export type ResumenCaja = {
 
 /** Totales de una caja a partir de lo registrado (solo ventas no anuladas). */
 export async function resumenCaja(sql: Sql, cajaId: number): Promise<ResumenCaja> {
-  const [[v], pagos, [m], [c]] = await Promise.all([
+  const [[v], pagos, devs, [m], [c]] = await Promise.all([
     sql<{ ventas: number; anuladas: number; total: number }[]>`
       select count(*) filter (where estado = 'completada')::int as ventas,
              count(*) filter (where estado = 'anulada')::int as anuladas,
@@ -54,6 +58,9 @@ export async function resumenCaja(sql: Sql, cajaId: number): Promise<ResumenCaja
       select p.medio, sum(p.monto) as monto
       from venta_pagos p join ventas v on v.id = p.venta_id
       where v.caja_id = ${cajaId} and v.estado = 'completada' group by p.medio`,
+    // Las devoluciones salen de la caja donde se hacen (no de la caja de la venta).
+    sql<{ medio: MedioPago; monto: number }[]>`
+      select medio, sum(total) as monto from devoluciones where caja_id = ${cajaId} group by medio`,
     sql<{ ingresos: number; retiros: number }[]>`
       select coalesce(sum(monto) filter (where tipo = 'ingreso'), 0) as ingresos,
              coalesce(sum(monto) filter (where tipo = 'retiro'), 0) as retiros
@@ -62,12 +69,21 @@ export async function resumenCaja(sql: Sql, cajaId: number): Promise<ResumenCaja
   ])
   const porMedio: Record<MedioPago, number> = { efectivo: 0, transferencia: 0, debito: 0, credito: 0 }
   for (const p of pagos) porMedio[p.medio] = Number(p.monto)
+  let devueltoC = 0
+  let devueltoEfC = 0
+  for (const d of devs) {
+    porMedio[d.medio] = aPesos(aCentavos(porMedio[d.medio]) - aCentavos(Number(d.monto)))
+    devueltoC += aCentavos(Number(d.monto))
+    if (d.medio === 'efectivo') devueltoEfC += aCentavos(Number(d.monto))
+  }
   const esperado = aCentavos(c.monto_inicial) + aCentavos(porMedio.efectivo) + aCentavos(m.ingresos) - aCentavos(m.retiros)
   return {
     ventas: v.ventas,
     anuladas: v.anuladas,
-    total: Number(v.total),
+    total: aPesos(aCentavos(Number(v.total)) - devueltoC),
     porMedio,
+    devoluciones: aPesos(devueltoC),
+    devolucionesEfectivo: aPesos(devueltoEfC),
     ingresos: Number(m.ingresos),
     retiros: Number(m.retiros),
     montoInicial: Number(c.monto_inicial),
@@ -198,6 +214,8 @@ export async function anularVenta(sql: Sql, d: { ventaId: number; usuarioId: num
     const [v] = await tx<{ estado: string; deposito_id: number }[]>`select estado, deposito_id from ventas where id = ${d.ventaId} for update`
     if (!v) throw new ErrorVenta('La venta no existe.')
     if (v.estado === 'anulada') throw new ErrorVenta('La venta ya estaba anulada.')
+    const [dev] = await tx`select 1 from devoluciones where venta_id = ${d.ventaId}`
+    if (dev) throw new ErrorVenta('Esta venta ya tiene devoluciones: devolvé lo que queda en lugar de anularla.')
     await tx`
       update ventas set estado = 'anulada', anulada_en = now(), anulada_por = ${d.usuarioId}, motivo_anulacion = ${d.motivo.trim()}
       where id = ${d.ventaId}`
@@ -212,5 +230,72 @@ export async function anularVenta(sql: Sql, d: { ventaId: number; usuarioId: num
         insert into movimientos_stock (producto_id, deposito_id, cantidad, tipo, motivo, usuario_id, venta_id)
         values (${it.producto_id}, ${v.deposito_id}, ${it.cantidad}, 'devolucion', ${'Anulación de venta: ' + d.motivo.trim()}, ${d.usuarioId}, ${d.ventaId})`
     }
+  })
+}
+
+// ── Devoluciones ────────────────────────────────────────────────────────
+
+export type ItemVendido = { id: number; producto_id: number | null; nombre: string; cantidad: number; devuelto: number; unitario: number }
+
+/** Lo que se puede devolver de una venta, con el precio efectivo por unidad (descuentos incluidos). */
+export async function itemsDevolvibles(sql: Sql, ventaId: number): Promise<ItemVendido[]> {
+  const [v] = await sql<{ total: number; suma: number }[]>`
+    select v.total, (select sum(subtotal) from venta_items where venta_id = v.id) as suma from ventas v where v.id = ${ventaId}`
+  if (!v) return []
+  const factor = Number(v.suma) > 0 ? Number(v.total) / Number(v.suma) : 0
+  const items = await sql<{ id: number; producto_id: number | null; nombre: string; cantidad: number; subtotal: number; devuelto: number }[]>`
+    select i.id, i.producto_id, i.nombre, i.cantidad, i.subtotal,
+      coalesce((select sum(di.cantidad) from devolucion_items di where di.venta_item_id = i.id), 0)::int as devuelto
+    from venta_items i where i.venta_id = ${ventaId} order by i.id`
+  return items.map((i) => ({ ...i, unitario: aPesos(Math.round((aCentavos(Number(i.subtotal)) * factor) / i.cantidad)) }))
+}
+
+export async function registrarDevolucion(
+  sql: Sql,
+  d: { ventaId: number; usuario: Quien; items: { ventaItemId: number; cantidad: number }[]; medio: MedioPago; motivo: string },
+): Promise<{ devolucionId: number; total: number }> {
+  if (!d.motivo.trim()) throw new ErrorVenta('Contá el motivo de la devolución.')
+  const pedidos = d.items.filter((i) => i.cantidad > 0)
+  if (!pedidos.length) throw new ErrorVenta('Elegí qué productos se devuelven.')
+  for (const i of pedidos) if (!Number.isInteger(i.cantidad)) throw new ErrorVenta('Hay una cantidad no válida.')
+
+  return sql.begin(async (tx) => {
+    const caja = await cajaAbierta(tx as unknown as Sql, d.usuario.id)
+    if (!caja) throw new ErrorVenta('Abrí tu caja: la plata de la devolución sale de ahí.')
+    const [v] = await tx<{ estado: string; sucursal_id: number; total: number }[]>`select estado, sucursal_id, total from ventas where id = ${d.ventaId} for update`
+    if (!v) throw new ErrorVenta('La venta no existe.')
+    if (v.estado === 'anulada') throw new ErrorVenta('La venta está anulada.')
+    if (d.usuario.rol !== 'admin' && v.sucursal_id !== caja.sucursal_id) throw new ErrorVenta('Solo podés hacer devoluciones de ventas de tu sucursal.')
+    const [dep] = await tx<{ id: number }[]>`select id from depositos where sucursal_id = ${caja.sucursal_id} and es_principal and activo`
+    if (!dep) throw new ErrorVenta('Tu sucursal no tiene depósito principal activo.')
+
+    const disponibles = await itemsDevolvibles(tx as unknown as Sql, d.ventaId)
+    const lineas = pedidos.map((p) => {
+      const it = disponibles.find((x) => x.id === p.ventaItemId)
+      if (!it) throw new ErrorVenta('Uno de los productos no es de esta venta.')
+      if (p.cantidad > it.cantidad - it.devuelto) throw new ErrorVenta(`De "${it.nombre}" se pueden devolver como mucho ${it.cantidad - it.devuelto}.`)
+      return { it, cantidad: p.cantidad, subtotal: aPesos(aCentavos(it.unitario) * p.cantidad) }
+    })
+    let totalC = lineas.reduce((a, l) => a + aCentavos(l.subtotal), 0)
+    // Que lo devuelto nunca supere lo cobrado (redondeos de los descuentos).
+    const [{ ya }] = await tx<{ ya: number }[]>`select coalesce(sum(total), 0) as ya from devoluciones where venta_id = ${d.ventaId}`
+    totalC = Math.min(totalC, aCentavos(Number(v.total)) - aCentavos(Number(ya)))
+    if (totalC <= 0) throw new ErrorVenta('Ya se devolvió todo lo cobrado en esta venta.')
+
+    const [dv] = await tx<{ id: number }[]>`
+      insert into devoluciones (venta_id, caja_id, deposito_id, usuario_id, total, medio, motivo)
+      values (${d.ventaId}, ${caja.id}, ${dep.id}, ${d.usuario.id}, ${aPesos(totalC)}, ${d.medio}, ${d.motivo.trim()})
+      returning id`
+    await tx`insert into devolucion_items ${tx(lineas.map((l) => ({ devolucion_id: dv.id, venta_item_id: l.it.id, cantidad: l.cantidad, subtotal: l.subtotal })))}`
+    for (const l of [...lineas].sort((a, b) => (a.it.producto_id ?? 0) - (b.it.producto_id ?? 0))) {
+      if (!l.it.producto_id) continue
+      await tx`
+        insert into stock (producto_id, deposito_id, cantidad) values (${l.it.producto_id}, ${dep.id}, ${l.cantidad})
+        on conflict (producto_id, deposito_id) do update set cantidad = stock.cantidad + excluded.cantidad`
+      await tx`
+        insert into movimientos_stock (producto_id, deposito_id, cantidad, tipo, motivo, usuario_id, venta_id)
+        values (${l.it.producto_id}, ${dep.id}, ${l.cantidad}, 'devolucion', ${'Devolución: ' + d.motivo.trim()}, ${d.usuario.id}, ${d.ventaId})`
+    }
+    return { devolucionId: dv.id, total: aPesos(totalC) }
   })
 }

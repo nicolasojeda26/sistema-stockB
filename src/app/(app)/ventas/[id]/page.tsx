@@ -7,6 +7,12 @@ import { formatoFecha, formatoPesos } from '@/lib/formato'
 import { MEDIOS } from '@/lib/venta-calculo'
 import { Aviso, BotonLink, Encabezado, Tarjeta, TituloTarjeta, tablaCls as t } from '@/components/ui'
 import { AnularVenta } from './anular'
+import { db } from '@/lib/db'
+import { itemsDevolvibles } from '@/lib/ventas'
+import { leerConfig } from '@/lib/arca/facturacion'
+import { numeroComprobante, TIPOS_CBTE, type CondicionEmisor } from '@/lib/arca/comprobantes'
+import { Etiqueta } from '@/components/ui'
+import { DevolverVenta, FacturarVenta, ReintentarNC } from './acciones'
 
 export const metadata: Metadata = { title: 'Venta' }
 
@@ -16,6 +22,19 @@ export default async function VentaPage(props: PageProps<'/ventas/[id]'>) {
   if (!Number.isInteger(id)) notFound()
   const v = await leerVenta(id, u)
   if (!v) notFound()
+  const sql = db()
+  const [config, comprobantes, devoluciones, devolvibles] = await Promise.all([
+    leerConfig(sql),
+    sql<{ id: number; cbte_tipo: number; punto_venta: number; numero: number | null; estado: string; mensaje: string | null; total: number; ambiente: string; devolucion_id: number | null; creado: Date }[]>`
+      select id, cbte_tipo, punto_venta, numero, estado, mensaje, total, ambiente, devolucion_id, creado from comprobantes where venta_id = ${id} order by id`,
+    sql<{ id: number; creado: Date; total: number; medio: string; motivo: string; usuario: string | null }[]>`
+      select d.id, d.creado, d.total, d.medio, d.motivo, us.nombre as usuario from devoluciones d left join usuarios us on us.id = d.usuario_id
+      where d.venta_id = ${id} order by d.id`,
+    itemsDevolvibles(sql, id),
+  ])
+  const factura = comprobantes.find((c) => c.estado === 'autorizado' && !TIPOS_CBTE[c.cbte_tipo].nc)
+  const puedeFacturar = config.modo !== 'desactivada' && !factura && v.estado === 'completada'
+  const quedaParaDevolver = v.estado === 'completada' && devolvibles.some((i) => i.cantidad > i.devuelto)
 
   return (
     <>
@@ -122,7 +141,66 @@ export default async function VentaPage(props: PageProps<'/ventas/[id]'>) {
               </Link>
             </p>
           </Tarjeta>
-          {u.rol === 'admin' && v.estado === 'completada' && (
+          {(comprobantes.length > 0 || puedeFacturar) && (
+            <Tarjeta>
+              <TituloTarjeta>Facturación</TituloTarjeta>
+              {comprobantes.length > 0 && (
+                <ul className="divide-y divide-linea text-sm">
+                  {comprobantes.map((c) => (
+                    <li key={c.id} className="px-5 py-3">
+                      <div className="flex items-center justify-between gap-2">
+                        {c.estado === 'autorizado' ? (
+                          <a href={`/comprobante/${c.id}`} target="_blank" rel="noopener" className="font-medium text-marca hover:underline">
+                            {TIPOS_CBTE[c.cbte_tipo].nombre} {numeroComprobante(c.punto_venta, c.numero!)}
+                          </a>
+                        ) : (
+                          <span className="font-medium">{TIPOS_CBTE[c.cbte_tipo].nombre}</span>
+                        )}
+                        <span className="num">{formatoPesos(c.total)}</span>
+                      </div>
+                      <div className="mt-1 flex flex-wrap gap-1.5">
+                        {c.estado === 'rechazado' ? <Etiqueta tono="alerta">Rechazado</Etiqueta> : <Etiqueta tono="ok">Autorizado</Etiqueta>}
+                        {c.ambiente !== 'produccion' && <Etiqueta tono="apagado">{c.ambiente === 'simulacion' ? 'Simulación' : 'Homologación'}</Etiqueta>}
+                      </div>
+                      {c.estado === 'rechazado' && c.mensaje && <p className="mt-1 text-xs text-alerta">{c.mensaje}</p>}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {puedeFacturar && <FacturarVenta ventaId={v.id} condicionEmisor={config.condicion_iva as CondicionEmisor | null} total={v.total} identificarDesde={config.identificar_desde} />}
+            </Tarjeta>
+          )}
+          {devoluciones.length > 0 && (
+            <Tarjeta>
+              <TituloTarjeta>Devoluciones</TituloTarjeta>
+              <ul className="divide-y divide-linea text-sm">
+                {devoluciones.map((d) => {
+                  const nc = comprobantes.find((c) => c.devolucion_id === d.id && c.estado === 'autorizado')
+                  return (
+                    <li key={d.id} className="px-5 py-3">
+                      <div className="flex justify-between gap-2">
+                        <span>
+                          {formatoFecha(d.creado)} · {MEDIOS[d.medio as keyof typeof MEDIOS]}
+                          <span className="block text-xs text-apagado">
+                            {d.motivo} · {d.usuario ?? '—'}
+                          </span>
+                        </span>
+                        <span className="num text-error">−{formatoPesos(d.total)}</span>
+                      </div>
+                      {factura && !nc && <ReintentarNC devolucionId={d.id} />}
+                    </li>
+                  )
+                })}
+              </ul>
+            </Tarjeta>
+          )}
+          {quedaParaDevolver && (
+            <Tarjeta>
+              <TituloTarjeta>Devolver productos</TituloTarjeta>
+              <DevolverVenta ventaId={v.id} items={devolvibles.filter((i) => i.cantidad > i.devuelto)} facturada={!!factura} />
+            </Tarjeta>
+          )}
+          {u.rol === 'admin' && v.estado === 'completada' && devoluciones.length === 0 && (
             <Tarjeta>
               <TituloTarjeta>Anular venta</TituloTarjeta>
               <AnularVenta ventaId={v.id} />
