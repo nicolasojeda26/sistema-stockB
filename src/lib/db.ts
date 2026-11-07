@@ -4,10 +4,23 @@ declare global {
   var __sql: Sql | undefined
 }
 
+/**
+ * Dirección de la base: DATABASE_URL, o la que deja la integración de Supabase en Vercel
+ * (POSTGRES_URL, pooler en modo transacción). De la URL se quitan los parámetros que no son
+ * de Postgres (la integración agrega algunos propios, que el servidor rechazaría).
+ */
+export function urlBase(env: Record<string, string | undefined> = process.env): string {
+  const cruda = env.DATABASE_URL || env.POSTGRES_URL
+  if (!cruda) throw new Error('Falta DATABASE_URL (ver .env.example)')
+  const u = new URL(cruda)
+  for (const k of [...u.searchParams.keys()]) if (k !== 'sslmode') u.searchParams.delete(k)
+  // Supabase siempre con SSL.
+  if (u.hostname.endsWith('supabase.com') && !u.searchParams.has('sslmode')) u.searchParams.set('sslmode', 'require')
+  return u.toString()
+}
+
 function crear(): Sql {
-  const url = process.env.DATABASE_URL
-  if (!url) throw new Error('Falta DATABASE_URL (ver .env.example)')
-  return postgres(url, {
+  return postgres(urlBase(), {
     // El pooler de Supabase en modo transacción no admite sentencias preparadas.
     prepare: false,
     max: process.env.NODE_ENV === 'production' ? 5 : 3,

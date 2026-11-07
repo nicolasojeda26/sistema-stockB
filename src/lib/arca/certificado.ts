@@ -1,5 +1,6 @@
 import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'node:crypto'
 import forge from 'node-forge'
+import { secreto } from '../secretos'
 
 /**
  * Genera la clave privada y el pedido de certificado (CSR) que se sube a ARCA
@@ -66,23 +67,24 @@ export function firmarCMS(contenido: string, certPem: string, clavePem: string):
 }
 
 // La clave privada se guarda cifrada en la base (AES-256-GCM).
-function claveCifrado(): Buffer {
-  const secreto = process.env.CLAVE_CIFRADO || process.env.SESSION_SECRET
-  if (!secreto || secreto.length < 32) throw new Error('Falta CLAVE_CIFRADO (al menos 32 caracteres) para guardar la clave de ARCA.')
-  return scryptSync(secreto, 'arca-clave-privada', 32)
+async function claveCifrado(): Promise<Buffer> {
+  // Compatibilidad: antes, sin CLAVE_CIFRADO se usaba SESSION_SECRET.
+  const s = process.env.CLAVE_CIFRADO || process.env.SESSION_SECRET || (await secreto('cifrado'))
+  if (s.length < 32) throw new Error('CLAVE_CIFRADO debe tener al menos 32 caracteres.')
+  return scryptSync(s, 'arca-clave-privada', 32)
 }
 
-export function cifrar(texto: string): string {
+export async function cifrar(texto: string): Promise<string> {
   const iv = randomBytes(12)
-  const c = createCipheriv('aes-256-gcm', claveCifrado(), iv)
+  const c = createCipheriv('aes-256-gcm', await claveCifrado(), iv)
   const datos = Buffer.concat([c.update(texto, 'utf8'), c.final()])
   return ['v1', iv.toString('base64'), c.getAuthTag().toString('base64'), datos.toString('base64')].join('.')
 }
 
-export function descifrar(guardado: string): string {
+export async function descifrar(guardado: string): Promise<string> {
   const [v, iv, tag, datos] = guardado.split('.')
   if (v !== 'v1') throw new Error('Formato de clave desconocido.')
-  const d = createDecipheriv('aes-256-gcm', claveCifrado(), Buffer.from(iv, 'base64'))
+  const d = createDecipheriv('aes-256-gcm', await claveCifrado(), Buffer.from(iv, 'base64'))
   d.setAuthTag(Buffer.from(tag, 'base64'))
   return Buffer.concat([d.update(Buffer.from(datos, 'base64')), d.final()]).toString('utf8')
 }

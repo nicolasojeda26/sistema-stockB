@@ -65,7 +65,7 @@ export async function generarPedido(): Promise<{ csr?: string; error?: string }>
   const c = await leerConfig(db())
   if (!c.cuit || !c.razon_social) return { error: 'Primero guardá el CUIT y la razón social.' }
   const { clavePem, csrPem } = generarClaveYPedido({ cuit: c.cuit, razonSocial: c.razon_social, alias: 'sistemastock' })
-  await db()`update config_fiscal set clave_privada = ${cifrar(clavePem)}, pedido_certificado = ${csrPem}, certificado = null, certificado_vence = null,
+  await db()`update config_fiscal set clave_privada = ${await cifrar(clavePem)}, pedido_certificado = ${csrPem}, certificado = null, certificado_vence = null,
     modo = case when modo in ('homologacion', 'produccion') then 'desactivada' else modo end where id = 1`
   await db()`delete from arca_credenciales`
   revalidatePath('/facturacion')
@@ -77,7 +77,7 @@ export async function cargarCertificado(pem: string): Promise<{ ok?: string; err
   const c = await leerConfig(db())
   if (!c.clave_privada) return { error: 'Primero generá la clave y el pedido de certificado.' }
   try {
-    const info = leerCertificado(pem.trim(), descifrar(c.clave_privada))
+    const info = leerCertificado(pem.trim(), await descifrar(c.clave_privada))
     if (info.cuit && c.cuit && info.cuit !== c.cuit.replace(/\D/g, '')) return { error: `El certificado es del CUIT ${info.cuit}, no del configurado.` }
     if (info.hasta < new Date()) return { error: 'El certificado está vencido.' }
     await db()`update config_fiscal set certificado = ${pem.trim()}, certificado_vence = ${info.hasta} where id = 1`
@@ -105,7 +105,7 @@ export async function probarConexion(ambiente: Ambiente): Promise<{ pasos: { tex
     return { pasos }
   }
   try {
-    const cred = await autenticar(ambiente, c.certificado, descifrar(c.clave_privada))
+    const cred = await autenticar(ambiente, c.certificado, await descifrar(c.clave_privada))
     await db()`
       insert into arca_credenciales (ambiente, servicio, token, sign, vence) values (${ambiente}, 'wsfe', ${cred.token}, ${cred.sign}, ${cred.vence})
       on conflict (ambiente, servicio) do update set token = excluded.token, sign = excluded.sign, vence = excluded.vence`

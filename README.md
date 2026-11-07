@@ -25,7 +25,9 @@ Sistema de stock y ventas multisucursal y multidepósito, con factura electróni
    npm run crear-admin -- belen "Belen" unaContraseñaSegura
    npm run dev
    ```
-4. **Vercel:** importá el repo y cargá `DATABASE_URL`, `SESSION_SECRET` y `CLAVE_CIFRADO` en *Environment Variables*. En *Settings → Functions* elegí la región **São Paulo (gru1)**, la más cercana a Supabase y a ARCA. Cada vez que haya una migración nueva, corré `npm run db:migrate` contra la base de producción.
+4. **Vercel:** importá el repo (la región São Paulo `gru1` ya viene en `vercel.json`). Dos formas de darle la base:
+   - **Integración de Supabase** (Vercel → Integrations → Supabase, vinculando el proyecto): deja `POSTGRES_URL` y el sistema la usa sola. Si no cargás `SESSION_SECRET` / `CLAVE_CIFRADO`, el sistema genera claves al azar la primera vez y las guarda en la tabla `secretos`. Sirve para pruebas; para producción conviene cargarlas como variables (así la clave que cifra el certificado de ARCA no vive en la misma base).
+   - **A mano:** cargá `DATABASE_URL`, `SESSION_SECRET` y `CLAVE_CIFRADO` en *Environment Variables*. Cada vez que haya una migración nueva, corré `npm run db:migrate` contra la base de producción.
 
 Para probar con datos de ejemplo en una base vacía: `npm run db:demo`. Crea dos sucursales, 12 productos y los usuarios `belen`, `sofia` y `camila`, todos con la contraseña `demo1234`.
 

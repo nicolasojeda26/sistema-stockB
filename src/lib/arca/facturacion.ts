@@ -67,7 +67,7 @@ async function credenciales(sql: Sql, c: ConfigFiscal, amb: Ambiente): Promise<A
   const [g] = await sql<{ token: string; sign: string }[]>`
     select token, sign from arca_credenciales where ambiente = ${amb} and servicio = 'wsfe' and vence > now() + interval '5 minutes'`
   if (g) return { ...g, cuit: c.cuit!.replace(/\D/g, '') }
-  const nueva = await autenticar(amb, c.certificado!, descifrar(c.clave_privada!))
+  const nueva = await autenticar(amb, c.certificado!, await descifrar(c.clave_privada!))
   await sql`
     insert into arca_credenciales (ambiente, servicio, token, sign, vence) values (${amb}, 'wsfe', ${nueva.token}, ${nueva.sign}, ${nueva.vence})
     on conflict (ambiente, servicio) do update set token = excluded.token, sign = excluded.sign, vence = excluded.vence`

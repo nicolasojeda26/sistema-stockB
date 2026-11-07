@@ -35,15 +35,15 @@ describe('reglas de comprobantes', () => {
     const json = JSON.parse(Buffer.from(url.split('?p=')[1], 'base64').toString())
     expect(json).toMatchObject({ ver: 1, cuit: 20123456786, tipoCmp: 6, moneda: 'PES', tipoCodAut: 'E', codAut: 76123456789012 })
   })
-  it('genera clave y pedido de certificado, y guarda la clave cifrada', () => {
+  it('genera clave y pedido de certificado, y guarda la clave cifrada', async () => {
     const { clavePem, csrPem } = generarClaveYPedido({ cuit: '20123456786', razonSocial: 'Belen SRL', alias: 'stock' })
     expect(csrPem).toContain('BEGIN CERTIFICATE REQUEST')
     const csr = forge.pki.certificationRequestFromPem(csrPem)
     expect(csr.verify()).toBe(true)
     expect(csr.subject.attributes.find((a) => a.type === '2.5.4.5')?.value).toBe('CUIT 20123456786')
-    const guardada = cifrar(clavePem)
+    const guardada = await cifrar(clavePem)
     expect(guardada).not.toContain('PRIVATE KEY')
-    expect(descifrar(guardada)).toBe(clavePem)
+    expect(await descifrar(guardada)).toBe(clavePem)
   })
 })
 
@@ -175,7 +175,7 @@ describe.skipIf(!url)('facturación', () => {
     const { clavePem } = generarClaveYPedido({ cuit: '20123456786', razonSocial: 'Belen SRL', alias: 'stock' })
     const cert = certificadoPara(clavePem)
     expect(leerCertificado(cert, clavePem).cuit).toBe('20123456786')
-    await sql`update config_fiscal set modo = 'homologacion', certificado = ${cert}, clave_privada = ${cifrar(clavePem)}`
+    await sql`update config_fiscal set modo = 'homologacion', certificado = ${cert}, clave_privada = ${await cifrar(clavePem)}`
 
     const a = await facturarVenta(sql, { ventaId: (await vender()).ventaId, receptor: CONSUMIDOR_FINAL, usuarioId: vend.id })
     const b = await facturarVenta(sql, { ventaId: (await vender()).ventaId, receptor: CONSUMIDOR_FINAL, usuarioId: vend.id })
@@ -205,7 +205,7 @@ describe.skipIf(!url)('facturación', () => {
 
   it('si ARCA rechaza, avisa y deja registrado el rechazo', async () => {
     const { clavePem } = generarClaveYPedido({ cuit: '20123456786', razonSocial: 'Belen SRL', alias: 'stock' })
-    await sql`update config_fiscal set modo = 'homologacion', certificado = ${certificadoPara(clavePem)}, clave_privada = ${cifrar(clavePem)}`
+    await sql`update config_fiscal set modo = 'homologacion', certificado = ${certificadoPara(clavePem)}, clave_privada = ${await cifrar(clavePem)}`
     rechazar = true
     const { ventaId } = await vender()
     await expect(facturarVenta(sql, { ventaId, receptor: CONSUMIDOR_FINAL, usuarioId: vend.id })).rejects.toBeInstanceOf(ErrorFactura)
