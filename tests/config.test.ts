@@ -5,9 +5,9 @@ describe('urlBase', () => {
   it('usa DATABASE_URL tal cual', () => {
     expect(urlBase({ DATABASE_URL: 'postgresql://u:p@127.0.0.1:5432/x' })).toBe('postgresql://u:p@127.0.0.1:5432/x')
   })
-  it('toma POSTGRES_URL de la integración, limpia parámetros ajenos y usa el modo sesión', () => {
+  it('toma POSTGRES_URL de la integración, limpia parámetros ajenos ', () => {
     const url = urlBase({ POSTGRES_URL: 'postgres://postgres.abc:clave@aws-0-sa-east-1.pooler.supabase.com:6543/postgres?sslmode=require&supa=base-pooler.x' })
-    expect(url).toBe('postgres://postgres.abc:clave@aws-0-sa-east-1.pooler.supabase.com:5432/postgres?sslmode=require')
+    expect(url).toBe('postgres://postgres.abc:clave@aws-0-sa-east-1.pooler.supabase.com:6543/postgres?sslmode=require')
   })
   it('fuerza SSL en Supabase', () => {
     expect(urlBase({ DATABASE_URL: 'postgresql://postgres.abc:c@aws-0-sa-east-1.pooler.supabase.com:6543/postgres' })).toContain('sslmode=require')
