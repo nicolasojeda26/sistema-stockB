@@ -16,6 +16,9 @@ export function urlBase(env: Record<string, string | undefined> = process.env): 
   for (const k of [...u.searchParams.keys()]) if (k !== 'sslmode') u.searchParams.delete(k)
   // Supabase siempre con SSL.
   if (u.hostname.endsWith('supabase.com') && !u.searchParams.has('sslmode')) u.searchParams.set('sslmode', 'require')
+  // El pooler en modo transacción (6543) no soporta el pipelining del driver: algunas consultas
+  // quedan colgadas. En modo sesión (5432, mismo host) cada conexión es propia y anda bien.
+  if (u.hostname.endsWith('pooler.supabase.com') && u.port === '6543') u.port = '5432'
   return u.toString()
 }
 
@@ -23,8 +26,9 @@ function crear(): Sql {
   return postgres(urlBase(), {
     // El pooler de Supabase en modo transacción no admite sentencias preparadas.
     prepare: false,
-    max: process.env.NODE_ENV === 'production' ? 5 : 3,
+    max: 3,
     idle_timeout: 20,
+    connect_timeout: 10,
     types: {
       // numeric -> number (los importes caben de sobra en un double).
       numeric: {

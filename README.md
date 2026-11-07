@@ -16,7 +16,7 @@ Sistema de stock y ventas multisucursal y multidepósito, con factura electróni
 
 ## Puesta en marcha
 
-1. **Base:** creá un proyecto en Supabase y copiá la cadena de conexión en modo *Transaction pooler* (puerto 6543).
+1. **Base:** creá un proyecto en Supabase y copiá la cadena de conexión en modo *Session pooler* (puerto 5432; el modo transacción, 6543, cuelga consultas con este driver y el sistema lo cambia solo).
 2. **Variables:** copiá `.env.example` a `.env.local` y completá `DATABASE_URL`, `SESSION_SECRET` y `CLAVE_CIFRADO`.
 3. **Instalar y crear las tablas:**
    ```bash
