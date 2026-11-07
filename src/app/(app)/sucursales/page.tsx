@@ -32,7 +32,7 @@ export default async function SucursalesPage() {
       />
 
       <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
-        <div className="space-y-5">
+        <div className="min-w-0 space-y-5">
           {sucursales.length === 0 && (
             <Tarjeta>
               <Vacio>Todavía no hay sucursales. Creá la primera con el formulario.</Vacio>

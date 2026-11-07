@@ -6,7 +6,7 @@ import { requerirUsuario } from '@/lib/dal'
 import { leerAjustes } from '@/lib/ajustes'
 import { leerConfig } from '@/lib/arca/facturacion'
 import { CONDICIONES_EMISOR, CONDICIONES_RECEPTOR, DOC_TIPOS, TIPOS_CBTE, formatoCuit, numeroComprobante, urlQR, type CondicionEmisor } from '@/lib/arca/comprobantes'
-import { formatoPesos } from '@/lib/formato'
+import { formatoPesosExacto } from '@/lib/formato'
 import { Imprimir } from '@/app/ticket/[id]/imprimir'
 
 export const metadata: Metadata = { title: 'Comprobante' }
@@ -146,7 +146,7 @@ export default async function ComprobantePage(props: PageProps<'/comprobante/[id
                 <span>
                   {i.cantidad} × {i.nombre}
                 </span>
-                <span className="shrink-0">{formatoPesos(mostrado)}</span>
+                <span className="shrink-0">{formatoPesosExacto(mostrado)}</span>
               </div>
             )
           })}
@@ -157,21 +157,21 @@ export default async function ComprobantePage(props: PageProps<'/comprobante/[id
             <>
               <p className="flex justify-between">
                 <span>Neto gravado</span>
-                <span>{formatoPesos(c.neto)}</span>
+                <span>{formatoPesosExacto(c.neto)}</span>
               </p>
               <p className="flex justify-between">
                 <span>IVA {Number(c.alicuota)} %</span>
-                <span>{formatoPesos(c.iva)}</span>
+                <span>{formatoPesosExacto(c.iva)}</span>
               </p>
             </>
           )}
           <p className={`flex justify-between font-bold ${a4 ? 'text-[15px]' : 'text-[13px]'}`}>
             <span>TOTAL</span>
-            <span>{formatoPesos(c.total)}</span>
+            <span>{formatoPesosExacto(c.total)}</span>
           </p>
           {tipo.letra === 'B' && Number(c.iva) > 0 && (
             <p className="mt-1 text-[9.5px]">
-              Régimen de Transparencia Fiscal al Consumidor (Ley 27.743) · IVA contenido: {formatoPesos(c.iva)}
+              Régimen de Transparencia Fiscal al Consumidor (Ley 27.743) · IVA contenido: {formatoPesosExacto(c.iva)}
             </p>
           )}
         </section>

@@ -28,7 +28,7 @@ function guardar(clave: string, c: Carrito) {
   } catch {}
 }
 
-const hora = (iso: string) => new Date(iso).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Argentina/Buenos_Aires' })
+const hora = (iso: string) => new Date(iso).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'America/Argentina/Buenos_Aires' })
 
 export function PuntoDeVenta({ usuarioId, sucursal, abierta, descuentoMax }: { usuarioId: number; sucursal: string; abierta: string; descuentoMax: number }) {
   const clave = `carrito-${usuarioId}`
@@ -121,11 +121,11 @@ export function PuntoDeVenta({ usuarioId, sucursal, abierta, descuentoMax }: { u
     <div className="grid gap-5 lg:grid-cols-[1fr_340px]">
       <div className="min-w-0 space-y-4">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h1 className="text-2xl font-semibold tracking-tight">Vender</h1>
+          <h1 className="text-2xl font-bold tracking-tight sm:text-[1.75rem]">Vender</h1>
           <p className="text-sm text-tinta-suave">
-            Caja de {sucursal} · abierta {hora(abierta)} ·{' '}
-            <Link href="/caja" className="text-marca hover:underline">
-              ver caja
+            Caja de {sucursal}, abierta a las {hora(abierta)}.{' '}
+            <Link href="/caja" className="font-medium text-marca hover:underline">
+              Ver caja
             </Link>
           </p>
         </div>
@@ -163,8 +163,9 @@ export function PuntoDeVenta({ usuarioId, sucursal, abierta, descuentoMax }: { u
                   >
                     <span className="min-w-0">
                       <span className="block truncate font-medium">{p.nombre}</span>
-                      <span className="block font-mono text-xs text-apagado">
-                        {p.codigo} · {p.stock} en stock
+                      <span className="block text-xs text-apagado">
+                        <span className="font-mono">{p.codigo}</span>{' '}
+                        {p.stock > 0 ? <span>· {p.stock} en stock</span> : <span className="font-semibold text-error">· sin stock</span>}
                       </span>
                     </span>
                     <span className="num shrink-0 font-semibold">{formatoPesos(p.precio)}</span>
@@ -177,7 +178,7 @@ export function PuntoDeVenta({ usuarioId, sucursal, abierta, descuentoMax }: { u
 
         {aviso && <Aviso tipo={aviso.tipo}>{aviso.texto}</Aviso>}
 
-        <div className="overflow-hidden rounded-xl border border-linea bg-papel">
+        <div className="overflow-hidden rounded-xl border border-linea bg-papel shadow-[0_1px_2px_rgb(27_34_48/0.04)]">
           {lineas.length === 0 ? (
             <div className="px-6 py-16 text-center">
               <p className="text-base font-medium">Escaneá el primer producto</p>
@@ -193,7 +194,7 @@ export function PuntoDeVenta({ usuarioId, sucursal, abierta, descuentoMax }: { u
                       {l.codigo} · {formatoPesos(l.precio)} c/u
                       {l.stock - l.cantidad < 0 && (
                         <span className="ml-2 font-sans">
-                          <Etiqueta tono="alerta">sin stock</Etiqueta>
+                          <Etiqueta tono="error">sin stock</Etiqueta>
                         </span>
                       )}
                     </p>
@@ -207,16 +208,7 @@ export function PuntoDeVenta({ usuarioId, sucursal, abierta, descuentoMax }: { u
                     >
                       −
                     </button>
-                    <input
-                      value={l.cantidad}
-                      inputMode="numeric"
-                      aria-label={`Cantidad de ${l.nombre}`}
-                      onChange={(e) => {
-                        const n = Number.parseInt(e.target.value, 10)
-                        if (n > 0 && n < 10000) cambiar(l.id, { cantidad: n })
-                      }}
-                      className="num h-9 w-12 rounded-lg border border-linea text-center text-sm"
-                    />
+                    <Cantidad valor={l.cantidad} nombre={l.nombre} alCambiar={(n) => cambiar(l.id, { cantidad: n })} />
                     <button
                       aria-label={`Sumar uno de ${l.nombre}`}
                       onClick={() => cambiar(l.id, { cantidad: l.cantidad + 1 })}
@@ -257,7 +249,7 @@ export function PuntoDeVenta({ usuarioId, sucursal, abierta, descuentoMax }: { u
       </div>
 
       <aside className="lg:sticky lg:top-6 lg:self-start">
-        <div className="rounded-xl border border-linea bg-papel p-5">
+        <div className="rounded-xl border border-linea bg-papel p-5 shadow-sm">
           <dl className="space-y-2 text-sm">
             <div className="flex justify-between text-tinta-suave">
               <dt>
@@ -293,7 +285,7 @@ export function PuntoDeVenta({ usuarioId, sucursal, abierta, descuentoMax }: { u
           </dl>
           <div className="mt-4 border-t border-linea pt-4">
             <p className="text-sm text-tinta-suave">Total</p>
-            <p className="num text-4xl font-semibold tracking-tight" data-testid="total">
+            <p className="num text-4xl font-bold tracking-tight" data-testid="total">
               {formatoPesos(aPesos(calc.total))}
             </p>
           </div>
@@ -302,7 +294,7 @@ export function PuntoDeVenta({ usuarioId, sucursal, abierta, descuentoMax }: { u
               <Aviso tipo="error">Tu descuento máximo es {descuentoMax} %. Bajá el descuento marcado.</Aviso>
             </div>
           )}
-          <Boton onClick={() => void abrirCobro()} disabled={!lineas.length || hayExceso} className="mt-4 h-14 w-full text-lg">
+          <Boton onClick={() => void abrirCobro()} disabled={!lineas.length || hayExceso} className={`mt-4 h-14 w-full text-lg ${lineas.length ? 'max-lg:hidden!' : ''}`}>
             Cobrar <span className="text-sm font-normal opacity-70">F2</span>
           </Boton>
           {lineas.length > 0 && (
@@ -322,6 +314,24 @@ export function PuntoDeVenta({ usuarioId, sucursal, abierta, descuentoMax }: { u
         </div>
       </aside>
 
+      {/* En el celular el total y Cobrar quedan siempre a la vista, arriba de la barra de abajo. */}
+      {lineas.length > 0 && (
+        <>
+          <div className="h-20 lg:hidden" aria-hidden />
+          <div className="fixed inset-x-0 bottom-16 z-20 flex items-center gap-3 border-t border-linea bg-papel/95 px-4 py-3 backdrop-blur lg:hidden print:hidden">
+            <span className="min-w-0 flex-1">
+              <span className="block text-xs text-tinta-suave">
+                Total, {unidades} unidad{unidades === 1 ? '' : 'es'}
+              </span>
+              <span className="num block truncate text-xl font-bold">{formatoPesos(aPesos(calc.total))}</span>
+            </span>
+            <Boton onClick={() => void abrirCobro()} disabled={hayExceso} className="h-12 px-6 text-base">
+              Cobrar
+            </Boton>
+          </div>
+        </>
+      )}
+
       {cobrando && (
         <Cobro
           lineas={lineas}
@@ -340,5 +350,31 @@ export function PuntoDeVenta({ usuarioId, sucursal, abierta, descuentoMax }: { u
         />
       )}
     </div>
+  )
+}
+
+/** Cantidad editable: se puede borrar para escribir otra; si queda vacía o en 0, vuelve a la anterior. */
+function Cantidad({ valor, nombre, alCambiar }: { valor: number; nombre: string; alCambiar: (n: number) => void }) {
+  const [texto, setTexto] = useState(String(valor))
+  const [anterior, setAnterior] = useState(valor)
+  if (valor !== anterior) {
+    setAnterior(valor)
+    setTexto(String(valor))
+  }
+  return (
+    <input
+      value={texto}
+      inputMode="numeric"
+      aria-label={`Cantidad de ${nombre}`}
+      onFocus={(e) => e.target.select()}
+      onChange={(e) => {
+        const t = e.target.value.replace(/\D/g, '').slice(0, 4)
+        setTexto(t)
+        const n = Number.parseInt(t, 10)
+        if (n > 0) alCambiar(n)
+      }}
+      onBlur={() => setTexto(String(valor))}
+      className="num h-9 w-12 rounded-lg border border-linea text-center text-sm"
+    />
   )
 }

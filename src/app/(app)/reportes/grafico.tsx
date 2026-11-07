@@ -16,6 +16,8 @@ const compacto = (n: number) =>
 export function GraficoDias({ dias }: { dias: Dia[] }) {
   const [activo, setActivo] = useState<number | null>(null)
   if (!dias.length) return null
+  if (dias.every((x) => !x.total))
+    return <p className="py-14 text-center text-sm text-tinta-suave">No hubo ventas en estas fechas.</p>
   const max = Math.max(...dias.map((d) => d.total), 1)
   // Escala con un tope "redondo" para que las líneas guía caigan en números claros.
   const paso = 10 ** Math.floor(Math.log10(max))

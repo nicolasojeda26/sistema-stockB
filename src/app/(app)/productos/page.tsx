@@ -5,7 +5,7 @@ import { db } from '@/lib/db'
 import { coincide } from '@/lib/busqueda'
 import { requerirUsuario } from '@/lib/dal'
 import { formatoEntero, formatoPesos } from '@/lib/formato'
-import { BotonLink, Encabezado, Etiqueta, Input, Select, Tarjeta, Vacio, tablaCls as t } from '@/components/ui'
+import { BotonLink, Encabezado, Etiqueta, Input, Select, Stock, Tarjeta, Vacio, tablaCls as t } from '@/components/ui'
 
 export const metadata: Metadata = { title: 'Productos' }
 
@@ -80,15 +80,15 @@ export default async function ProductosPage(props: PageProps<'/productos'>) {
     <>
       <Encabezado
         titulo="Productos"
-        detalle={`${formatoEntero(total)} producto${total === 1 ? '' : 's'}${u.rol === 'vendedora' ? ` · stock de ${u.sucursal_nombre}` : ' · stock total'}`}
+        detalle={`${formatoEntero(total)} producto${total === 1 ? '' : 's'}${u.rol === 'vendedora' ? `, con el stock de ${u.sucursal_nombre}` : ', con el stock de todas las sucursales'}`}
         acciones={
           u.rol === 'admin' && (
             <>
               <a
                 href={`/productos/exportar?${new URLSearchParams({ ...(q ? { q } : {}), ...(categoria ? { categoria: String(categoria) } : {}), estado })}`}
-                className="inline-flex h-10 items-center rounded-lg border border-linea bg-papel px-4 text-sm font-medium hover:bg-fondo"
+                className="inline-flex h-10 items-center rounded-lg border border-linea bg-papel px-4 text-sm font-semibold shadow-xs hover:bg-fondo"
               >
-                Excel
+                Bajar Excel
               </a>
               <BotonLink href="/productos/nuevo">Nuevo producto</BotonLink>
             </>
@@ -112,12 +112,29 @@ export default async function ProductosPage(props: PageProps<'/productos'>) {
           <option value="inactivos">Dados de baja</option>
           <option value="todos">Todos</option>
         </Select>
-        <button className="h-10 rounded-lg bg-tinta px-4 text-sm font-medium text-white hover:bg-tinta/90">Buscar</button>
+        <button className="h-10 rounded-lg bg-tinta px-5 text-sm font-semibold text-white hover:bg-tinta/90">Buscar</button>
       </form>
 
       <Tarjeta className="overflow-hidden">
         {filas.length === 0 ? (
-          <Vacio>{q || categoria || estado !== 'activos' ? 'No hay productos que coincidan.' : 'Todavía no hay productos cargados.'}</Vacio>
+          q || categoria || estado !== 'activos' ? (
+            <Vacio accion={<BotonLink variante="secundario" href="/productos">Ver todos los productos</BotonLink>}>
+              No hay productos que coincidan con la búsqueda.
+            </Vacio>
+          ) : (
+            <Vacio
+              accion={
+                u.rol === 'admin' && (
+                  <>
+                    <BotonLink href="/importar">Importar desde Dux</BotonLink>
+                    <BotonLink variante="secundario" href="/productos/nuevo">Cargar uno a mano</BotonLink>
+                  </>
+                )
+              }
+            >
+              Todavía no hay productos cargados.
+            </Vacio>
+          )
         ) : (
           <div className="overflow-x-auto">
             <table className={t.tabla}>
@@ -146,9 +163,9 @@ export default async function ProductosPage(props: PageProps<'/productos'>) {
                       <span className="mt-0.5 block font-mono text-xs text-apagado sm:hidden">{p.codigo}</span>
                     </td>
                     <td className={`${t.td} hidden text-tinta-suave md:table-cell`}>{p.categoria ?? '—'}</td>
-                    <td className={`${t.td} num text-right font-medium`}>{formatoPesos(p.precio)}</td>
-                    <td className={`${t.td} num text-right`}>
-                      {p.stock <= p.stock_minimo ? <Etiqueta tono="alerta">{formatoEntero(p.stock)}</Etiqueta> : formatoEntero(p.stock)}
+                    <td className={`${t.td} num text-right font-semibold whitespace-nowrap`}>{formatoPesos(p.precio)}</td>
+                    <td className={`${t.td} text-right`}>
+                      <Stock cantidad={p.stock} minimo={p.stock_minimo} />
                     </td>
                   </tr>
                 ))}

@@ -99,7 +99,7 @@ export default async function VentaPage(props: PageProps<'/ventas/[id]'>) {
             </tbody>
           </table>
         </Tarjeta>
-        <div className="space-y-5">
+        <div className="min-w-0 space-y-5">
           <Tarjeta className="p-5">
             <dl className="space-y-1.5 text-sm">
               <div className="flex justify-between text-tinta-suave">

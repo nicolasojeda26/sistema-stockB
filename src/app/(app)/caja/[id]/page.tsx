@@ -49,7 +49,7 @@ export default async function CajaDetallePage(props: PageProps<'/caja/[id]'>) {
         </div>
       )}
       <div className="grid gap-5 lg:grid-cols-[1fr_1fr]">
-        <div className="space-y-5">
+        <div className="min-w-0 space-y-5">
           <ResumenCajaVista resumen={resumen} contado={c.efectivo_contado} esperadoGuardado={c.efectivo_esperado} />
           {c.nota_cierre && <p className="rounded-lg bg-papel px-4 py-3 text-sm ring-1 ring-linea">Nota: {c.nota_cierre}</p>}
           {!c.cerrada && u.rol === 'admin' && c.usuario_id !== u.id && (

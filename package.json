@@ -15,6 +15,7 @@
     "crear-admin": "tsx --env-file-if-exists=.env.local scripts/crear-admin.ts"
   },
   "dependencies": {
+    "@fontsource-variable/figtree": "^5.3.0",
     "fast-xml-parser": "^5.11.2",
     "geist": "^1.9.0",
     "jose": "^6.2.14",

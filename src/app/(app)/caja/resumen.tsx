@@ -1,4 +1,6 @@
 import { formatoEntero, formatoPesos } from '@/lib/formato'
+
+const horaAR = (d: Date) => d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'America/Argentina/Buenos_Aires' })
 import { MEDIOS, type MedioPago } from '@/lib/venta-calculo'
 import type { ResumenCaja } from '@/lib/ventas'
 import { Tarjeta, TituloTarjeta } from '@/components/ui'
@@ -8,21 +10,26 @@ export function ResumenCajaVista({
   resumen: r,
   contado,
   esperadoGuardado,
+  movimientos = [],
 }: {
   resumen: ResumenCaja
   contado?: number | null
   esperadoGuardado?: number | null
+  movimientos?: { id: number; creado: Date; tipo: string; monto: number; motivo: string }[]
 }) {
   const esperado = esperadoGuardado ?? r.efectivoEsperado
   const dif = contado === undefined || contado === null ? null : Math.round((contado - esperado) * 100) / 100
   return (
     <Tarjeta>
-      <TituloTarjeta acciones={<span className="text-xs text-tinta-suave">{formatoEntero(r.ventas)} ventas{r.anuladas ? ` · ${r.anuladas} anuladas` : ''}</span>}>
+      <TituloTarjeta acciones={<span className="text-xs text-tinta-suave">
+            {formatoEntero(r.ventas)} venta{r.ventas === 1 ? '' : 's'}
+            {r.anuladas ? `, ${r.anuladas} anulada${r.anuladas === 1 ? '' : 's'}` : ''}
+          </span>}>
         Resumen
       </TituloTarjeta>
       <div className="p-5">
         <p className="text-sm text-tinta-suave">Total vendido{r.devoluciones > 0 ? ` (menos ${formatoPesos(r.devoluciones)} devueltos)` : ''}</p>
-        <p className="num text-3xl font-semibold tracking-tight">{formatoPesos(r.total)}</p>
+        <p className="num text-4xl font-bold tracking-tight">{formatoPesos(r.total)}</p>
         <dl className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
           {(Object.keys(MEDIOS) as MedioPago[]).map((m) => (
             <div key={m} className="rounded-lg bg-fondo p-3">
@@ -56,6 +63,26 @@ export function ResumenCajaVista({
             </>
           )}
         </dl>
+        {movimientos.length > 0 && (
+          <>
+            <h3 className="mt-6 mb-2 text-sm font-semibold">Ingresos y retiros</h3>
+            <ul className="divide-y divide-linea rounded-lg border border-linea text-sm">
+              {movimientos.map((m) => (
+                <li key={m.id} className="flex items-center justify-between gap-3 px-3 py-2">
+                  <span className="min-w-0">
+                    <span className="block truncate">{m.motivo}</span>
+                    <span className="block text-xs text-apagado">
+                      {m.tipo === 'retiro' ? 'Retiro' : 'Ingreso'} a las {horaAR(m.creado)}
+                    </span>
+                  </span>
+                  <span className={`num shrink-0 font-semibold ${m.tipo === 'retiro' ? 'text-error' : 'text-ok'}`}>
+                    {m.tipo === 'retiro' ? '−' : '+'} {formatoPesos(Number(m.monto))}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
       </div>
     </Tarjeta>
   )

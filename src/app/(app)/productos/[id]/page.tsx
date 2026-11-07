@@ -81,7 +81,7 @@ export default async function ProductoPage(props: PageProps<'/productos/[id]'>) 
       )}
 
       <div className="grid gap-5 lg:grid-cols-[1fr_340px]">
-        <div className="space-y-5">
+        <div className="min-w-0 space-y-5">
           {u.rol === 'admin' ? (
             <Tarjeta>
               <TituloTarjeta>Datos del producto</TituloTarjeta>

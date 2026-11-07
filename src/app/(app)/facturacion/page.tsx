@@ -38,7 +38,7 @@ export default async function FacturacionPage() {
         <Aviso tipo={modo.tono}>{modo.texto}</Aviso>
       </div>
       <div className="grid gap-5 lg:grid-cols-2">
-        <div className="space-y-5">
+        <div className="min-w-0 space-y-5">
           <Tarjeta>
             <TituloTarjeta>1. Datos fiscales</TituloTarjeta>
             <FormDatos
@@ -57,7 +57,7 @@ export default async function FacturacionPage() {
             <FormPuntos sucursales={sucursales} />
           </Tarjeta>
         </div>
-        <div className="space-y-5">
+        <div className="min-w-0 space-y-5">
           <Tarjeta>
             <TituloTarjeta>3. Certificado de ARCA</TituloTarjeta>
             <Certificado tienePedido={!!c.pedido_certificado} pedido={c.pedido_certificado} cert={cert} puedeGenerar={!!c.cuit && !!c.razon_social} />

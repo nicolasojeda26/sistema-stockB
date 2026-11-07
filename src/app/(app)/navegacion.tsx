@@ -94,22 +94,73 @@ const iconos = {
   ),
 }
 
-const inicial = (n: string) => (n.trim()[0] ?? 'S').toUpperCase()
+export function Icono({ nombre, className = 'h-5 w-5' }: { nombre: keyof typeof iconos; className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} aria-hidden {...trazo}>
+      {iconos[nombre]}
+    </svg>
+  )
+}
+
+export function MarcaEtiqueta({ className = 'h-9 w-9' }: { className?: string }) {
+  // Sello de la marca: una etiqueta colgante de ropa.
+  return (
+    <svg viewBox="0 0 36 36" className={className} aria-hidden>
+      <path d="M8 4h14.5a3 3 0 0 1 2.1.9l6.5 6.5a3 3 0 0 1 0 4.2L16.6 30.1a3 3 0 0 1-4.2 0l-7.5-7.5a3 3 0 0 1-.9-2.1V8a4 4 0 0 1 4-4z" fill="var(--color-marca)" />
+      <circle cx="11.5" cy="11.5" r="2.6" fill="var(--color-papel)" />
+      <path d="M11.5 11.5C9 7 4 6 2 8" fill="none" stroke="var(--color-acento)" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+const RAPIDOS = ['/', '/vender', '/productos', '/caja']
 
 export function Navegacion({ items, pie, negocio }: { items: ItemNav[]; pie: ReactNode; negocio: string }) {
   const ruta = usePathname()
   const [abierto, setAbierto] = useState(false)
-  const activo = (it: ItemNav) => (it.exacto ? ruta === it.href : ruta.startsWith(it.href))
+  const activo = (it: ItemNav) => (it.exacto ? ruta === it.href : ruta === it.href || ruta.startsWith(it.href + '/'))
+
+  // Agrupa por sección (la sección se declara en el primer ítem de cada grupo).
+  const grupos: { seccion?: string; items: ItemNav[] }[] = []
+  for (const it of items) {
+    if (it.seccion || grupos.length === 0) grupos.push({ seccion: it.seccion, items: [] })
+    grupos[grupos.length - 1].items.push(it)
+  }
+  const enConfig = grupos.some((g) => g.seccion === 'Configuración' && g.items.some(activo))
+  // Abierto si se pidió, o siempre que se esté en una pantalla de configuración.
+  const [configPedida, setConfigPedida] = useState(false)
+  const config = configPedida || enConfig
+  const rapidos = RAPIDOS.map((h) => items.find((it) => it.href === h)).filter(Boolean) as ItemNav[]
+
+  const enlace = (it: ItemNav) => (
+    <Link
+      key={it.href}
+      href={it.href}
+      aria-current={activo(it) ? 'page' : undefined}
+      onClick={() => setAbierto(false)}
+      className={`flex h-10 items-center gap-3 rounded-lg px-3 text-[15px] transition-colors lg:h-9 lg:text-sm ${
+        activo(it) ? 'bg-marca-clara font-semibold text-marca' : 'text-tinta-suave hover:bg-fondo hover:text-tinta'
+      }`}
+    >
+      <svg viewBox="0 0 24 24" className="h-[18px] w-[18px] shrink-0" {...trazo}>
+        {iconos[it.icono]}
+      </svg>
+      {it.texto}
+    </Link>
+  )
 
   return (
     <>
-      <header className="sticky top-0 z-20 flex print:hidden h-14 items-center justify-between bg-tinta px-4 text-white lg:hidden">
-        <span className="truncate font-semibold">{negocio}</span>
+      <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-linea bg-papel/95 px-4 backdrop-blur lg:hidden print:hidden">
+        <Link href="/" className="flex min-w-0 items-center gap-2.5">
+          <MarcaEtiqueta className="h-8 w-8 shrink-0" />
+          <span className="truncate font-bold">{negocio}</span>
+        </Link>
         <button
           onClick={() => setAbierto((a) => !a)}
           aria-expanded={abierto}
           aria-label="Menú"
-          className="flex h-10 w-10 items-center justify-center rounded-lg hover:bg-white/10"
+          className="flex h-10 w-10 items-center justify-center rounded-lg text-tinta-suave hover:bg-fondo"
         >
           <svg viewBox="0 0 24 24" className="h-5 w-5" {...trazo}>
             {abierto ? <path d="M6 6l12 12M18 6 6 18" /> : <path d="M4 7h16M4 12h16M4 17h16" />}
@@ -117,37 +168,70 @@ export function Navegacion({ items, pie, negocio }: { items: ItemNav[]; pie: Rea
         </button>
       </header>
       <aside
-        className={`${abierto ? 'flex' : 'hidden'} fixed inset-x-0 top-14 bottom-0 z-20 flex-col bg-tinta lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-64 lg:shrink-0 print:hidden`}
+        className={`${abierto ? 'flex' : 'hidden'} fixed inset-x-0 top-14 bottom-0 z-30 flex-col border-r border-linea bg-papel lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-60 lg:shrink-0 print:hidden`}
       >
-        <div className="hidden h-16 items-center gap-3 px-5 lg:flex">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-sm font-bold text-tinta">{inicial(negocio)}</div>
-          <span className="truncate font-semibold text-white">{negocio}</span>
-        </div>
-        <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-3 lg:py-2">
-          {items.map((it) => [
-            it.seccion && (
-              <p key={`s-${it.seccion}`} className="px-3 pt-4 pb-1 text-[11px] font-medium uppercase tracking-wider text-white/40">
-                {it.seccion}
-              </p>
+        <Link href="/" className="hidden h-16 items-center gap-2.5 px-5 lg:flex">
+          <MarcaEtiqueta className="h-9 w-9 shrink-0" />
+          <span className="truncate text-[15px] font-bold">{negocio}</span>
+        </Link>
+        <nav className="flex-1 overflow-y-auto px-3 pb-3" aria-label="Principal">
+          {grupos.map((g, i) =>
+            g.seccion === 'Configuración' ? (
+              <div key={i} className="mt-3">
+                <button
+                  type="button"
+                  onClick={() => setConfigPedida(!config)}
+                  aria-expanded={config}
+                  className="flex w-full items-center justify-between rounded-lg px-3 py-1.5 text-xs font-semibold text-apagado hover:text-tinta"
+                >
+                  Configuración
+                  <svg viewBox="0 0 24 24" className={`h-4 w-4 transition-transform ${config ? 'rotate-180' : ''}`} {...trazo}>
+                    <path d="m6 9 6 6 6-6" />
+                  </svg>
+                </button>
+                {config && <div className="space-y-0.5">{g.items.map(enlace)}</div>}
+              </div>
+            ) : (
+              <div key={i} className={g.seccion ? 'mt-3' : 'pt-2 lg:pt-0'}>
+                {g.seccion && <p className="px-3 py-1.5 text-xs font-semibold text-apagado">{g.seccion}</p>}
+                <div className="space-y-0.5">{g.items.map(enlace)}</div>
+              </div>
             ),
-            <Link
-              key={it.href}
-              href={it.href}
-              aria-current={activo(it) ? 'page' : undefined}
-              onClick={() => setAbierto(false)}
-              className={`flex h-10 items-center gap-3 rounded-lg px-3 text-sm transition-colors ${
-                activo(it) ? 'bg-white/12 font-medium text-white' : 'text-white/70 hover:bg-white/6 hover:text-white'
-              }`}
-            >
-              <svg viewBox="0 0 24 24" className="h-[18px] w-[18px] shrink-0" {...trazo}>
-                {iconos[it.icono]}
-              </svg>
-              {it.texto}
-            </Link>,
-          ])}
+          )}
         </nav>
         {pie}
       </aside>
+      {/* En el celular: lo de todos los días, siempre a mano abajo. */}
+      <nav
+        aria-label="Accesos rápidos"
+        className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-linea bg-papel/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden print:hidden"
+      >
+        {rapidos.map((it) => (
+          <Link
+            key={it.href}
+            href={it.href}
+            onClick={() => setAbierto(false)}
+            aria-current={activo(it) ? 'page' : undefined}
+            className={`flex h-16 flex-col items-center justify-center gap-1 text-[11px] font-medium ${activo(it) ? 'text-marca' : 'text-tinta-suave'}`}
+          >
+            <svg viewBox="0 0 24 24" className="h-6 w-6" {...trazo}>
+              {iconos[it.icono]}
+            </svg>
+            {it.texto}
+          </Link>
+        ))}
+        <button
+          type="button"
+          onClick={() => setAbierto((a) => !a)}
+          aria-expanded={abierto}
+          className={`flex h-16 flex-col items-center justify-center gap-1 text-[11px] font-medium ${abierto ? 'text-marca' : 'text-tinta-suave'}`}
+        >
+          <svg viewBox="0 0 24 24" className="h-6 w-6" {...trazo}>
+            <path d="M4 7h16M4 12h16M4 17h16" />
+          </svg>
+          Más
+        </button>
+      </nav>
     </>
   )
 }

@@ -4,8 +4,9 @@ import { requerirUsuario } from '@/lib/dal'
 import { formatoEntero, formatoPesos } from '@/lib/formato'
 import { cajaAbierta, resumenCaja } from '@/lib/ventas'
 import { Etiqueta, Tarjeta, TituloTarjeta, Vacio } from '@/components/ui'
+import { Icono } from './navegacion'
 
-const hora = (d: Date) => d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Argentina/Buenos_Aires' })
+const hora = (d: Date) => d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'America/Argentina/Buenos_Aires' })
 
 export default async function InicioPage() {
   const u = await requerirUsuario()
@@ -47,6 +48,7 @@ export default async function InicioPage() {
   const totalHoy = porSucursal.reduce((a, s) => a + Number(s.total), 0)
   const ventasHoy = porSucursal.reduce((a, s) => a + s.ventas, 0)
   const primerNombre = u.nombre.split(' ')[0]
+  const fechaLarga = new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'America/Argentina/Buenos_Aires' })
   const pasos = [
     { hecho: r.sucursales > 0, texto: 'Crear las sucursales y sus depósitos', href: '/sucursales' },
     { hecho: r.usuarios > 1, texto: 'Crear los usuarios de las chicas', href: '/usuarios' },
@@ -57,10 +59,24 @@ export default async function InicioPage() {
 
   return (
     <>
-      <h1 className="text-2xl font-semibold tracking-tight">Hola, {primerNombre}</h1>
-      <p className="mt-1 text-sm text-tinta-suave">{esAdmin ? 'Todas las sucursales' : u.sucursal_nombre}</p>
+      <p className="text-sm font-medium text-tinta-suave first-letter:uppercase">{fechaLarga}</p>
+      <h1 className="mt-0.5 text-[1.75rem] font-bold tracking-tight">Hola, {primerNombre}</h1>
+      <p className="mt-1 text-sm text-tinta-suave">{esAdmin ? 'Estás viendo todas las sucursales.' : `Estás en ${u.sucursal_nombre}.`}</p>
 
-      <Tarjeta className="mt-6 p-5 sm:p-6">
+      {!esAdmin && !caja && (
+        <Link
+          href="/vender"
+          className="mt-5 flex items-center justify-between gap-4 rounded-xl bg-marca px-5 py-4 text-white shadow-sm hover:bg-marca-oscura"
+        >
+          <span>
+            <span className="block font-semibold">Abrí tu caja para empezar a vender</span>
+            <span className="block text-sm text-white/80">Contá el efectivo para dar cambio y cargalo.</span>
+          </span>
+          <Icono nombre="caja" className="h-7 w-7 shrink-0" />
+        </Link>
+      )}
+
+      <Tarjeta className="mt-5 p-4 sm:p-5">
         <form action="/productos" className="flex flex-col gap-3 sm:flex-row">
           <label className="sr-only" htmlFor="consulta">
             Consultar precio
@@ -70,18 +86,18 @@ export default async function InicioPage() {
             name="q"
             autoFocus
             autoComplete="off"
-            placeholder="Escaneá un código para ver precio y stock"
-            className="h-14 flex-1 rounded-xl border border-linea bg-fondo px-4 font-mono text-lg placeholder:font-sans placeholder:text-base placeholder:text-apagado focus:border-marca focus:bg-papel focus:outline-none focus:ring-4 focus:ring-marca/10"
+            placeholder="Escaneá o escribí para ver precio y stock"
+            className="h-14 flex-1 rounded-xl border border-linea bg-fondo px-4 text-lg placeholder:text-base placeholder:text-apagado focus:border-marca focus:bg-papel focus:outline-none focus:ring-4 focus:ring-marca/10"
           />
-          <button className="h-14 rounded-xl bg-marca px-6 font-medium text-white hover:bg-marca-oscura">Consultar</button>
+          <button className="h-14 rounded-xl bg-marca px-6 font-semibold text-white hover:bg-marca-oscura">Consultar</button>
         </form>
       </Tarjeta>
 
       <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Atajo href="/vender" titulo="Vender" detalle={caja ? `Caja abierta desde las ${hora(caja.abierta)}` : 'Abrir la caja y cobrar'} />
-        <Atajo href="/mercaderia/ingreso" titulo="Ingresar mercadería" detalle="Llegó un pedido" />
-        <Atajo href="/mercaderia/transferencia" titulo="Transferir" detalle="Mandar a otra sucursal o depósito" />
-        <Atajo href="/etiquetas" titulo="Imprimir etiquetas" detalle="Código de barras y precio" />
+        <Atajo icono="vender" href="/vender" titulo="Vender" detalle={caja ? `Tu caja está abierta desde las ${hora(caja.abierta)}` : 'Abrir la caja y cobrar'} />
+        <Atajo icono="ingreso" href="/mercaderia/ingreso" titulo="Ingresar mercadería" detalle="Llegó un pedido" />
+        <Atajo icono="transferencia" href="/mercaderia/transferencia" titulo="Transferir" detalle="Mandar a otra sucursal o depósito" />
+        <Atajo icono="etiquetas" href="/etiquetas" titulo="Imprimir etiquetas" detalle="Código de barras y precio" />
       </div>
 
       <div className="mt-5 grid gap-5 lg:grid-cols-2">
@@ -89,7 +105,7 @@ export default async function InicioPage() {
           <TituloTarjeta acciones={<Link href="/ventas" className="text-xs text-marca hover:underline">Ver ventas</Link>}>Hoy</TituloTarjeta>
           <div className="p-5">
             <p className="text-sm text-tinta-suave">{esAdmin ? 'Vendido hoy en todas las sucursales' : `Vendido hoy en ${u.sucursal_nombre}`}</p>
-            <p className="num text-3xl font-semibold tracking-tight" data-testid="vendido-hoy">
+            <p className="num mt-1 text-4xl font-bold tracking-tight" data-testid="vendido-hoy">
               {formatoPesos(Math.round(totalHoy * 100) / 100)}
             </p>
             <p className="text-sm text-apagado">
@@ -164,7 +180,7 @@ export default async function InicioPage() {
               return (
                 <li key={c.id} className="flex flex-wrap items-center justify-between gap-2 px-5 py-2.5 text-sm">
                   <Link href={`/caja/${c.id}`} className="hover:text-marca hover:underline">
-                    {c.usuario} · {c.sucursal}
+                    {c.usuario} <span className="text-tinta-suave">en {c.sucursal}</span>
                   </Link>
                   <span className="flex items-center gap-2 text-tinta-suave">
                     {vieja ? <Etiqueta tono="alerta">Abierta desde el {c.abierta.toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })}</Etiqueta> : `desde las ${hora(c.abierta)}`}
@@ -203,15 +219,18 @@ export default async function InicioPage() {
   )
 }
 
-function Atajo({ href, titulo, detalle }: { href: string; titulo: string; detalle: string }) {
+function Atajo({ href, titulo, detalle, icono }: { href: string; titulo: string; detalle: string; icono: Parameters<typeof Icono>[0]['nombre'] }) {
   return (
-    <Link href={href} className="group flex items-center justify-between rounded-xl border border-linea bg-papel px-4 py-3 transition-colors hover:border-marca/40">
-      <span>
-        <span className="block text-sm font-medium group-hover:text-marca">{titulo}</span>
-        <span className="block text-xs text-apagado">{detalle}</span>
+    <Link
+      href={href}
+      className="group flex items-center gap-3 rounded-xl border border-linea bg-papel px-4 py-3 shadow-[0_1px_2px_rgb(27_34_48/0.04)] transition-colors hover:border-marca/40"
+    >
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-marca-clara text-marca">
+        <Icono nombre={icono} />
       </span>
-      <span className="text-apagado group-hover:text-marca" aria-hidden>
-        →
+      <span className="min-w-0">
+        <span className="block text-sm font-semibold group-hover:text-marca">{titulo}</span>
+        <span className="block text-xs text-tinta-suave">{detalle}</span>
       </span>
     </Link>
   )

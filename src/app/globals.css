@@ -1,27 +1,32 @@
 @import "tailwindcss";
 
 @theme inline {
-  --font-sans: var(--font-geist-sans);
+  --font-sans: 'Figtree Variable', ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono);
 }
 
 @theme {
-  --color-tinta: #16202e;
-  --color-tinta-suave: #4a5568;
-  --color-apagado: #7b8494;
-  --color-linea: #e4e2dc;
-  --color-fondo: #f6f5f1;
+  /* Texto */
+  --color-tinta: #1b2230;
+  --color-tinta-suave: #4b5565;
+  --color-apagado: #6b7385;
+  /* Superficies */
+  --color-linea: #e2e6ee;
+  --color-fondo: #f2f4f7;
   --color-papel: #ffffff;
-  --color-marca: #1f4e89;
-  --color-marca-oscura: #173c6b;
-  --color-marca-clara: #e8eef7;
-  --color-acento: #f26b3a;
-  --color-ok: #1d7a4a;
-  --color-ok-claro: #e5f3eb;
-  --color-alerta: #b45309;
-  --color-alerta-claro: #fdf1e1;
-  --color-error: #b42318;
-  --color-error-claro: #fdecea;
+  /* Marca: el azul de las etiquetas de precio */
+  --color-marca: #2b50c8;
+  --color-marca-oscura: #203d9e;
+  --color-marca-clara: #ebf0fd;
+  /* Solo para el sello de la marca (la etiqueta colgante) */
+  --color-acento: #d6457a;
+  /* Estados */
+  --color-ok: #16794a;
+  --color-ok-claro: #e3f4ea;
+  --color-alerta: #a85208;
+  --color-alerta-claro: #fdf0df;
+  --color-error: #c0362c;
+  --color-error-claro: #fdeceb;
 }
 
 html {
@@ -31,6 +36,14 @@ html {
 body {
   background: var(--color-fondo);
   color: var(--color-tinta);
+  font-feature-settings: 'cv11';
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* Números alineados en tablas de precios y stock. */

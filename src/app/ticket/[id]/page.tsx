@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation'
 import { requerirUsuario } from '@/lib/dal'
 import { leerAjustes } from '@/lib/ajustes'
 import { leerVenta } from '@/lib/venta-detalle'
-import { formatoFecha, formatoPesos } from '@/lib/formato'
+import { formatoFecha, formatoPesosExacto } from '@/lib/formato'
 import { MEDIOS } from '@/lib/venta-calculo'
 import { Imprimir } from './imprimir'
 
@@ -45,10 +45,10 @@ export default async function TicketPage(props: PageProps<'/ticket/[id]'>) {
             <p>{i.nombre}</p>
             <p className="flex justify-between">
               <span>
-                {i.cantidad} x {formatoPesos(i.precio_unitario)}
+                {i.cantidad} x {formatoPesosExacto(i.precio_unitario)}
                 {i.descuento_pct > 0 && ` -${i.descuento_pct}%`}
               </span>
-              <span>{formatoPesos(i.subtotal)}</span>
+              <span>{formatoPesosExacto(i.subtotal)}</span>
             </p>
           </div>
         ))}
@@ -57,17 +57,17 @@ export default async function TicketPage(props: PageProps<'/ticket/[id]'>) {
           <>
             <p className="flex justify-between">
               <span>Subtotal</span>
-              <span>{formatoPesos(v.subtotal)}</span>
+              <span>{formatoPesosExacto(v.subtotal)}</span>
             </p>
             <p className="flex justify-between">
               <span>Descuentos</span>
-              <span>-{formatoPesos(v.descuento)}</span>
+              <span>-{formatoPesosExacto(v.descuento)}</span>
             </p>
           </>
         )}
         <p className="flex justify-between text-[14px] font-bold">
           <span>TOTAL</span>
-          <span>{formatoPesos(v.total)}</span>
+          <span>{formatoPesosExacto(v.total)}</span>
         </p>
         <div className="mt-2">
           {v.pagos.map((p, i) => (
@@ -76,18 +76,18 @@ export default async function TicketPage(props: PageProps<'/ticket/[id]'>) {
                 {MEDIOS[p.medio]}
                 {p.cuotas && p.cuotas > 1 ? ` (${p.cuotas} cuotas)` : ''}
               </span>
-              <span>{formatoPesos(p.monto)}</span>
+              <span>{formatoPesosExacto(p.monto)}</span>
             </p>
           ))}
           {v.efectivo_recibido !== null && v.vuelto > 0 && (
             <>
               <p className="flex justify-between">
                 <span>Recibido</span>
-                <span>{formatoPesos(v.efectivo_recibido)}</span>
+                <span>{formatoPesosExacto(v.efectivo_recibido)}</span>
               </p>
               <p className="flex justify-between">
                 <span>Vuelto</span>
-                <span>{formatoPesos(v.vuelto)}</span>
+                <span>{formatoPesosExacto(v.vuelto)}</span>
               </p>
             </>
           )}

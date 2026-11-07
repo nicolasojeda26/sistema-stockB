@@ -125,7 +125,7 @@ export function Importador({ depositos }: { depositos: { id: number; nombre: str
   }
 
   return (
-    <div className="space-y-5">
+    <div className="min-w-0 space-y-5">
       <Tarjeta className="p-5">
         <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-linea px-6 py-8 text-center hover:border-marca/50 hover:bg-marca-clara/30">
           <span className="text-sm font-medium">{archivo ?? 'Elegí el archivo de Dux'}</span>

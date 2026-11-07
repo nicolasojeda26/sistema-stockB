@@ -26,6 +26,10 @@ export default async function CajaPage() {
   const sql = db()
   const caja = await cajaAbierta(sql, u.id)
   const resumen = caja ? await resumenCaja(sql, caja.id) : null
+  const movimientos = caja
+    ? await sql<{ id: number; creado: Date; tipo: string; monto: number; motivo: string }[]>`
+        select id, creado, tipo, monto, motivo from movimientos_caja where caja_id = ${caja.id} order by creado`
+    : []
   const historial = await sql<CajaFila[]>`
     select c.id, s.nombre as sucursal, us.nombre as usuario, c.abierta, c.cerrada, c.efectivo_esperado, c.efectivo_contado,
       coalesce((select sum(total) from ventas v where v.caja_id = c.id and v.estado = 'completada'), 0) as total
@@ -43,8 +47,8 @@ export default async function CajaPage() {
 
       {caja && resumen && (
         <div className="mb-8 grid gap-5 lg:grid-cols-[1fr_340px]">
-          <ResumenCajaVista resumen={resumen} />
-          <div className="space-y-5">
+          <ResumenCajaVista resumen={resumen} movimientos={movimientos} />
+          <div className="min-w-0 space-y-5">
             <Tarjeta>
               <TituloTarjeta>Ingreso o retiro de efectivo</TituloTarjeta>
               <MovimientoCaja />

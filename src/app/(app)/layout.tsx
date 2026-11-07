@@ -22,8 +22,8 @@ export default async function AppLayout({ children }: LayoutProps<'/'>) {
       ? ([
           { href: '/reportes', texto: 'Reportes', icono: 'reportes', seccion: 'Administración' },
           { href: '/comprobantes', texto: 'Comprobantes', icono: 'factura' },
-          { href: '/facturacion', texto: 'Facturación ARCA', icono: 'factura' },
           { href: '/precios', texto: 'Actualizar precios', icono: 'precios' },
+          { href: '/facturacion', texto: 'Facturación ARCA', icono: 'factura', seccion: 'Configuración' },
           { href: '/categorias', texto: 'Categorías', icono: 'categorias' },
           { href: '/sucursales', texto: 'Sucursales y depósitos', icono: 'sucursales' },
           { href: '/usuarios', texto: 'Usuarios', icono: 'usuarios' },
@@ -34,13 +34,16 @@ export default async function AppLayout({ children }: LayoutProps<'/'>) {
   ]
 
   const pie = (
-    <div className="border-t border-white/10 p-4">
-      <p className="truncate text-sm font-medium text-white">{u.nombre}</p>
-      <p className="truncate text-xs text-white/60">
-        {u.rol === 'admin' ? 'Administradora' : `Vendedora · ${u.sucursal_nombre}`}
-      </p>
-      <form action={salir} className="mt-3">
-        <button className="text-xs text-white/70 underline-offset-2 hover:text-white hover:underline">Cerrar sesión</button>
+    <div className="flex items-center gap-3 border-t border-linea p-3 pb-20 lg:pb-3">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-marca-clara text-sm font-bold text-marca" aria-hidden>
+        {u.nombre.trim()[0]?.toUpperCase()}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-semibold">{u.nombre}</span>
+        <span className="block truncate text-xs text-apagado">{u.rol === 'admin' ? 'Administradora' : `Vendedora en ${u.sucursal_nombre}`}</span>
+      </span>
+      <form action={salir}>
+        <button className="rounded-lg px-2 py-1.5 text-xs font-medium text-tinta-suave hover:bg-fondo hover:text-tinta">Salir</button>
       </form>
     </div>
   )
@@ -48,7 +51,7 @@ export default async function AppLayout({ children }: LayoutProps<'/'>) {
   return (
     <div className="min-h-screen lg:flex">
       <Navegacion items={items} pie={pie} negocio={nombre_negocio} />
-      <main className="min-w-0 flex-1 px-4 py-6 sm:px-8 lg:py-8 print:p-0">
+      <main className="min-w-0 flex-1 px-4 pt-6 pb-24 sm:px-8 lg:py-8 print:p-0">
         <div className="mx-auto max-w-6xl">{children}</div>
       </main>
     </div>

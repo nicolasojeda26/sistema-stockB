@@ -128,7 +128,7 @@ export default async function VentasPage(props: PageProps<'/ventas'>) {
                 <tr>
                   <th className={t.th}>N.º</th>
                   <th className={t.th}>Fecha</th>
-                  <th className={`${t.th} hidden md:table-cell`}>Sucursal · vendedora</th>
+                  <th className={`${t.th} hidden md:table-cell`}>Sucursal y vendedora</th>
                   <th className={`${t.th} hidden sm:table-cell`}>Pago</th>
                   <th className={`${t.th} text-right`}>Total</th>
                 </tr>

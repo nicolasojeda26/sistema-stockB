@@ -219,7 +219,7 @@ export function OperacionStock({
     )
 
   return (
-    <div className="space-y-5">
+    <div className="min-w-0 space-y-5">
       <Tarjeta className="p-5">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Campo etiqueta={tipo === 'transferencia' ? 'Sale de' : tipo === 'ingreso' ? 'Entra en' : 'Depósito'}>
