@@ -2,6 +2,8 @@
 // Uso: npm run db:demo
 import postgres from 'postgres'
 import { hashPassword } from '../src/lib/password'
+import { codigoInterno } from '../src/lib/codigos'
+import { nombreVariante, ordenTalle } from '../src/lib/articulos'
 
 const url = process.env.DATABASE_URL
 if (!url) {
@@ -67,6 +69,30 @@ await sql.begin(async (tx) => {
     }
     i++
   }
+
+  // Artículos con talles y colores.
+  const articulos: [string, string, string, string[], string[], number, number][] = [
+    ['Buzo canguro frisa', 'Abrigos', 'Algodón Norte', ['Negro', 'Gris', 'Rosa'], ['S', 'M', 'L', 'XL'], 15800, 36900],
+    ['Calza deportiva', 'Pantalones', 'Movete', ['Negro', 'Azul'], ['XS', 'S', 'M', 'L'], 7400, 18900],
+  ]
+  let n = 9000
+  for (const [nombre, cat, marca, colores, talles, costo, precio] of articulos) {
+    const [a] = await tx<{ id: number }[]>`insert into articulos (nombre, categoria_id, marca) values (${nombre}, ${idCat[cat]}, ${marca}) returning id`
+    for (const color of colores)
+      for (const talle of talles) {
+        const [p] = await tx<{ id: number }[]>`
+          insert into productos (codigo, nombre, categoria_id, costo, precio, stock_minimo, articulo_id, talle, color, orden_talle)
+          values (${codigoInterno(n++)}, ${nombreVariante(nombre, color, talle)}, ${idCat[cat]}, ${costo}, ${precio}, 1, ${a.id}, ${talle}, ${color}, ${ordenTalle(talle, talles)})
+          returning id`
+        for (const d of principales) {
+          const cant = (n * 5 + d.id) % 5
+          if (!cant) continue
+          await tx`insert into stock (producto_id, deposito_id, cantidad) values (${p.id}, ${d.id}, ${cant})`
+          await tx`insert into movimientos_stock (producto_id, deposito_id, cantidad, tipo, motivo) values (${p.id}, ${d.id}, ${cant}, 'carga_inicial', 'Datos de ejemplo')`
+        }
+      }
+  }
+  await tx`select setval('codigo_interno_seq', 10000)`
 })
 await sql.end()
 console.log('Demo cargada. Usuarios: belen (admin), sofia y camila (vendedoras). Contraseña: demo1234')

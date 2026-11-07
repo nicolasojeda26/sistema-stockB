@@ -10,7 +10,7 @@ import { importarLote } from './actions'
 const TAM_LOTE = 400
 
 type Hoja = { nombre: string; filas: unknown[][] }
-type Total = { creados: number; actualizados: number; omitidos: number; stock: number; categorias: number }
+type Total = { creados: number; actualizados: number; omitidos: number; stock: number; categorias: number; articulos: number }
 
 export function Importador({ depositos }: { depositos: { id: number; nombre: string }[] }) {
   const [archivo, setArchivo] = useState<string | null>(null)
@@ -68,7 +68,7 @@ export function Importador({ depositos }: { depositos: { id: number; nombre: str
 
   async function importar() {
     const { validas } = lectura
-    const total: Total = { creados: 0, actualizados: 0, omitidos: 0, stock: 0, categorias: 0 }
+    const total: Total = { creados: 0, actualizados: 0, omitidos: 0, stock: 0, categorias: 0, articulos: 0 }
     setProgreso({ hecho: 0, total: validas.length })
     for (let i = 0; i < validas.length; i += TAM_LOTE) {
       const r = await importarLote({
@@ -108,6 +108,11 @@ export function Importador({ depositos }: { depositos: { id: number; nombre: str
           <li>
             <b className="num">{formatoEntero(r.categorias)}</b> categorías nuevas
           </li>
+          {r.articulos > 0 && (
+            <li>
+              <b className="num">{formatoEntero(r.articulos)}</b> artículos con talles y colores agrupados
+            </li>
+          )}
           <li>
             <b className="num">{formatoEntero(r.stock)}</b> productos con stock cargado
           </li>

@@ -3,6 +3,7 @@ import { PaginaOperacion } from '../pagina'
 
 export const metadata: Metadata = { title: 'Ingreso de mercadería' }
 
-export default function IngresoPage() {
-  return <PaginaOperacion tipo="ingreso" />
+export default async function IngresoPage(props: PageProps<'/mercaderia/ingreso'>) {
+  const articulo = Number((await props.searchParams).articulo) || null
+  return <PaginaOperacion tipo="ingreso" articulo={articulo} />
 }

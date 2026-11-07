@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { db } from '@/lib/db'
 import { requerirUsuario } from '@/lib/dal'
@@ -25,8 +26,10 @@ export default async function ProductoPage(props: PageProps<'/productos/[id]'>) 
   const sql = db()
 
   const [producto] = await sql<(ProductoForm & { categoria: string | null })[]>`
-    select p.id, p.codigo, p.nombre, p.categoria_id, c.nombre as categoria, p.costo, p.precio, p.stock_minimo, p.activo
-    from productos p left join categorias c on c.id = p.categoria_id where p.id = ${id}`
+    select p.id, p.codigo, p.nombre, p.categoria_id, c.nombre as categoria, p.costo, p.precio, p.stock_minimo, p.activo,
+      p.articulo_id, a.nombre as articulo, p.talle, p.color
+    from productos p left join categorias c on c.id = p.categoria_id left join articulos a on a.id = p.articulo_id
+    where p.id = ${id}`
   if (!producto) notFound()
 
   const [stocks, movimientos, categorias, precios] = await Promise.all([
@@ -61,6 +64,14 @@ export default async function ProductoPage(props: PageProps<'/productos/[id]'>) 
           <>
             <span className="font-mono">{producto.codigo}</span> · {producto.categoria ?? 'Sin categoría'}
             {!producto.activo && ' · Dado de baja'}
+            {producto.articulo_id && (
+              <>
+                {' · '}
+                <Link href={`/articulos/${producto.articulo_id}`} className="font-medium text-marca hover:underline">
+                  Ver todos los talles y colores
+                </Link>
+              </>
+            )}
           </>
         }
         acciones={

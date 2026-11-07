@@ -28,13 +28,16 @@ describe.skipIf(!url)('base de datos', () => {
   })
   afterAll(() => sql.end())
   beforeEach(async () => {
-    await sql`truncate movimientos_stock, stock, productos, categorias, usuarios, depositos, sucursales restart identity cascade`
+    await sql`truncate movimientos_stock, stock, productos, articulos, categorias, usuarios, depositos, sucursales restart identity cascade`
     const [s] = await sql`insert into sucursales (nombre) values ('Centro') returning id`
     ;[{ id: dep }] = await sql`insert into depositos (nombre, sucursal_id, es_principal) values ('Local', ${s.id}, true) returning id`
     ;[{ id: admin }] = await sql`insert into usuarios (usuario, nombre, password_hash, rol) values ('belen', 'Belen', 'x', 'admin') returning id`
   })
 
-  const fila = (codigo: string, extra: Partial<{ nombre: string; categoria: string | null; costo: number | null; precio: number | null; stock: number | null }> = {}) => ({
+  const fila = (
+    codigo: string,
+    extra: Partial<{ nombre: string; categoria: string | null; costo: number | null; precio: number | null; stock: number | null; talle: string | null; color: string | null; articulo: string | null }> = {},
+  ) => ({
     fila: 1,
     codigo,
     nombre: `Producto ${codigo}`,
@@ -42,12 +45,15 @@ describe.skipIf(!url)('base de datos', () => {
     costo: 100,
     precio: 200,
     stock: 5,
+    talle: null,
+    color: null,
+    articulo: null,
     ...extra,
   })
 
   it('crea productos, categorías y stock con su movimiento', async () => {
     const r = await importarFilas(sql, { filas: [fila('A'), fila('B', { categoria: 'remeras' }), fila('C', { categoria: null, stock: null })], depositoId: dep, actualizarExistentes: true, usuarioId: admin })
-    expect(r).toEqual({ creados: 3, actualizados: 0, omitidos: 0, stock: 2, categorias: 1 })
+    expect(r).toEqual({ creados: 3, actualizados: 0, omitidos: 0, stock: 2, categorias: 1, articulos: 0 })
     const st = await sql`select p.codigo, s.cantidad from stock s join productos p on p.id = s.producto_id order by p.codigo`
     expect(st.map((x) => [x.codigo, x.cantidad])).toEqual([
       ['A', 5],
@@ -73,6 +79,20 @@ describe.skipIf(!url)('base de datos', () => {
     expect(r).toMatchObject({ creados: 1, actualizados: 0, omitidos: 1 })
     const [a] = await sql`select p.precio, s.cantidad from productos p join stock s on s.producto_id = p.id where p.codigo = 'A'`
     expect(a).toEqual({ precio: 200, cantidad: 5 })
+  })
+
+  it('agrupa talles y colores en un artículo y lo reutiliza al reimportar', async () => {
+    const v = (codigo: string, color: string, talle: string, stock = 1) =>
+      fila(codigo, { nombre: `Remera lisa ${color} ${talle}`, articulo: 'Remera lisa', color, talle, stock })
+    const r = await importarFilas(sql, { filas: [v('R1', 'Negro', 'M'), v('R2', 'Negro', 'L'), v('R3', 'Blanco', 'M'), fila('X', { nombre: 'Cinturón' })], depositoId: dep, actualizarExistentes: true, usuarioId: admin })
+    expect(r.articulos).toBe(1)
+    const vs = await sql`select p.codigo, p.talle, p.color, p.orden_talle, a.nombre from productos p join articulos a on a.id = p.articulo_id order by p.codigo`
+    expect(vs.map((x) => `${x.nombre}|${x.color}|${x.talle}`)).toEqual(['Remera lisa|Negro|M', 'Remera lisa|Negro|L', 'Remera lisa|Blanco|M'])
+    expect(vs[0].orden_talle).toBeLessThan(vs[1].orden_talle)
+    expect((await sql`select articulo_id from productos where codigo = 'X'`)[0].articulo_id).toBeNull()
+    const r2 = await importarFilas(sql, { filas: [v('R4', 'Blanco', 'L')], depositoId: dep, actualizarExistentes: true, usuarioId: admin })
+    expect(r2.articulos).toBe(0)
+    expect((await sql`select count(distinct articulo_id)::int n from productos where articulo_id is not null`)[0].n).toBe(1)
   })
 
   it('no permite dos productos con el mismo código (sin importar mayúsculas)', async () => {

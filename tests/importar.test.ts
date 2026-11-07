@@ -55,8 +55,8 @@ describe('leerPlanilla', () => {
 
   it('lee las filas válidas y usa el código interno si falta el de barras', () => {
     expect(r.validas).toEqual([
-      { fila: 2, codigo: '7790001000011', nombre: 'Remera negra', categoria: 'Remeras', costo: null, precio: 14900, stock: 5 },
-      { fila: 3, codigo: 'R2', nombre: 'Remera blanca', categoria: 'Remeras', costo: null, precio: 14900, stock: 3 },
+      { fila: 2, codigo: '7790001000011', nombre: 'Remera negra', categoria: 'Remeras', costo: null, precio: 14900, stock: 5, talle: null, color: null, articulo: null },
+      { fila: 3, codigo: 'R2', nombre: 'Remera blanca', categoria: 'Remeras', costo: null, precio: 14900, stock: 3, talle: null, color: null, articulo: null },
     ])
   })
 

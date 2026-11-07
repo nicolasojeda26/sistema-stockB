@@ -95,6 +95,10 @@ export function Input({ className, ...p }: ComponentProps<'input'>) {
   return <input className={conMedidas(className)} {...p} />
 }
 
+export function Textarea({ className, ...p }: ComponentProps<'textarea'>) {
+  return <textarea className={cx(baseInput.replace(' h-10', ''), 'py-2', className)} {...p} />
+}
+
 export function Select({ className, ...p }: ComponentProps<'select'>) {
   return <select className={cx(conMedidas(className), 'pr-8')} {...p} />
 }

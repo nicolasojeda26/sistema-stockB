@@ -10,6 +10,8 @@ export const CAMPOS = {
   costo: 'Costo',
   precio: 'Precio de venta',
   stock: 'Stock',
+  talle: 'Talle',
+  color: 'Color',
 } as const
 export type Campo = keyof typeof CAMPOS
 export type Mapeo = Partial<Record<Campo, number>>
@@ -22,6 +24,10 @@ export type FilaImport = {
   costo: number | null
   precio: number | null
   stock: number | null
+  talle: string | null
+  color: string | null
+  /** Nombre del artículo que agrupa los talles y colores (solo si hay talle o color). */
+  articulo: string | null
 }
 
 const normalizar = (s: unknown) =>
@@ -39,6 +45,8 @@ const PATRONES: [Campo, RegExp][] = [
   ['precio', /(^precio( de)? (venta|lista|final|publico)|^p ?venta|^pvp|^precio$|^precio 1$|^lista 1$|^precio lista 1)/],
   ['stock', /(^stock( actual| total| disponible)?$|existencia|^saldo$|^cantidad$)/],
   ['categoria', /(^rubro$|^categoria$|^familia$|^linea$|^rubro principal$)/],
+  ['talle', /(^talles?$|^talla$|^size$|^medida$)/],
+  ['color', /(^colou?r(es)?$)/],
   ['codigo_alt', /(^cod(igo)?( interno| articulo| producto)?$|^sku$|^cod art$)/],
   ['nombre', /(descripcion|^producto$|^nombre|^articulo$|^detalle$)/],
 ]
@@ -107,12 +115,31 @@ export function leerFila(celdas: unknown[], mapeo: Mapeo, numeroFila: number): R
     return { ok: false, fila: numeroFila, motivo: 'Precio no es un número' }
   if ((costo ?? 0) < 0 || (precio ?? 0) < 0) return { ok: false, fila: numeroFila, motivo: 'Precio o costo negativo' }
 
+  const talle = textoCelda(celda('talle')).replace(/\s+/g, ' ').slice(0, 30) || null
+  const color = textoCelda(celda('color')).replace(/\s+/g, ' ').slice(0, 30) || null
+  let articulo: string | null = null
+  let nombreFinal = nombre
+  if (talle || color) {
+    // El nombre del artículo es la descripción sin el color ni el talle (Dux a veces los repite al final).
+    let base = nombre
+    for (const x of [talle, color, talle]) {
+      if (!x) continue
+      const re = new RegExp(`[\\s\\-/,]+${x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i')
+      base = base.replace(re, '').trim()
+    }
+    articulo = (base || nombre).slice(0, 150)
+    nombreFinal = [articulo, color, talle].filter(Boolean).join(' ')
+  }
+
   return {
     ok: true,
     fila: {
       fila: numeroFila,
       codigo,
-      nombre: nombre.slice(0, 200),
+      nombre: nombreFinal.slice(0, 200),
+      talle,
+      color,
+      articulo,
       categoria: textoCelda(celda('categoria')).replace(/\s+/g, ' ').slice(0, 80) || null,
       costo: costo === null ? null : Math.round(costo * 100) / 100,
       precio: precio === null ? null : Math.round(precio * 100) / 100,
@@ -126,6 +153,7 @@ export function leerPlanilla(filas: unknown[][], encabezado: number, mapeo: Mape
   const validas: FilaImport[] = []
   const errores: { fila: number; motivo: string }[] = []
   const vistos = new Map<string, number>()
+  const variantes = new Map<string, number>()
   for (let i = encabezado + 1; i < filas.length; i++) {
     const r = leerFila(filas[i] ?? [], mapeo, i + 1)
     if (!r) continue
@@ -139,6 +167,14 @@ export function leerPlanilla(filas: unknown[][], encabezado: number, mapeo: Mape
       continue
     }
     vistos.set(clave, r.fila.fila)
+    if (r.fila.articulo) {
+      const variante = `${r.fila.articulo}|${r.fila.color ?? ''}|${r.fila.talle ?? ''}`.toLowerCase()
+      if (variantes.has(variante)) {
+        errores.push({ fila: r.fila.fila, motivo: `Talle y color repetidos para el mismo artículo (fila ${variantes.get(variante)})` })
+        continue
+      }
+      variantes.set(variante, r.fila.fila)
+    }
     validas.push(r.fila)
   }
   return { validas, errores }

@@ -11,6 +11,7 @@ export default async function EtiquetasPage(props: PageProps<'/etiquetas'>) {
   const sp = await props.searchParams
   const operacion = Number(sp.operacion) || null
   const producto = Number(sp.producto) || null
+  const articulo = Number(sp.articulo) || null
   const sql = db()
 
   // Lista inicial: lo que entró en un ingreso (una etiqueta por unidad) o un producto suelto.
@@ -26,6 +27,14 @@ export default async function EtiquetasPage(props: PageProps<'/etiquetas'>) {
       where o.id = ${operacion}
         ${u.rol === 'admin' ? sql`` : sql`and (dd.sucursal_id = ${u.sucursal_id} or od.sucursal_id = ${u.sucursal_id})`}
       order by p.nombre`
+  } else if (articulo) {
+    // Todas las variantes de un artículo: tantas etiquetas como unidades haya en la sucursal (mínimo una).
+    iniciales = await sql<LineaEtiqueta[]>`
+      select p.id, p.codigo, p.nombre, p.precio,
+        greatest(1, coalesce((select sum(s.cantidad) from stock s join depositos d on d.id = s.deposito_id
+          where s.producto_id = p.id ${u.rol === 'admin' ? sql`` : sql`and d.sucursal_id = ${u.sucursal_id}`}), 0))::int as cantidad
+      from productos p where p.articulo_id = ${articulo} and p.activo
+      order by lower(coalesce(p.color, '')), p.orden_talle`
   } else if (producto) {
     iniciales = await sql<LineaEtiqueta[]>`select id, codigo, nombre, precio, 1 as cantidad from productos where id = ${producto}`
   }

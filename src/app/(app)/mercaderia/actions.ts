@@ -126,3 +126,32 @@ export async function confirmarOperacion(datos: z.input<typeof Operacion>): Prom
     return { error: 'No se pudo guardar. Probá de nuevo.' }
   }
 }
+
+export type ArticuloBuscado = { id: number; nombre: string; variantes: number }
+
+/** Artículos con talles y colores, para cargar por grilla. */
+export async function buscarArticulos(q: string): Promise<ArticuloBuscado[]> {
+  await requerirUsuario()
+  const sql = db()
+  const palabras = q.trim().toLowerCase().split(/\s+/).filter(Boolean).slice(0, 5)
+  return sql<ArticuloBuscado[]>`
+    select a.id, a.nombre, (select count(*)::int from productos p where p.articulo_id = a.id and p.activo) as variantes
+    from articulos a
+    where a.activo ${palabras.reduce((acc, w) => sql`${acc} and normalizar(a.nombre) like ${'%' + w.normalize('NFD').replace(/[̀-ͯ]/g, '') + '%'}`, sql``)}
+    order by lower(a.nombre) limit 12`
+}
+
+export type VarianteLinea = ProductoLinea & { talle: string | null; color: string | null; orden_talle: number }
+
+export async function variantesArticulo(articuloId: number, depositoId: number | null): Promise<{ nombre: string; variantes: VarianteLinea[] } | null> {
+  await requerirUsuario()
+  const sql = db()
+  const [a] = await sql<{ nombre: string }[]>`select nombre from articulos where id = ${articuloId}`
+  if (!a) return null
+  const variantes = await sql<VarianteLinea[]>`
+    select p.id, p.codigo, p.nombre, p.precio, p.activo, p.talle, p.color, p.orden_talle,
+      coalesce((select cantidad from stock s where s.producto_id = p.id and s.deposito_id = ${depositoId ?? 0}), 0) as stock
+    from productos p where p.articulo_id = ${articuloId} and p.activo
+    order by lower(coalesce(p.color, '')), p.orden_talle`
+  return { nombre: a.nombre, variantes }
+}

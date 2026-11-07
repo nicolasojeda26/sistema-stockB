@@ -14,6 +14,9 @@ const Fila = z.object({
   costo: z.number().nonnegative().max(1e11).nullable(),
   precio: z.number().nonnegative().max(1e11).nullable(),
   stock: z.number().int().min(-1e7).max(1e7).nullable(),
+  talle: z.string().trim().max(30).nullable().default(null),
+  color: z.string().trim().max(30).nullable().default(null),
+  articulo: z.string().trim().max(150).nullable().default(null),
 })
 const Lote = z.object({
   filas: z.array(Fila).max(500),

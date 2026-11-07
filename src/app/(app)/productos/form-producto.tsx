@@ -16,6 +16,11 @@ export type ProductoForm = {
   precio: number
   stock_minimo: number
   activo: boolean
+  /** Si es una variante de un artículo. */
+  articulo_id?: number | null
+  articulo?: string | null
+  talle?: string | null
+  color?: string | null
 }
 
 const aTexto = (n: number) => String(n).replace('.', ',')
@@ -51,10 +56,22 @@ export function FormProducto({ producto, categorias }: { producto?: ProductoForm
                 required
               />
             </Campo>
-            <Campo etiqueta="Nombre" error={errores.nombre}>
-              <Input name="nombre" defaultValue={producto?.nombre} placeholder="Ej.: Remera lisa algodón M negra" required />
-            </Campo>
+            {producto?.articulo_id ? (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Campo etiqueta="Color" error={errores.color}>
+                  <Input name="color" defaultValue={producto.color ?? ''} />
+                </Campo>
+                <Campo etiqueta="Talle" error={errores.talle}>
+                  <Input name="talle" defaultValue={producto.talle ?? ''} />
+                </Campo>
+              </div>
+            ) : (
+              <Campo etiqueta="Nombre" error={errores.nombre}>
+                <Input name="nombre" defaultValue={producto?.nombre} placeholder="Ej.: Remera lisa algodón M negra" required />
+              </Campo>
+            )}
           </div>
+          {!producto?.articulo_id && (
           <Campo etiqueta="Categoría">
             <Select name="categoria_id" defaultValue={producto?.categoria_id ?? ''}>
               <option value="">Sin categoría</option>
@@ -65,6 +82,7 @@ export function FormProducto({ producto, categorias }: { producto?: ProductoForm
               ))}
             </Select>
           </Campo>
+          )}
           <div className="grid gap-4 sm:grid-cols-3">
             <Campo etiqueta="Costo" error={errores.costo}>
               <Input name="costo" inputMode="decimal" value={costo} onChange={(e) => setCosto(e.target.value)} placeholder="0,00" />

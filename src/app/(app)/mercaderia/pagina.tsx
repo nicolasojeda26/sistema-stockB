@@ -20,7 +20,7 @@ const TITULOS = {
 } as const
 
 /** Página compartida por ingreso, transferencia y ajuste. */
-export async function PaginaOperacion({ tipo }: { tipo: keyof typeof TITULOS }) {
+export async function PaginaOperacion({ tipo, articulo = null }: { tipo: keyof typeof TITULOS; articulo?: number | null }) {
   const u = tipo === 'ajuste' ? await requerirAdmin() : await requerirUsuario()
   const [depositos, categorias] = await Promise.all([
     depositosPara(u),
@@ -29,7 +29,7 @@ export async function PaginaOperacion({ tipo }: { tipo: keyof typeof TITULOS }) 
   return (
     <>
       <Encabezado titulo={TITULOS[tipo].titulo} detalle={TITULOS[tipo].detalle} />
-      <OperacionStock tipo={tipo} depositos={depositos} categorias={categorias} usuarioId={u.id} />
+      <OperacionStock tipo={tipo} depositos={depositos} categorias={categorias} usuarioId={u.id} articuloInicial={articulo} />
     </>
   )
 }

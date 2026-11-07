@@ -6,14 +6,26 @@ import { db } from '@/lib/db'
 import { requerirAdmin } from '@/lib/dal'
 import { entero, marcado, mensajeError, texto } from '@/lib/errores'
 import { centavos, parseNumero } from '@/lib/numeros'
+import { nombreVariante, ordenTalle } from '@/lib/articulos'
 import type { Resultado } from '@/components/form-accion'
 
 export async function guardarProducto(_: Resultado, f: FormData): Promise<Resultado> {
   const u = await requerirAdmin()
   const id = entero(f, 'id')
   const codigo = texto(f, 'codigo')
-  const nombre = texto(f, 'nombre')
-  const categoriaId = entero(f, 'categoria_id')
+  let nombre = texto(f, 'nombre')
+  let categoriaId = entero(f, 'categoria_id')
+  // Variante de un artículo: el nombre y la categoría salen del artículo + talle + color.
+  const [art] = id
+    ? await db()<{ articulo_id: number; nombre: string; categoria_id: number | null }[]>`
+        select p.articulo_id, a.nombre, a.categoria_id from productos p join articulos a on a.id = p.articulo_id where p.id = ${id}`
+    : []
+  const talle = texto(f, 'talle') || null
+  const color = texto(f, 'color') || null
+  if (art) {
+    nombre = nombreVariante(art.nombre, color, talle)
+    categoriaId = art.categoria_id
+  }
   const costo = parseNumero(texto(f, 'costo') || '0')
   const precio = parseNumero(texto(f, 'precio'))
   const stockMinimo = parseNumero(texto(f, 'stock_minimo') || '0')
@@ -37,6 +49,7 @@ export async function guardarProducto(_: Resultado, f: FormData): Promise<Result
           update productos set codigo = ${codigo}, nombre = ${nombre}, categoria_id = ${categoriaId},
             costo = ${centavos(costo!)}, precio = ${centavos(precio!)}, stock_minimo = ${stockMinimo},
             activo = ${activo}, actualizado = now()
+            ${art ? tx`, talle = ${talle}, color = ${color}, orden_talle = ${ordenTalle(talle)}` : tx``}
           where id = ${id}`
         return id
       }
@@ -47,6 +60,8 @@ export async function guardarProducto(_: Resultado, f: FormData): Promise<Result
       return p.id
     })
   } catch (e) {
+    if ((e as { constraint_name?: string }).constraint_name === 'productos_variante')
+      return { error: 'Ya hay otra variante con ese talle y color.', errores: { talle: 'Repetido' } }
     const msg = mensajeError(e, 'Ya hay otro producto con ese código.')
     return { error: msg, errores: (e as { code?: string }).code === '23505' ? { codigo: msg } : undefined }
   }

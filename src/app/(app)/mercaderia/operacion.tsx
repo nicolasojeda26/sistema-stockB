@@ -6,6 +6,7 @@ import { Aviso, Boton, Campo, Etiqueta, Input, Select, Tarjeta, TituloTarjeta, t
 import { formatoEntero, formatoPesos } from '@/lib/formato'
 import { buscarProducto, confirmarOperacion, stockEn, type ProductoLinea } from './actions'
 import { AltaRapida } from './alta-rapida'
+import { GrillaTalles } from './grilla'
 
 export type Deposito = { id: number; nombre: string; propio: boolean; es_principal: boolean; sucursal_id: number | null }
 type Tipo = 'ingreso' | 'transferencia' | 'ajuste'
@@ -44,11 +45,14 @@ export function OperacionStock({
   depositos,
   categorias,
   usuarioId,
+  articuloInicial = null,
 }: {
   tipo: Tipo
   depositos: Deposito[]
   categorias: { id: number; nombre: string }[]
   usuarioId: number
+  /** Viene de la ficha del artículo: abre la grilla de talles directamente. */
+  articuloInicial?: number | null
 }) {
   const propios = depositos.filter((d) => d.propio)
   const inicialPropio = String((propios.find((d) => d.es_principal) ?? propios[0])?.id ?? '')
@@ -66,6 +70,7 @@ export function OperacionStock({
   const [error, setError] = useState<string | null>(null)
   const [listo, setListo] = useState<{ id: number; unidades: number; productos: number } | null>(null)
   const [guardando, iniciar] = useTransition()
+  const [grilla, setGrilla] = useState(articuloInicial !== null)
   const escaner = useRef<HTMLInputElement>(null)
   const cargado = useRef(false)
 
@@ -107,6 +112,27 @@ export function OperacionStock({
       }
       if (i >= 0) return ls
       return [{ ...p, cantidad: esRecuento ? String(Math.max(p.stock, 0)) : '1' }, ...ls]
+    })
+    escaner.current?.focus()
+  }
+
+  /** Desde la grilla: suma cantidades (en recuento, reemplaza por lo contado). */
+  function agregarVarios(items: { producto: ProductoLinea; cantidad: number }[]) {
+    setGrilla(false)
+    setError(null)
+    setLineas((ls) => {
+      let copia = [...ls]
+      for (const { producto, cantidad } of items) {
+        const i = copia.findIndex((l) => l.id === producto.id)
+        if (i >= 0) {
+          const actual = esRecuento ? 0 : Number.parseInt(copia[i].cantidad, 10) || 0
+          copia[i] = { ...copia[i], cantidad: String(actual + cantidad) }
+        } else {
+          const { id, codigo, nombre, precio, activo, stock } = producto
+          copia = [{ id, codigo, nombre, precio, activo, stock, cantidad: String(cantidad) }, ...copia]
+        }
+      }
+      return copia
     })
     escaner.current?.focus()
   }
@@ -264,9 +290,14 @@ export function OperacionStock({
         </div>
 
         <div className="relative mt-5">
-          <label htmlFor="escaner" className="mb-1.5 block text-sm font-medium">
-            Escaneá o buscá el producto
-          </label>
+          <div className="mb-1.5 flex items-end justify-between gap-3">
+            <label htmlFor="escaner" className="block text-sm font-medium">
+              Escaneá o buscá el producto
+            </label>
+            <button type="button" onClick={() => setGrilla(true)} className="text-sm font-semibold text-marca hover:underline">
+              Cargar por talle y color
+            </button>
+          </div>
           <input
             id="escaner"
             ref={escaner}
@@ -306,6 +337,15 @@ export function OperacionStock({
           )}
         </div>
 
+        {grilla && (
+          <GrillaTalles
+            depositoId={Number(depositoId) || null}
+            articuloInicial={articuloInicial}
+            mostrarStock={tipo !== 'ingreso'}
+            alAgregar={agregarVarios}
+            alCerrar={() => setGrilla(false)}
+          />
+        )}
         {noEncontrado && (
           <div className="mt-4">
             {tipo === 'ingreso' ? (

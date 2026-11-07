@@ -1,10 +1,14 @@
 'use client'
 
 import { FormAccion } from '@/components/form-accion'
-import { Boton, Campo, Input, Select } from '@/components/ui'
+import { Boton, Campo, Input, Select, Textarea } from '@/components/ui'
 import { guardarAjustes } from './actions'
 
-export function FormAjustes({ ajustes }: { ajustes: { nombre_negocio: string; pie_ticket: string; ancho_ticket: string } }) {
+export function FormAjustes({
+  ajustes,
+}: {
+  ajustes: { nombre_negocio: string; pie_ticket: string; ancho_ticket: string; curvas_talles: string; colores_frecuentes: string }
+}) {
   return (
     <FormAccion accion={guardarAjustes} className="space-y-4 p-5">
       {(_, enviando) => (
@@ -20,6 +24,12 @@ export function FormAjustes({ ajustes }: { ajustes: { nombre_negocio: string; pi
               <option value="80">80 mm</option>
               <option value="58">58 mm</option>
             </Select>
+          </Campo>
+          <Campo etiqueta="Curvas de talles" ayuda="Una por línea: nombre, dos puntos y los talles separados por coma. Aparecen al crear un artículo.">
+            <Textarea name="curvas_talles" defaultValue={ajustes.curvas_talles} rows={5} className="font-mono text-xs" />
+          </Campo>
+          <Campo etiqueta="Colores frecuentes" ayuda="Separados por coma.">
+            <Input name="colores_frecuentes" defaultValue={ajustes.colores_frecuentes} maxLength={1000} />
           </Campo>
           <Boton type="submit" disabled={enviando}>
             Guardar

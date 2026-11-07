@@ -1,7 +1,8 @@
 import type { Sql } from 'postgres'
 import type { FilaImport } from './importar'
+import { ordenTalle } from './articulos'
 
-export type ResumenLote = { creados: number; actualizados: number; omitidos: number; stock: number; categorias: number }
+export type ResumenLote = { creados: number; actualizados: number; omitidos: number; stock: number; categorias: number; articulos: number }
 
 /**
  * Guarda un lote de filas en pocas consultas (rápido aun con la base lejos).
@@ -15,14 +16,15 @@ export async function importarFilas(
   opts: { filas: FilaImport[]; depositoId: number | null; actualizarExistentes: boolean; usuarioId: number },
 ): Promise<ResumenLote> {
   const { filas, depositoId, actualizarExistentes, usuarioId } = opts
-  if (filas.length === 0) return { creados: 0, actualizados: 0, omitidos: 0, stock: 0, categorias: 0 }
-  const json = JSON.stringify(filas)
+  if (filas.length === 0) return { creados: 0, actualizados: 0, omitidos: 0, stock: 0, categorias: 0, articulos: 0 }
+  const json = JSON.stringify(filas.map((f) => ({ ...f, orden: ordenTalle(f.talle) })))
 
   return sql.begin(async (tx) => {
     await tx`select set_config('app.usuario_id', ${String(usuarioId)}, true), set_config('app.origen', 'Importación desde Dux', true)`
     const datos = tx`
       select * from jsonb_to_recordset(${json}::text::jsonb)
-        as x(fila int, codigo text, nombre text, categoria text, costo numeric, precio numeric, stock int)`
+        as x(fila int, codigo text, nombre text, categoria text, costo numeric, precio numeric, stock int,
+             talle text, color text, articulo text, orden int)`
 
     const nuevasCategorias = await tx`
       insert into categorias (nombre)
@@ -49,6 +51,24 @@ export async function importarFilas(
       from (${datos}) d left join categorias c on lower(c.nombre) = lower(d.categoria)
       where not exists (select 1 from productos p where lower(p.codigo) = lower(d.codigo))
       returning id`
+
+    // Talles y colores: se agrupan en artículos (uno por nombre; si ya existe, se reutiliza).
+    const nuevosArticulos = await tx`
+      insert into articulos (nombre, categoria_id)
+      select distinct on (lower(d.articulo)) d.articulo, c.id
+      from (${datos}) d left join categorias c on lower(c.nombre) = lower(d.categoria)
+      where d.articulo is not null and not exists (select 1 from articulos a where lower(a.nombre) = lower(d.articulo))
+      order by lower(d.articulo), d.fila
+      returning id`
+    const tocados = [...creados.map((r) => r.id), ...actualizados.map((r) => r.id)]
+    await tx`
+      update productos p set articulo_id = a.id, talle = d.talle, color = d.color, orden_talle = d.orden, nombre = d.nombre
+      from (${datos}) d
+      join lateral (select id from articulos a where lower(a.nombre) = lower(d.articulo) order by id limit 1) a on true
+      where d.articulo is not null and lower(p.codigo) = lower(d.codigo) and p.id = any(${tocados}::int[])
+        and not exists (
+          select 1 from productos o where o.articulo_id = a.id and o.id <> p.id
+            and lower(coalesce(o.color, '')) = lower(coalesce(d.color, '')) and lower(coalesce(o.talle, '')) = lower(coalesce(d.talle, '')))`
 
     let stock = 0
     if (depositoId) {
@@ -81,6 +101,7 @@ export async function importarFilas(
       omitidos: filas.length - creados.length - actualizados.length,
       stock,
       categorias: nuevasCategorias.length,
+      articulos: nuevosArticulos.length,
     }
   })
 }
