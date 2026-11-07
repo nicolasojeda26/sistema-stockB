@@ -58,6 +58,8 @@ export function Cobro({
     comprobante?: { id: number; tipo: string; simulado: boolean }
     errorFactura?: string
     puedeFacturar?: boolean
+    clienta?: string
+    apartada?: boolean
   } | null>(null)
   const [facturando, iniciarFactura] = useTransition()
   const [telefono, setTelefono] = useState(cliente?.telefono ?? '')
@@ -124,6 +126,8 @@ export function Cobro({
         comprobante: r.comprobante,
         errorFactura: r.errorFactura,
         puedeFacturar: r.puedeFacturar,
+        clienta: cliente?.nombre,
+        apartada: paraRetirar,
       })
       alVender()
     })
@@ -165,11 +169,11 @@ export function Cobro({
             )}
             {!!hecho.aFavor && (
               <p className="mt-4 rounded-xl bg-ok-claro p-3 text-sm text-ok">
-                Le quedaron {formatoPesos(hecho.aFavor)} a favor de {cliente?.nombre} para la próxima compra.
+                Le quedaron {formatoPesos(hecho.aFavor)} a favor de {hecho.clienta} para la próxima compra.
               </p>
             )}
-            {paraRetirar && (
-              <p className="mt-4 rounded-xl bg-marca-clara p-3 text-sm text-marca-oscura">Quedó apartada para {cliente?.nombre}. Se marca como retirada desde la venta.</p>
+            {hecho.apartada && (
+              <p className="mt-4 rounded-xl bg-marca-clara p-3 text-sm text-marca-oscura">Quedó apartada para {hecho.clienta}. Se marca como retirada desde la venta.</p>
             )}
             {hecho.comprobante && (
               <p className="mt-4 text-sm text-ok">
