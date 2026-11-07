@@ -40,7 +40,17 @@ export function Importador({ depositos }: { depositos: { id: number; nombre: str
     setResultado(null)
     try {
       const XLSX = await import('xlsx')
-      const libro = XLSX.read(await file.arrayBuffer(), { type: 'array', cellDates: false })
+      const datos = await file.arrayBuffer()
+      // Un .xlsx es un zip (empieza con "PK") y un .xls viejo con D0 CF; si no, el archivo está dañado
+      // o no es un Excel, y SheetJS lo leería como texto suelto.
+      const b = new Uint8Array(datos.slice(0, 4))
+      const esXlsx = b[0] === 0x50 && b[1] === 0x4b
+      const esXls = b[0] === 0xd0 && b[1] === 0xcf
+      // Algunos sistemas exportan un ".xls" que en realidad es una tabla HTML o XML: también sirve.
+      const inicio = new TextDecoder().decode(datos.slice(0, 512)).trimStart().toLowerCase()
+      const esTexto = inicio.startsWith('<') || inicio.startsWith('\ufeff<')
+      if (/\.xlsx?$/i.test(file.name) && !esXlsx && !esXls && !esTexto) throw new Error('no es Excel')
+      const libro = XLSX.read(datos, { type: 'array', cellDates: false })
       const h = libro.SheetNames.map((nombre) => ({
         nombre,
         filas: XLSX.utils.sheet_to_json<unknown[]>(libro.Sheets[nombre], { header: 1, raw: true, defval: null, blankrows: true }),
