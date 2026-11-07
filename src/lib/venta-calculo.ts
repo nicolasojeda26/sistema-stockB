@@ -9,6 +9,14 @@ export const MEDIOS: Record<MedioPago, string> = {
   credito: 'Crédito',
 }
 
+/** Medios que no son plata: cargar a la cuenta de la clienta, o lo devuelto en un cambio. */
+export type MedioVenta = MedioPago | 'cuenta_corriente' | 'cambio'
+export const MEDIOS_VENTA: Record<MedioVenta, string> = {
+  ...MEDIOS,
+  cuenta_corriente: 'A cuenta de la clienta',
+  cambio: 'Cambio de prenda',
+}
+
 export type LineaCalculo = { precio: number; cantidad: number; descuentoPct: number }
 
 export const aCentavos = (n: number) => Math.round(n * 100)

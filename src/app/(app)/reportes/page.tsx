@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { db } from '@/lib/db'
 import { requerirAdmin } from '@/lib/dal'
 import { formatoEntero, formatoFecha, formatoPesos } from '@/lib/formato'
-import { MEDIOS, type MedioPago } from '@/lib/venta-calculo'
+import { MEDIOS_VENTA, type MedioVenta } from '@/lib/venta-calculo'
 import { fechaValida, hoyAR, inicioDeMes, masVendidos, porDia, porMedio, porSucursal, porVendedora, resumen, sinMovimiento, valorStock } from '@/lib/reportes'
 import { Encabezado, Input, Select, Tarjeta, TituloTarjeta, Vacio, tablaCls as t } from '@/components/ui'
 import { GraficoDias } from './grafico'
@@ -78,7 +78,7 @@ export default async function ReportesPage(props: PageProps<'/reportes'>) {
         <TablaSimple titulo="Por vendedora" filas={vends.map((s) => [s.nombre, formatoEntero(s.ventas), formatoPesos(Number(s.total))])} cols={['Vendedora', 'Ventas', 'Total']} />
         <TablaSimple
           titulo="Por medio de pago"
-          filas={medios.map((m) => [MEDIOS[m.medio as MedioPago], formatoEntero(m.pagos), formatoPesos(Number(m.total))])}
+          filas={medios.map((m) => [MEDIOS_VENTA[m.medio as MedioVenta] ?? m.medio, formatoEntero(m.pagos), formatoPesos(Number(m.total))])}
           cols={['Medio', 'Pagos', 'Total']}
         />
       </div>

@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { db } from '@/lib/db'
 import { requerirAdmin, requerirUsuario } from '@/lib/dal'
-import { anularVenta, ErrorVenta, registrarDevolucion } from '@/lib/ventas'
+import { anularVenta, ErrorVenta, marcarRetirada, registrarDevolucion } from '@/lib/ventas'
 import { CONSUMIDOR_FINAL, ErrorFactura, facturaDeVenta, facturarVenta, guardarCliente, notaDeCredito, type Receptor } from '@/lib/arca/facturacion'
 import type { Resultado } from '@/components/form-accion'
 
@@ -80,7 +80,7 @@ export async function buscarCliente(docTipo: number, docNro: string) {
 export async function devolver(datos: {
   ventaId: number
   items: { ventaItemId: number; cantidad: number }[]
-  medio: 'efectivo' | 'transferencia' | 'debito' | 'credito'
+  medio: 'efectivo' | 'transferencia' | 'debito' | 'credito' | 'cuenta_corriente'
   motivo: string
 }): Promise<{ ok?: string; error?: string; avisoFactura?: string }> {
   let u
@@ -97,6 +97,7 @@ export async function devolver(datos: {
     throw e
   }
   refrescar(datos.ventaId)
+  revalidatePath('/clientes')
   // La nota de crédito va aparte: si ARCA falla, la devolución queda hecha y se reintenta.
   try {
     await notaDeCredito(db(), { ventaId: datos.ventaId, devolucionId: dev.devolucionId, total: dev.total, usuarioId: u.id })
@@ -120,5 +121,16 @@ export async function reintentarNotaCredito(devolucionId: number): Promise<{ err
   } finally {
     refrescar(d.venta_id)
   }
+  return {}
+}
+
+export async function retirar(ventaId: number): Promise<{ error?: string }> {
+  try {
+    const u = await ventaPermitida(ventaId)
+    await marcarRetirada(db(), { ventaId, usuario: { id: u.id, rol: u.rol }, sucursalId: u.sucursal_id })
+  } catch (e) {
+    return { error: (e as Error).message }
+  }
+  refrescar(ventaId)
   return {}
 }

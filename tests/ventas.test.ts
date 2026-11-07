@@ -2,7 +2,7 @@ import postgres from 'postgres'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { migrar } from '../scripts/migrate'
 import { calcularVenta, descuentoEfectivo, montosSugeridos } from '../src/lib/venta-calculo'
-import { abrirCaja, anularVenta, cerrarCaja, ErrorVenta, movimientoCaja, registrarVenta, resumenCaja } from '../src/lib/ventas'
+import { abrirCaja, anularVenta, cerrarCaja, ErrorVenta, movimientoCaja, registrarDevolucion, registrarPagoCuenta, registrarVenta, resumenCaja, saldoCliente } from '../src/lib/ventas'
 
 describe('cálculo de la venta', () => {
   it('aplica descuentos por línea y general sin errores de centavos', () => {
@@ -40,7 +40,7 @@ describe.skipIf(!url)('ventas y caja', () => {
   })
   afterAll(() => sql.end())
   beforeEach(async () => {
-    await sql`truncate venta_pagos, venta_items, ventas, movimientos_caja, cajas, operaciones_stock, movimientos_stock, stock, productos, usuarios, depositos, sucursales restart identity cascade`
+    await sql`truncate cuenta_movimientos, clientes, devolucion_items, devoluciones, venta_pagos, venta_items, ventas, movimientos_caja, cajas, operaciones_stock, movimientos_stock, stock, productos, usuarios, depositos, sucursales restart identity cascade`
     ;[{ id: suc }] = await sql`insert into sucursales (nombre) values ('Centro') returning id`
     ;[{ id: dep }] = await sql`insert into depositos (nombre, sucursal_id, es_principal) values ('Local', ${suc}, true) returning id`
     const [v] = await sql`insert into usuarios (usuario, nombre, password_hash, rol, sucursal_id, descuento_max) values ('sofia', 'Sofía', 'x', 'vendedora', ${suc}, 10) returning id`
@@ -81,7 +81,7 @@ describe.skipIf(!url)('ventas y caja', () => {
     expect(await stock(jean)).toBe(0)
     const res = await resumenCaja(sql, caja)
     expect(res).toMatchObject({ ventas: 1, total: 51500, efectivoEsperado: 5000 + 21500 })
-    expect(res.porMedio).toEqual({ efectivo: 21500, transferencia: 0, debito: 30000, credito: 0 })
+    expect(res.porMedio).toEqual({ efectivo: 21500, transferencia: 0, debito: 30000, credito: 0, cuenta_corriente: 0, cambio: 0 })
   })
 
   it('rechaza descuentos por encima del tope de la vendedora, pero no a la administradora', async () => {
@@ -137,5 +137,77 @@ describe.skipIf(!url)('ventas y caja', () => {
       ),
     )
     expect(await stock(remera)).toBe(1)
+  })
+
+  const item = (productoId: number, cantidad = 1) => ({ productoId, cantidad, descuentoPct: 0 })
+
+  it('cuenta corriente: sin clienta o sin límite no deja; con límite carga, cobra y suma a la caja', async () => {
+    const caja = await abrirCaja(sql, { usuarioId: vend.id, sucursalId: suc, montoInicial: 0 })
+    const [{ id: ana }] = await sql`insert into clientes (nombre) values ('Ana') returning id`
+    const base = { usuario: vend, items: [item(remera)], descuentoGlobalPct: 0, totalEsperado: 10000 }
+    await expect(registrarVenta(sql, { ...base, pagos: [{ medio: 'cuenta_corriente', monto: 10000 }] })).rejects.toThrow('Elegí la clienta')
+    await expect(registrarVenta(sql, { ...base, clienteId: ana, pagos: [{ medio: 'cuenta_corriente', monto: 10000 }] })).rejects.toThrow('no tiene saldo a favor')
+    await sql`update clientes set limite_credito = 20000 where id = ${ana}`
+    // Seña de 4.000 en efectivo y el resto a cuenta, apartada.
+    const v = await registrarVenta(sql, { ...base, clienteId: ana, paraRetirar: true, pagos: [{ medio: 'efectivo', monto: 4000 }, { medio: 'cuenta_corriente', monto: 6000 }] })
+    expect(await saldoCliente(sql, ana)).toBe(6000)
+    expect((await sql`select para_retirar from ventas where id = ${v.ventaId}`)[0].para_retirar).toBe(true)
+    await registrarPagoCuenta(sql, { clienteId: ana, usuario: vend, monto: 6000, medio: 'efectivo' })
+    expect(await saldoCliente(sql, ana)).toBe(0)
+    const r = await resumenCaja(sql, caja)
+    expect(r.porMedio.cuenta_corriente).toBe(6000)
+    expect(r.cobrosCuenta.efectivo).toBe(6000)
+    expect(r.efectivoEsperado).toBe(10000)
+    // Anular devuelve lo cargado a la cuenta.
+    const v2 = await registrarVenta(sql, { ...base, clienteId: ana, pagos: [{ medio: 'cuenta_corriente', monto: 10000 }] })
+    await anularVenta(sql, { ventaId: v2.ventaId, usuarioId: admin.id, motivo: 'error' })
+    expect(await saldoCliente(sql, ana)).toBe(0)
+  })
+
+  it('cambio de prenda: paga la diferencia, vuelve el stock y la caja cierra bien', async () => {
+    const caja = await abrirCaja(sql, { usuarioId: vend.id, sucursalId: suc, montoInicial: 0 })
+    const v = await registrarVenta(sql, { usuario: vend, items: [item(remera)], descuentoGlobalPct: 0, pagos: [{ medio: 'efectivo', monto: 10000 }], totalEsperado: 10000 })
+    const [it] = await sql`select id from venta_items where venta_id = ${v.ventaId}`
+    const c = await registrarVenta(sql, {
+      usuario: vend,
+      items: [item(jean)],
+      descuentoGlobalPct: 0,
+      pagos: [{ medio: 'efectivo', monto: 25000 }],
+      totalEsperado: 35000,
+      cambio: { ventaId: v.ventaId, items: [{ ventaItemId: it.id, cantidad: 1 }], excedente: 'efectivo' },
+    })
+    expect(await stock(remera)).toBe(5)
+    expect(await stock(jean)).toBe(0)
+    expect((await sql`select medio, total from devoluciones where id = ${c.devolucionId!}`)[0]).toEqual({ medio: 'cambio', total: 10000 })
+    const r = await resumenCaja(sql, caja)
+    expect(r.total).toBe(35000)
+    expect(r.efectivoEsperado).toBe(35000)
+    // Lo mismo no se puede volver a cambiar.
+    await expect(
+      registrarVenta(sql, { usuario: vend, items: [item(remera)], descuentoGlobalPct: 0, pagos: [], totalEsperado: 10000, cambio: { ventaId: v.ventaId, items: [{ ventaItemId: it.id, cantidad: 1 }], excedente: 'efectivo' } }),
+    ).rejects.toThrow('como mucho 0')
+  })
+
+  it('cambio por algo más barato: la diferencia se devuelve o queda a favor', async () => {
+    const caja = await abrirCaja(sql, { usuarioId: vend.id, sucursalId: suc, montoInicial: 50000 })
+    const [{ id: ana }] = await sql`insert into clientes (nombre) values ('Ana') returning id`
+    await sql`update stock set cantidad = 3 where producto_id = ${jean}`
+    const v = await registrarVenta(sql, { usuario: vend, clienteId: ana, items: [item(jean, 2)], descuentoGlobalPct: 0, pagos: [{ medio: 'debito', monto: 70000 }], totalEsperado: 70000 })
+    const [it] = await sql`select id from venta_items where venta_id = ${v.ventaId}`
+    const cambio = (excedente: 'efectivo' | 'cuenta_corriente') => ({ ventaId: v.ventaId, items: [{ ventaItemId: it.id, cantidad: 1 }], excedente })
+    const a = await registrarVenta(sql, { usuario: vend, clienteId: ana, items: [item(remera)], descuentoGlobalPct: 0, pagos: [], totalEsperado: 10000, cambio: cambio('cuenta_corriente') })
+    expect(a.aFavor).toBe(25000)
+    expect(await saldoCliente(sql, ana)).toBe(-25000)
+    const b = await registrarVenta(sql, { usuario: vend, clienteId: ana, items: [item(remera)], descuentoGlobalPct: 0, pagos: [], totalEsperado: 10000, cambio: cambio('efectivo') })
+    expect(b.reintegro).toBe(25000)
+    const r = await resumenCaja(sql, caja)
+    expect(r.efectivoEsperado).toBe(25000) // 50.000 inicial − 25.000 devueltos
+    // Usa el saldo a favor para pagar.
+    await registrarVenta(sql, { usuario: vend, clienteId: ana, items: [item(remera)], descuentoGlobalPct: 0, pagos: [{ medio: 'cuenta_corriente', monto: 10000 }], totalEsperado: 10000 })
+    expect(await saldoCliente(sql, ana)).toBe(-15000)
+    // Devolución a favor de la clienta.
+    const [it2] = await sql`select i.id, i.venta_id from venta_items i join ventas v on v.id = i.venta_id where v.cliente_id = ${ana} order by i.id desc limit 1`
+    await registrarDevolucion(sql, { ventaId: it2.venta_id, usuario: vend, items: [{ ventaItemId: it2.id, cantidad: 1 }], medio: 'cuenta_corriente', motivo: 'no le gustó' })
+    expect(await saldoCliente(sql, ana)).toBe(-25000)
   })
 })

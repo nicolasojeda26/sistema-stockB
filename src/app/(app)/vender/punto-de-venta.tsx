@@ -7,11 +7,14 @@ import { formatoPesos } from '@/lib/formato'
 import { aPesos, calcularVenta, descuentoEfectivo } from '@/lib/venta-calculo'
 import { buscarParaVender, preciosActuales, type ProductoVenta } from './actions'
 import { Cobro } from './cobro'
+import { ClienteCaja } from './cliente-caja'
+import { ElegirCambio, type CambioCarrito } from './cambio'
+import { clienteActual, type ClienteBuscado } from '../clientes/actions'
 
 export type LineaCarrito = ProductoVenta & { cantidad: number; descuentoPct: number }
-type Carrito = { lineas: LineaCarrito[]; descuentoGlobalPct: number }
+type Carrito = { lineas: LineaCarrito[]; descuentoGlobalPct: number; cliente?: ClienteBuscado | null; cambio?: CambioCarrito | null }
 
-const VACIO: Carrito = { lineas: [], descuentoGlobalPct: 0 }
+const VACIO: Carrito = { lineas: [], descuentoGlobalPct: 0, cliente: null, cambio: null }
 
 function leer(clave: string): Carrito | null {
   try {
@@ -23,7 +26,7 @@ function leer(clave: string): Carrito | null {
 }
 function guardar(clave: string, c: Carrito) {
   try {
-    if (c.lineas.length) localStorage.setItem(clave, JSON.stringify(c))
+    if (c.lineas.length || c.cliente || c.cambio) localStorage.setItem(clave, JSON.stringify(c))
     else localStorage.removeItem(clave)
   } catch {}
 }
@@ -37,6 +40,7 @@ export function PuntoDeVenta({ usuarioId, sucursal, abierta, descuentoMax }: { u
   const [sugerencias, setSugerencias] = useState<ProductoVenta[]>([])
   const [aviso, setAviso] = useState<{ tipo: 'error' | 'alerta' | 'info'; texto: string } | null>(null)
   const [cobrando, setCobrando] = useState(false)
+  const [eligiendoCambio, setEligiendoCambio] = useState(false)
   const escaner = useRef<HTMLInputElement>(null)
   const listo = useRef(false)
   const pedido = useRef(0)
@@ -45,7 +49,7 @@ export function PuntoDeVenta({ usuarioId, sucursal, abierta, descuentoMax }: { u
   /* eslint-disable react-hooks/set-state-in-effect -- el carrito guardado vive en el navegador */
   useEffect(() => {
     const c = leer(clave)
-    if (c?.lineas?.length) setCarrito(c)
+    if (c?.lineas?.length || c?.cliente || c?.cambio) setCarrito({ ...VACIO, ...c })
     listo.current = true
   }, [clave])
   /* eslint-enable react-hooks/set-state-in-effect */
@@ -54,8 +58,12 @@ export function PuntoDeVenta({ usuarioId, sucursal, abierta, descuentoMax }: { u
   }, [clave, carrito])
 
   const { lineas, descuentoGlobalPct } = carrito
+  const cliente = carrito.cliente ?? null
+  const cambio = carrito.cambio ?? null
   const calc = calcularVenta(lineas.map((l) => ({ precio: l.precio, cantidad: l.cantidad, descuentoPct: l.descuentoPct })), descuentoGlobalPct)
   const unidades = lineas.reduce((a, l) => a + l.cantidad, 0)
+  const credito = cambio?.total ?? 0
+  const aCobrar = Math.max(calc.total - credito, 0)
 
   const enfocar = () => setTimeout(() => escaner.current?.focus(), 0)
 
@@ -100,8 +108,17 @@ export function PuntoDeVenta({ usuarioId, sucursal, abierta, descuentoMax }: { u
       setAviso({ tipo: 'info', texto: `Se actualizó el precio de ${cambiados.map((l) => l.nombre).join(', ')}. Revisá el total.` })
       return
     }
+    // Y el saldo y el límite de la clienta, que pueden haber cambiado.
+    if (carrito.cliente) {
+      const c = await clienteActual(carrito.cliente.id)
+      setCarrito((x) => ({ ...x, cliente: c }))
+      if (!c) {
+        setAviso({ tipo: 'info', texto: 'La clienta elegida ya no está activa.' })
+        return
+      }
+    }
     setCobrando(true)
-  }, [carrito.lineas])
+  }, [carrito.lineas, carrito.cliente])
 
   useEffect(() => {
     const tecla = (e: globalThis.KeyboardEvent) => {
@@ -129,6 +146,33 @@ export function PuntoDeVenta({ usuarioId, sucursal, abierta, descuentoMax }: { u
             </Link>
           </p>
         </div>
+
+        <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+          <ClienteCaja cliente={cliente} setCliente={(c) => setCarrito((x) => ({ ...x, cliente: c }))} />
+          <button
+            type="button"
+            onClick={() => setEligiendoCambio(true)}
+            className="h-11 rounded-xl border border-linea bg-papel px-4 text-sm font-semibold text-tinta-suave hover:border-marca hover:text-marca"
+          >
+            Cambio de prenda
+          </button>
+        </div>
+        {cambio && (
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-ok/30 bg-ok-claro px-4 py-2.5 text-sm">
+            <span className="min-w-0">
+              <span className="block font-semibold text-ok">Cambio: devuelve de la venta N.º {cambio.ventaId}</span>
+              <span className="block truncate text-xs text-tinta-suave">
+                {cambio.items.map((i) => `${i.cantidad} × ${i.nombre}`).join(', ')}
+              </span>
+            </span>
+            <span className="flex shrink-0 items-center gap-2">
+              <span className="num font-bold text-ok">−{formatoPesos(aPesos(cambio.total))}</span>
+              <button type="button" onClick={() => setCarrito((x) => ({ ...x, cambio: null }))} className="rounded-lg px-2 py-1 text-xs text-tinta-suave hover:bg-papel">
+                Quitar
+              </button>
+            </span>
+          </div>
+        )}
 
         <div className="relative">
           <input
@@ -288,6 +332,20 @@ export function PuntoDeVenta({ usuarioId, sucursal, abierta, descuentoMax }: { u
             <p className="num text-4xl font-bold tracking-tight" data-testid="total">
               {formatoPesos(aPesos(calc.total))}
             </p>
+            {cambio && (
+              <dl className="mt-2 space-y-1 text-sm">
+                <div className="flex justify-between text-ok">
+                  <dt>Devuelve en el cambio</dt>
+                  <dd className="num">−{formatoPesos(aPesos(credito))}</dd>
+                </div>
+                <div className="flex justify-between font-semibold">
+                  <dt>{calc.total >= credito ? 'Paga la diferencia' : 'Le sobra'}</dt>
+                  <dd className="num" data-testid="diferencia">
+                    {formatoPesos(aPesos(Math.abs(calc.total - credito)))}
+                  </dd>
+                </div>
+              </dl>
+            )}
           </div>
           {hayExceso && (
             <div className="mt-3">
@@ -321,9 +379,9 @@ export function PuntoDeVenta({ usuarioId, sucursal, abierta, descuentoMax }: { u
           <div className="fixed inset-x-0 bottom-16 z-20 flex items-center gap-3 border-t border-linea bg-papel/95 px-4 py-3 backdrop-blur lg:hidden print:hidden">
             <span className="min-w-0 flex-1">
               <span className="block text-xs text-tinta-suave">
-                Total, {unidades} unidad{unidades === 1 ? '' : 'es'}
+                {cambio ? 'A cobrar con el cambio' : `Total, ${unidades} unidad${unidades === 1 ? '' : 'es'}`}
               </span>
-              <span className="num block truncate text-xl font-bold">{formatoPesos(aPesos(calc.total))}</span>
+              <span className="num block truncate text-xl font-bold">{formatoPesos(aPesos(cambio ? aCobrar : calc.total))}</span>
             </span>
             <Boton onClick={() => void abrirCobro()} disabled={hayExceso} className="h-12 px-6 text-base">
               Cobrar
@@ -332,11 +390,29 @@ export function PuntoDeVenta({ usuarioId, sucursal, abierta, descuentoMax }: { u
         </>
       )}
 
+      {eligiendoCambio && (
+        <ElegirCambio
+          alCerrar={() => {
+            setEligiendoCambio(false)
+            enfocar()
+          }}
+          alUsar={(c, venta) => {
+            setCarrito((x) => ({ ...x, cambio: c, cliente: x.cliente ?? venta.cliente }))
+            setEligiendoCambio(false)
+            setAviso({ tipo: 'info', texto: 'Ahora escaneá la prenda que se lleva.' })
+            enfocar()
+          }}
+        />
+      )}
+
       {cobrando && (
         <Cobro
           lineas={lineas}
           descuentoGlobalPct={descuentoGlobalPct}
           totalCentavos={calc.total}
+          creditoCentavos={credito}
+          cambio={cambio}
+          cliente={cliente}
           sucursal={sucursal}
           alCerrar={() => {
             setCobrando(false)

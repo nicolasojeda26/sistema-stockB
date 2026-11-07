@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation'
 import { requerirUsuario } from '@/lib/dal'
 import { leerVenta } from '@/lib/venta-detalle'
 import { formatoFecha, formatoPesos } from '@/lib/formato'
-import { MEDIOS } from '@/lib/venta-calculo'
+import { MEDIOS_VENTA as MEDIOS } from '@/lib/venta-calculo'
 import { Aviso, BotonLink, Encabezado, Tarjeta, TituloTarjeta, tablaCls as t } from '@/components/ui'
 import { AnularVenta } from './anular'
 import { db } from '@/lib/db'
@@ -12,7 +12,7 @@ import { itemsDevolvibles } from '@/lib/ventas'
 import { leerConfig } from '@/lib/arca/facturacion'
 import { numeroComprobante, TIPOS_CBTE, type CondicionEmisor } from '@/lib/arca/comprobantes'
 import { Etiqueta } from '@/components/ui'
-import { DevolverVenta, FacturarVenta, ReintentarNC } from './acciones'
+import { DevolverVenta, FacturarVenta, MarcarRetirada, ReintentarNC } from './acciones'
 
 export const metadata: Metadata = { title: 'Venta' }
 
@@ -40,9 +40,31 @@ export default async function VentaPage(props: PageProps<'/ventas/[id]'>) {
     <>
       <Encabezado
         titulo={`Venta N.º ${v.id}`}
-        detalle={`${formatoFecha(v.creado)} · ${v.sucursal} · ${v.vendedora ?? 'Usuario eliminado'}`}
+        detalle={
+          <>
+            {formatoFecha(v.creado)} · {v.sucursal} · {v.vendedora ?? 'Usuario eliminado'}
+            {v.cliente_id && (
+              <>
+                {' · Clienta: '}
+                <Link href={`/clientes/${v.cliente_id}`} className="font-medium text-marca hover:underline">
+                  {v.cliente}
+                </Link>
+              </>
+            )}
+          </>
+        }
         acciones={
           <>
+            {v.estado === 'completada' && (
+              <a
+                href={`/ticket/${v.id}?cambio=1`}
+                target="_blank"
+                rel="noopener"
+                className="inline-flex h-10 items-center rounded-lg border border-linea bg-papel px-4 text-sm font-medium hover:bg-fondo"
+              >
+                Ticket de cambio
+              </a>
+            )}
             <a
               href={`/ticket/${v.id}`}
               target="_blank"
@@ -57,6 +79,19 @@ export default async function VentaPage(props: PageProps<'/ventas/[id]'>) {
           </>
         }
       />
+      {v.para_retirar && v.estado === 'completada' && (
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-alerta-claro px-4 py-3 text-sm text-alerta">
+          <span>
+            <b>Apartada</b> para {v.cliente}: la prenda está separada hasta que la retire.
+          </span>
+          <MarcarRetirada ventaId={v.id} />
+        </div>
+      )}
+      {v.retirada_en && (
+        <div className="mb-5">
+          <Aviso tipo="ok">Apartado retirado el {formatoFecha(v.retirada_en)}.</Aviso>
+        </div>
+      )}
       {v.estado === 'anulada' && (
         <div className="mb-5">
           <Aviso tipo="alerta">
@@ -197,7 +232,7 @@ export default async function VentaPage(props: PageProps<'/ventas/[id]'>) {
           {quedaParaDevolver && (
             <Tarjeta>
               <TituloTarjeta>Devolver productos</TituloTarjeta>
-              <DevolverVenta ventaId={v.id} items={devolvibles.filter((i) => i.cantidad > i.devuelto)} facturada={!!factura} />
+              <DevolverVenta conCliente={!!v.cliente_id} ventaId={v.id} items={devolvibles.filter((i) => i.cantidad > i.devuelto)} facturada={!!factura} />
             </Tarjeta>
           )}
           {u.rol === 'admin' && v.estado === 'completada' && devoluciones.length === 0 && (

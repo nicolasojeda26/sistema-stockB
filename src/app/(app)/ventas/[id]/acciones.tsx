@@ -6,7 +6,7 @@ import { CONDICIONES_RECEPTOR, DOC_TIPOS, letraComprobante, type CondicionEmisor
 import { formatoPesos } from '@/lib/formato'
 import { MEDIOS, type MedioPago } from '@/lib/venta-calculo'
 import type { ItemVendido } from '@/lib/ventas'
-import { buscarCliente, devolver, facturar, reintentarNotaCredito } from '../actions'
+import { buscarCliente, devolver, facturar, reintentarNotaCredito, retirar } from '../actions'
 
 export function FacturarVenta({
   ventaId,
@@ -112,16 +112,19 @@ export function FacturarVenta({
   )
 }
 
-export function DevolverVenta({ ventaId, items, facturada }: { ventaId: number; items: ItemVendido[]; facturada: boolean }) {
+type MedioDevolucion = MedioPago | 'cuenta_corriente'
+const NOMBRES: Record<MedioDevolucion, string> = { ...MEDIOS, cuenta_corriente: 'Saldo a favor de la clienta' }
+
+export function DevolverVenta({ ventaId, items, facturada, conCliente = false }: { ventaId: number; items: ItemVendido[]; facturada: boolean; conCliente?: boolean }) {
   const [cantidades, setCantidades] = useState<Record<number, number>>({})
-  const [medio, setMedio] = useState<MedioPago>('efectivo')
+  const [medio, setMedio] = useState<MedioDevolucion>('efectivo')
   const [motivo, setMotivo] = useState('')
   const [msg, setMsg] = useState<{ tipo: 'ok' | 'error' | 'alerta'; texto: string } | null>(null)
   const [ocupado, iniciar] = useTransition()
   const total = items.reduce((a, i) => a + Math.round(i.unitario * 100) * (cantidades[i.id] ?? 0), 0) / 100
 
   function confirmar() {
-    if (!confirm(`¿Devolver ${formatoPesos(total)} en ${MEDIOS[medio].toLowerCase()}?`)) return
+    if (!confirm(`¿Devolver ${formatoPesos(total)} como ${NOMBRES[medio].toLowerCase()}?`)) return
     iniciar(async () => {
       const r = await devolver({ ventaId, items: Object.entries(cantidades).map(([id, c]) => ({ ventaItemId: Number(id), cantidad: c })), medio, motivo })
       if (r.error) return setMsg({ tipo: 'error', texto: r.error })
@@ -163,12 +166,14 @@ export function DevolverVenta({ ventaId, items, facturada }: { ventaId: number; 
       </ul>
       <div className="grid grid-cols-2 gap-2">
         <Campo etiqueta="Se devuelve en">
-          <Select value={medio} onChange={(e) => setMedio(e.target.value as MedioPago)}>
-            {(Object.keys(MEDIOS) as MedioPago[]).map((m) => (
-              <option key={m} value={m}>
-                {MEDIOS[m]}
-              </option>
-            ))}
+          <Select value={medio} onChange={(e) => setMedio(e.target.value as MedioDevolucion)}>
+            {(Object.keys(NOMBRES) as MedioDevolucion[])
+              .filter((m) => m !== 'cuenta_corriente' || conCliente)
+              .map((m) => (
+                <option key={m} value={m}>
+                  {NOMBRES[m]}
+                </option>
+              ))}
           </Select>
         </Campo>
         <Campo etiqueta="Motivo">
@@ -176,7 +181,10 @@ export function DevolverVenta({ ventaId, items, facturada }: { ventaId: number; 
         </Campo>
       </div>
       <p className="text-xs text-apagado">
-        La plata sale de tu caja y el producto vuelve al stock de tu local.{facturada ? ' Se emite la nota de crédito.' : ''}
+        {medio === 'cuenta_corriente'
+          ? 'No sale plata: queda a favor de la clienta para su próxima compra.'
+          : 'La plata sale de tu caja.'}{' '}
+        El producto vuelve al stock de tu local.{facturada ? ' Se emite la nota de crédito.' : ''}
       </p>
       <Boton onClick={confirmar} disabled={ocupado || total <= 0 || !motivo.trim()} variante="secundario" className="w-full">
         {total > 0 ? `Devolver ${formatoPesos(total)}` : 'Elegí qué se devuelve'}
@@ -204,5 +212,27 @@ export function ReintentarNC({ devolucionId }: { devolucionId: number }) {
         {ocupado ? 'Emitiendo…' : 'Falta la nota de crédito · Emitir ahora'}
       </button>
     </div>
+  )
+}
+
+export function MarcarRetirada({ ventaId }: { ventaId: number }) {
+  const [error, setError] = useState<string | null>(null)
+  const [ocupado, iniciar] = useTransition()
+  return (
+    <span className="flex items-center gap-2">
+      {error && <span className="text-error">{error}</span>}
+      <Boton
+        variante="secundario"
+        disabled={ocupado}
+        onClick={() =>
+          iniciar(async () => {
+            const r = await retirar(ventaId)
+            setError(r.error ?? null)
+          })
+        }
+      >
+        Marcar como retirada
+      </Boton>
+    </span>
   )
 }

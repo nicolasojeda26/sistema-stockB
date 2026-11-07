@@ -38,11 +38,22 @@ export function ResumenCajaVista({
             </div>
           ))}
         </dl>
+        {(r.porMedio.cuenta_corriente !== 0 || Object.values(r.cobrosCuenta).some(Boolean)) && (
+          <dl className="mt-3 space-y-1.5 text-sm">
+            {r.porMedio.cuenta_corriente !== 0 && <Fila texto="Vendido a cuenta corriente (no entró plata)" valor={r.porMedio.cuenta_corriente} />}
+            {(Object.keys(MEDIOS) as MedioPago[])
+              .filter((m) => r.cobrosCuenta[m])
+              .map((m) => (
+                <Fila key={m} texto={`Cobros de cuentas corrientes en ${MEDIOS[m].toLowerCase()}`} valor={r.cobrosCuenta[m]} signo="+" />
+              ))}
+          </dl>
+        )}
         <h3 className="mt-6 mb-2 text-sm font-semibold">Efectivo en la caja</h3>
         <dl className="space-y-1.5 text-sm">
           <Fila texto="Al abrir" valor={r.montoInicial} />
           <Fila texto="Ventas en efectivo" valor={Math.round((r.porMedio.efectivo + r.devolucionesEfectivo) * 100) / 100} signo="+" />
           {r.devolucionesEfectivo > 0 && <Fila texto="Devoluciones en efectivo" valor={r.devolucionesEfectivo} signo="−" />}
+          {r.cobrosCuenta.efectivo > 0 && <Fila texto="Cobros de cuentas en efectivo" valor={r.cobrosCuenta.efectivo} signo="+" />}
           {r.ingresos > 0 && <Fila texto="Ingresos" valor={r.ingresos} signo="+" />}
           {r.retiros > 0 && <Fila texto="Retiros" valor={r.retiros} signo="−" />}
           <div className="flex justify-between border-t border-linea pt-2 font-semibold">

@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { db } from '@/lib/db'
 import { requerirUsuario } from '@/lib/dal'
 import { formatoEntero, formatoFecha, formatoPesos } from '@/lib/formato'
-import { MEDIOS, type MedioPago } from '@/lib/venta-calculo'
+import { MEDIOS, MEDIOS_VENTA, type MedioPago, type MedioVenta } from '@/lib/venta-calculo'
 import { BotonLink, Encabezado, Etiqueta, Input, Select, Tarjeta, Vacio, tablaCls as t } from '@/components/ui'
 
 export const metadata: Metadata = { title: 'Ventas' }
@@ -21,11 +21,17 @@ export default async function VentasPage(props: PageProps<'/ventas'>) {
   const vendedora = u.rol === 'admin' ? Number(sp.usuario) || null : null
   const medio = typeof sp.medio === 'string' && sp.medio in MEDIOS ? (sp.medio as MedioPago) : null
   const pagina = Math.max(1, Number(sp.pagina) || 1)
+  // Apartados pendientes de retirar: de cualquier fecha.
+  const apartados = sp.apartados === '1'
   const sql = db()
 
   const where = sql`
-    where v.creado >= (${desde}::date)::timestamp at time zone 'America/Argentina/Buenos_Aires'
-      and v.creado < (${hasta}::date + 1)::timestamp at time zone 'America/Argentina/Buenos_Aires'
+    where ${
+      apartados
+        ? sql`v.para_retirar and v.estado = 'completada'`
+        : sql`v.creado >= (${desde}::date)::timestamp at time zone 'America/Argentina/Buenos_Aires'
+      and v.creado < (${hasta}::date + 1)::timestamp at time zone 'America/Argentina/Buenos_Aires'`
+    }
       ${sucursal ? sql`and v.sucursal_id = ${sucursal}` : sql``}
       ${vendedora ? sql`and v.usuario_id = ${vendedora}` : sql``}
       ${medio ? sql`and exists (select 1 from venta_pagos p where p.venta_id = v.id and p.medio = ${medio})` : sql``}`
@@ -48,6 +54,8 @@ export default async function VentasPage(props: PageProps<'/ventas'>) {
     u.rol === 'admin' ? sql<{ id: number; nombre: string }[]>`select id, nombre from usuarios order by nombre` : [],
   ])
   const paginas = Math.max(1, Math.ceil(tot.filas / POR_PAGINA))
+  const [{ pendientes }] = await sql<{ pendientes: number }[]>`
+    select count(*)::int as pendientes from ventas where para_retirar and estado = 'completada' ${sucursal ? sql`and sucursal_id = ${sucursal}` : sql``}`
   const enlace = (n: number) => {
     const p = new URLSearchParams({ desde, hasta })
     if (u.rol === 'admin' && sucursal) p.set('sucursal', String(sucursal))
@@ -62,7 +70,16 @@ export default async function VentasPage(props: PageProps<'/ventas'>) {
       <Encabezado
         titulo="Ventas"
         detalle={u.rol === 'admin' ? 'Todas las sucursales.' : `Ventas de ${u.sucursal_nombre}.`}
-        acciones={<BotonLink href="/vender">Vender</BotonLink>}
+        acciones={
+          <>
+            {(pendientes > 0 || apartados) && (
+              <BotonLink href={apartados ? '/ventas' : '/ventas?apartados=1'} variante="secundario">
+                {apartados ? 'Ver todas las ventas' : `Apartados para retirar (${pendientes})`}
+              </BotonLink>
+            )}
+            <BotonLink href="/vender">Vender</BotonLink>
+          </>
+        }
       />
 
       <form className="mb-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-[150px_150px_1fr_1fr_1fr_auto]">
@@ -149,7 +166,7 @@ export default async function VentasPage(props: PageProps<'/ventas'>) {
                     <td className={`${t.td} hidden text-tinta-suave sm:table-cell`}>
                       {v.medios
                         .split(',')
-                        .map((m) => MEDIOS[m as MedioPago])
+                        .map((m) => MEDIOS_VENTA[m as MedioVenta])
                         .join(' + ')}
                     </td>
                     <td className={`${t.td} num text-right font-medium`}>

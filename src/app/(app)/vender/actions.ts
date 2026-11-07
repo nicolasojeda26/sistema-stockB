@@ -5,7 +5,8 @@ import { z } from 'zod'
 import { db } from '@/lib/db'
 import { coincide, ordenRelevancia } from '@/lib/busqueda'
 import { requerirUsuario } from '@/lib/dal'
-import { abrirCaja, cajaAbierta, ErrorVenta, registrarVenta } from '@/lib/ventas'
+import { abrirCaja, cajaAbierta, ErrorVenta, itemsDevolvibles, registrarVenta, saldoCliente } from '@/lib/ventas'
+import type { ClienteBuscado } from '../clientes/actions'
 import { parseNumero } from '@/lib/numeros'
 import { CONSUMIDOR_FINAL, facturarVenta, leerConfig } from '@/lib/arca/facturacion'
 import type { Resultado } from '@/components/form-accion'
@@ -50,16 +51,34 @@ const Cobro = z.object({
   items: z.array(z.object({ productoId: z.number().int(), cantidad: z.number().int().min(1).max(10000), descuentoPct: z.number().min(0).max(100) })).min(1).max(300),
   descuentoGlobalPct: z.number().min(0).max(100),
   pagos: z
-    .array(z.object({ medio: z.enum(['efectivo', 'transferencia', 'debito', 'credito']), monto: z.number().positive().max(1e10), cuotas: z.number().int().min(1).max(24).nullable().optional() }))
-    .min(1)
+    .array(
+      z.object({
+        medio: z.enum(['efectivo', 'transferencia', 'debito', 'credito', 'cuenta_corriente']),
+        monto: z.number().positive().max(1e10),
+        cuotas: z.number().int().min(1).max(24).nullable().optional(),
+      }),
+    )
     .max(6),
   efectivoRecibido: z.number().nonnegative().max(1e10).nullable(),
   totalEsperado: z.number().nonnegative(),
+  clienteId: z.number().int().nullable().optional(),
+  paraRetirar: z.boolean().optional(),
+  cambio: z
+    .object({
+      ventaId: z.number().int(),
+      items: z.array(z.object({ ventaItemId: z.number().int(), cantidad: z.number().int().min(1).max(10000) })).min(1).max(100),
+      excedente: z.enum(['efectivo', 'cuenta_corriente']),
+    })
+    .nullable()
+    .optional(),
 })
 
 export type ResultadoCobro = {
   ventaId?: number
   vuelto?: number
+  /** Cambio de prenda: lo que se le devolvió en efectivo o le quedó a favor. */
+  reintegro?: number
+  aFavor?: number
   error?: string
   /** Factura emitida automáticamente (si está activado). */
   comprobante?: { id: number; tipo: string; simulado: boolean }
@@ -83,7 +102,14 @@ export async function cobrar(datos: z.input<typeof Cobro>): Promise<ResultadoCob
   revalidatePath('/caja')
   revalidatePath('/ventas')
   const config = await leerConfig(db())
-  const salida: ResultadoCobro = { ventaId: res.ventaId, vuelto: res.vuelto, puedeFacturar: config.modo !== 'desactivada' }
+  if (r.data.clienteId) revalidatePath(`/clientes/${r.data.clienteId}`)
+  const salida: ResultadoCobro = {
+    ventaId: res.ventaId,
+    vuelto: res.vuelto,
+    reintegro: res.reintegro,
+    aFavor: res.aFavor,
+    puedeFacturar: config.modo !== 'desactivada',
+  }
   if (config.modo !== 'desactivada' && config.facturar_automatico) {
     // La venta ya está guardada: si la factura falla, se avisa y se puede reintentar.
     try {
@@ -125,4 +151,36 @@ export async function abrir(_: Resultado, f: FormData): Promise<Resultado> {
   revalidatePath('/vender')
   revalidatePath('/caja')
   return { ok: 'Caja abierta.' }
+}
+
+export type VentaParaCambio = {
+  ventaId: number
+  creado: Date
+  cliente: ClienteBuscado | null
+  items: { ventaItemId: number; nombre: string; disponibles: number; unitario: number }[]
+}
+
+/** Para un cambio de prenda: la venta original (por número o escaneando el ticket de cambio). */
+export async function ventaParaCambio(q: string): Promise<{ venta?: VentaParaCambio; error?: string }> {
+  const u = await requerirUsuario()
+  const caja = await cajaAbierta(db(), u.id)
+  if (!caja) return { error: 'La caja está cerrada.' }
+  const id = Number(String(q ?? '').replace(/\D/g, ''))
+  if (!id) return { error: 'Escaneá el ticket o escribí el número de venta.' }
+  const sql = db()
+  const [v] = await sql<{ id: number; creado: Date; estado: string; sucursal_id: number; cliente_id: number | null }[]>`
+    select id, creado, estado, sucursal_id, cliente_id from ventas where id = ${id}`
+  if (!v) return { error: `No existe la venta N.º ${id}.` }
+  if (v.estado === 'anulada') return { error: `La venta N.º ${id} está anulada.` }
+  if (u.rol !== 'admin' && v.sucursal_id !== caja.sucursal_id) return { error: 'Esa venta es de otra sucursal: el cambio se hace allá.' }
+  const items = (await itemsDevolvibles(sql, id))
+    .filter((i) => i.cantidad - i.devuelto > 0)
+    .map((i) => ({ ventaItemId: i.id, nombre: i.nombre, disponibles: i.cantidad - i.devuelto, unitario: i.unitario }))
+  if (!items.length) return { error: 'De esa venta ya se devolvió todo.' }
+  let cliente: ClienteBuscado | null = null
+  if (v.cliente_id) {
+    const [c] = await sql<ClienteBuscado[]>`select id, nombre, telefono, doc_nro, limite_credito, 0 as saldo from clientes where id = ${v.cliente_id}`
+    if (c) cliente = { ...c, saldo: await saldoCliente(sql, c.id) }
+  }
+  return { venta: { ventaId: v.id, creado: v.creado, cliente, items } }
 }

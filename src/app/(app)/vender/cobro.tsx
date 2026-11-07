@@ -7,8 +7,12 @@ import { parseNumero } from '@/lib/numeros'
 import { MEDIOS, aCentavos, aPesos, montosSugeridos, type MedioPago } from '@/lib/venta-calculo'
 import { cobrar, facturarConsumidorFinal } from './actions'
 import type { LineaCarrito } from './punto-de-venta'
+import type { CambioCarrito } from './cambio'
+import type { ClienteBuscado } from '../clientes/actions'
 
-type Pago = { medio: MedioPago; monto: string; cuotas: number }
+type Medio = MedioPago | 'cuenta_corriente'
+type Pago = { medio: Medio; monto: string; cuotas: number }
+const NOMBRES: Record<Medio, string> = { ...MEDIOS, cuenta_corriente: 'A cuenta' }
 
 const aTexto = (centavos: number) => (centavos / 100).toFixed(2).replace('.', ',').replace(',00', '')
 const montoDe = (p: Pago) => aCentavos(parseNumero(p.monto) ?? 0)
@@ -17,6 +21,9 @@ export function Cobro({
   lineas: lineasIniciales,
   descuentoGlobalPct,
   totalCentavos,
+  creditoCentavos = 0,
+  cambio = null,
+  cliente = null,
   sucursal,
   alCerrar,
   alVender,
@@ -24,25 +31,36 @@ export function Cobro({
   lineas: LineaCarrito[]
   descuentoGlobalPct: number
   totalCentavos: number
+  /** Lo que devuelve en un cambio de prenda (en centavos). */
+  creditoCentavos?: number
+  cambio?: CambioCarrito | null
+  cliente?: ClienteBuscado | null
   sucursal: string
   alCerrar: () => void
   alVender: () => void
 }) {
   // Foto de la venta: el carrito se vacía apenas se registra.
   const [lineas] = useState(lineasIniciales)
-  const [total] = useState(totalCentavos)
-  const [pagos, setPagos] = useState<Pago[]>([{ medio: 'efectivo', monto: aTexto(totalCentavos), cuotas: 1 }])
+  const [totalVenta] = useState(totalCentavos)
+  // Con un cambio, se cobra solo la diferencia; si lo devuelto vale más, sobra.
+  const [total] = useState(Math.max(totalCentavos - creditoCentavos, 0))
+  const sobrante = Math.max(creditoCentavos - totalCentavos, 0)
+  const [excedente, setExcedente] = useState<'efectivo' | 'cuenta_corriente'>(cliente ? 'cuenta_corriente' : 'efectivo')
+  const [paraRetirar, setParaRetirar] = useState(false)
+  const [pagos, setPagos] = useState<Pago[]>(total > 0 ? [{ medio: 'efectivo', monto: aTexto(total), cuotas: 1 }] : [])
   const [recibido, setRecibido] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [hecho, setHecho] = useState<{
     ventaId: number
     vuelto: number
+    reintegro?: number
+    aFavor?: number
     comprobante?: { id: number; tipo: string; simulado: boolean }
     errorFactura?: string
     puedeFacturar?: boolean
   } | null>(null)
   const [facturando, iniciarFactura] = useTransition()
-  const [telefono, setTelefono] = useState('')
+  const [telefono, setTelefono] = useState(cliente?.telefono ?? '')
   const [guardando, iniciar] = useTransition()
   const confirmarRef = useRef<HTMLButtonElement>(null)
   const nuevaRef = useRef<HTMLButtonElement>(null)
@@ -53,6 +71,7 @@ export function Cobro({
   const recibidoC = recibido.trim() ? aCentavos(parseNumero(recibido) ?? 0) : efectivo
   const vuelto = efectivo > 0 ? recibidoC - efectivo : 0
   const valido = falta === 0 && pagos.every((p) => montoDe(p) > 0) && (efectivo === 0 || recibidoC >= efectivo)
+  const medios: Medio[] = [...(Object.keys(MEDIOS) as MedioPago[]), ...(cliente ? (['cuenta_corriente'] as const) : [])]
 
   useEffect(() => {
     const tecla = (e: KeyboardEvent) => {
@@ -65,7 +84,7 @@ export function Cobro({
     if (hecho) nuevaRef.current?.focus()
   }, [hecho])
 
-  function elegirMedio(medio: MedioPago) {
+  function elegirMedio(medio: Medio) {
     setError(null)
     setPagos((ps) => {
       // Con un solo pago, tocar otro medio lo cambia; si ya hay varios, agrega uno por lo que falta.
@@ -89,10 +108,23 @@ export function Cobro({
         descuentoGlobalPct,
         pagos: pagos.map((p) => ({ medio: p.medio, monto: aPesos(montoDe(p)), cuotas: p.medio === 'credito' ? p.cuotas : null })),
         efectivoRecibido: efectivo > 0 ? aPesos(recibidoC) : null,
-        totalEsperado: aPesos(total),
+        totalEsperado: aPesos(totalVenta),
+        clienteId: cliente?.id ?? null,
+        paraRetirar,
+        cambio: cambio
+          ? { ventaId: cambio.ventaId, items: cambio.items.map((i) => ({ ventaItemId: i.ventaItemId, cantidad: i.cantidad })), excedente }
+          : null,
       })
       if (r.error || !r.ventaId) return setError(r.error ?? 'No se pudo registrar.')
-      setHecho({ ventaId: r.ventaId, vuelto: r.vuelto ?? 0, comprobante: r.comprobante, errorFactura: r.errorFactura, puedeFacturar: r.puedeFacturar })
+      setHecho({
+        ventaId: r.ventaId,
+        vuelto: r.vuelto ?? 0,
+        reintegro: r.reintegro,
+        aFavor: r.aFavor,
+        comprobante: r.comprobante,
+        errorFactura: r.errorFactura,
+        puedeFacturar: r.puedeFacturar,
+      })
       alVender()
     })
   }
@@ -122,6 +154,22 @@ export function Cobro({
                   {formatoPesos(hecho.vuelto)}
                 </p>
               </div>
+            )}
+            {!!hecho.reintegro && (
+              <div className="mt-5 rounded-xl bg-alerta-claro p-4">
+                <p className="text-sm text-alerta">Devolvele de la caja</p>
+                <p className="num text-4xl font-semibold text-tinta" data-testid="reintegro">
+                  {formatoPesos(hecho.reintegro)}
+                </p>
+              </div>
+            )}
+            {!!hecho.aFavor && (
+              <p className="mt-4 rounded-xl bg-ok-claro p-3 text-sm text-ok">
+                Le quedaron {formatoPesos(hecho.aFavor)} a favor de {cliente?.nombre} para la próxima compra.
+              </p>
+            )}
+            {paraRetirar && (
+              <p className="mt-4 rounded-xl bg-marca-clara p-3 text-sm text-marca-oscura">Quedó apartada para {cliente?.nombre}. Se marca como retirada desde la venta.</p>
             )}
             {hecho.comprobante && (
               <p className="mt-4 text-sm text-ok">
@@ -199,17 +247,41 @@ export function Cobro({
           <div className="p-5 sm:p-6">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-sm text-tinta-suave">Total a cobrar</p>
-                <p className="num text-4xl font-semibold tracking-tight">{formatoPesos(aPesos(total))}</p>
+                <p className="text-sm text-tinta-suave">{cambio ? (sobrante ? 'No paga nada: le sobra' : 'Paga la diferencia') : 'Total a cobrar'}</p>
+                <p className="num text-4xl font-semibold tracking-tight">{formatoPesos(aPesos(sobrante || total))}</p>
+                {cliente && <p className="mt-1 text-sm text-tinta-suave">Clienta: {cliente.nombre}</p>}
               </div>
               <button onClick={alCerrar} aria-label="Volver a la venta" className="rounded-lg px-2 py-1 text-tinta-suave hover:bg-fondo">
                 ✕
               </button>
             </div>
 
+            {sobrante > 0 && (
+              <fieldset className="mt-5 space-y-2">
+                <legend className="mb-2 text-sm font-medium">¿Qué hacemos con lo que sobra?</legend>
+                <label className="flex items-center gap-2 rounded-xl border border-linea p-3 text-sm">
+                  <input type="radio" name="excedente" checked={excedente === 'efectivo'} onChange={() => setExcedente('efectivo')} className="accent-marca" />
+                  Devolverle {formatoPesos(aPesos(sobrante))} en efectivo
+                </label>
+                <label className={`flex items-center gap-2 rounded-xl border border-linea p-3 text-sm ${cliente ? '' : 'opacity-50'}`}>
+                  <input
+                    type="radio"
+                    name="excedente"
+                    disabled={!cliente}
+                    checked={excedente === 'cuenta_corriente'}
+                    onChange={() => setExcedente('cuenta_corriente')}
+                    className="accent-marca"
+                  />
+                  {cliente ? `Dejárselo a favor de ${cliente.nombre}` : 'Dejárselo a favor (elegí la clienta primero)'}
+                </label>
+              </fieldset>
+            )}
+
+            {total > 0 && (
+            <>
             <p className="mt-5 mb-2 text-sm font-medium">¿Cómo paga?</p>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {(Object.keys(MEDIOS) as MedioPago[]).map((m) => {
+            <div className={`grid grid-cols-2 gap-2 ${medios.length > 4 ? 'sm:grid-cols-5' : 'sm:grid-cols-4'}`}>
+              {medios.map((m) => {
                 const activo = pagos.length === 1 && pagos[0].medio === m
                 return (
                   <button
@@ -218,11 +290,20 @@ export function Cobro({
                     aria-pressed={activo}
                     className={`h-12 rounded-xl border-2 text-sm font-medium transition-colors ${activo ? 'border-marca bg-marca-clara text-marca' : 'border-linea hover:border-marca/40'}`}
                   >
-                    {MEDIOS[m]}
+                    {NOMBRES[m]}
                   </button>
                 )
               })}
             </div>
+            {pagos.some((p) => p.medio === 'cuenta_corriente') && cliente && (
+              <p className="mt-2 text-xs text-tinta-suave">
+                Se carga a la cuenta de {cliente.nombre}
+                {Number(cliente.saldo) < 0 ? ` (tiene ${formatoPesos(-Number(cliente.saldo))} a favor)` : ''}
+                {Number(cliente.limite_credito) > 0 ? `; límite ${formatoPesos(Number(cliente.limite_credito))}` : ''}.
+              </p>
+            )}
+            </>
+            )}
 
             {pagos.length > 1 && (
               <ul className="mt-4 space-y-2">
@@ -230,13 +311,13 @@ export function Cobro({
                   <li key={i} className="flex items-center gap-2">
                     <select
                       value={p.medio}
-                      onChange={(e) => setPagos((ps) => ps.map((x, j) => (j === i ? { ...x, medio: e.target.value as MedioPago } : x)))}
+                      onChange={(e) => setPagos((ps) => ps.map((x, j) => (j === i ? { ...x, medio: e.target.value as Medio } : x)))}
                       aria-label={`Medio del pago ${i + 1}`}
                       className="h-10 w-36 rounded-lg border border-linea px-2 text-sm"
                     >
-                      {(Object.keys(MEDIOS) as MedioPago[]).map((m) => (
+                      {medios.map((m) => (
                         <option key={m} value={m}>
-                          {MEDIOS[m]}
+                          {NOMBRES[m]}
                         </option>
                       ))}
                     </select>
@@ -276,6 +357,17 @@ export function Cobro({
               </label>
             )}
 
+            {cliente && (
+              <label className="mt-4 flex items-start gap-2 rounded-xl border border-linea p-3 text-sm">
+                <input type="checkbox" checked={paraRetirar} onChange={(e) => setParaRetirar(e.target.checked)} className="mt-0.5 h-4 w-4 accent-marca" />
+                <span>
+                  Apartar: la retira después
+                  <span className="block text-xs text-tinta-suave">Para señas: cobrá la seña y el resto ponelo &quot;A cuenta&quot;.</span>
+                </span>
+              </label>
+            )}
+
+            {total > 0 && (
             <div className="mt-3 flex items-center justify-between text-sm">
               <button onClick={dividir} className="font-medium text-marca hover:underline">
                 + Pagar con dos medios
@@ -286,6 +378,7 @@ export function Cobro({
                 </span>
               )}
             </div>
+            )}
 
             {efectivo > 0 && (
               <div className="mt-5 rounded-xl bg-fondo p-4">
