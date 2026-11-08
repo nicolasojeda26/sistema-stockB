@@ -24,3 +24,9 @@ export function margen(costo: number, precio: number): number | null {
   if (!costo) return null
   return Math.round(((precio - costo) / costo) * 1000) / 10
 }
+
+const dia = new Intl.DateTimeFormat('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' })
+/** Columnas `date` (la base las devuelve a las 0 h UTC): sin hora ni corrimiento de zona. */
+export const formatoDia = (d: Date | string) => dia.format(typeof d === 'string' ? new Date(d + 'T00:00:00Z') : d)
+/** Hoy en Argentina, como "2026-11-07". */
+export const hoyAR = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }).format(new Date())

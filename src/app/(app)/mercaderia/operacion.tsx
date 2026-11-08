@@ -25,7 +25,7 @@ const TEXTOS: Record<Tipo, { boton: string; listo: string }> = {
   ajuste: { boton: 'Confirmar ajuste', listo: 'Ajuste registrado' },
 }
 
-function leerBorrador<T>(clave: string): T | null {
+export function leerBorrador<T>(clave: string): T | null {
   try {
     const v = localStorage.getItem(clave)
     return v ? (JSON.parse(v) as T) : null
@@ -33,7 +33,7 @@ function leerBorrador<T>(clave: string): T | null {
     return null
   }
 }
-function guardarBorrador(clave: string, valor: unknown) {
+export function guardarBorrador(clave: string, valor: unknown) {
   try {
     if (valor === null) localStorage.removeItem(clave)
     else localStorage.setItem(clave, JSON.stringify(valor))
@@ -128,8 +128,8 @@ export function OperacionStock({
           const actual = esRecuento ? 0 : Number.parseInt(copia[i].cantidad, 10) || 0
           copia[i] = { ...copia[i], cantidad: String(actual + cantidad) }
         } else {
-          const { id, codigo, nombre, precio, activo, stock } = producto
-          copia = [{ id, codigo, nombre, precio, activo, stock, cantidad: String(cantidad) }, ...copia]
+          const { id, codigo, nombre, precio, costo, activo, stock } = producto
+          copia = [{ id, codigo, nombre, precio, costo, activo, stock, cantidad: String(cantidad) }, ...copia]
         }
       }
       return copia

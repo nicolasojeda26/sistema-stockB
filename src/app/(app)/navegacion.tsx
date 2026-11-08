@@ -76,6 +76,26 @@ const iconos = {
     </>
   ),
   reportes: <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />,
+  proveedores: (
+    <>
+      <path d="M2 7h11v9H2zM13 10h4l4 3v3h-8" />
+      <circle cx="6" cy="18" r="1.8" />
+      <circle cx="17" cy="18" r="1.8" />
+    </>
+  ),
+  compras: (
+    <>
+      <path d="M5 8h14l-1.2 12H6.2z" />
+      <path d="M9 8V6a3 3 0 0 1 6 0v2" />
+    </>
+  ),
+  gastos: (
+    <>
+      <rect x="3" y="6" width="18" height="12" rx="2" />
+      <circle cx="12" cy="12" r="2.5" />
+      <path d="M6 9v.01M18 15v.01" />
+    </>
+  ),
   ajustes: (
     <>
       <circle cx="12" cy="12" r="3" />

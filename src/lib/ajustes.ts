@@ -8,6 +8,7 @@ export type Ajustes = {
   /** Una curva por línea: "Letras: XS, S, M, L". */
   curvas_talles: string
   colores_frecuentes: string
+  categorias_gasto: string
 }
 
 const PREDETERMINADOS: Ajustes = {
@@ -16,6 +17,7 @@ const PREDETERMINADOS: Ajustes = {
   ancho_ticket: '80',
   curvas_talles: 'Letras: XS, S, M, L, XL, XXL\nNúmeros: 36, 38, 40, 42, 44, 46, 48\nÚnico: Único',
   colores_frecuentes: 'Negro, Blanco, Gris, Azul, Beige',
+  categorias_gasto: 'Alquiler, Sueldos, Servicios (luz/agua/internet), Impuestos, Limpieza, Bolsas y packaging, Publicidad, Comisiones de tarjeta, Mantenimiento, Otros',
 }
 
 export async function leerAjustes(): Promise<Ajustes> {

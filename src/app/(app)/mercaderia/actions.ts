@@ -15,13 +15,14 @@ export type ProductoLinea = {
   codigo: string
   nombre: string
   precio: number
+  costo: number
   activo: boolean
   /** Stock en el depósito de referencia (origen en transferencias). */
   stock: number
 }
 
 const lineas = (depositoId: number | null) => db()`
-  select p.id, p.codigo, p.nombre, p.precio, p.activo,
+  select p.id, p.codigo, p.nombre, p.precio, p.costo, p.activo,
     coalesce((select cantidad from stock s where s.producto_id = p.id and s.deposito_id = ${depositoId ?? 0}), 0) as stock
   from productos p`
 
@@ -80,7 +81,7 @@ export async function crearProductoRapido(datos: {
       return tx<ProductoLinea[]>`
         insert into productos (codigo, nombre, categoria_id, costo, precio)
         values (${codigo}, ${nombre}, ${datos.categoriaId || null}, ${centavos(costo!)}, ${centavos(precio!)})
-        returning id, codigo, nombre, precio, activo, 0 as stock`
+        returning id, codigo, nombre, precio, costo, activo, 0 as stock`
     })
     revalidatePath('/productos')
     return { producto: p }
@@ -149,7 +150,7 @@ export async function variantesArticulo(articuloId: number, depositoId: number |
   const [a] = await sql<{ nombre: string }[]>`select nombre from articulos where id = ${articuloId}`
   if (!a) return null
   const variantes = await sql<VarianteLinea[]>`
-    select p.id, p.codigo, p.nombre, p.precio, p.activo, p.talle, p.color, p.orden_talle,
+    select p.id, p.codigo, p.nombre, p.precio, p.costo, p.activo, p.talle, p.color, p.orden_talle,
       coalesce((select cantidad from stock s where s.producto_id = p.id and s.deposito_id = ${depositoId ?? 0}), 0) as stock
     from productos p where p.articulo_id = ${articuloId} and p.activo
     order by lower(coalesce(p.color, '')), p.orden_talle`

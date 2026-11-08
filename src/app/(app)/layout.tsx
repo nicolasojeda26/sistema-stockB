@@ -21,6 +21,13 @@ export default async function AppLayout({ children }: LayoutProps<'/'>) {
     { href: '/etiquetas', texto: 'Etiquetas', icono: 'etiquetas' },
     ...(esAdmin
       ? ([
+          { href: '/compras', texto: 'Compras', icono: 'compras', seccion: 'Compras y gastos' },
+          { href: '/proveedores', texto: 'Proveedores', icono: 'proveedores' },
+          { href: '/gastos', texto: 'Gastos', icono: 'gastos' },
+        ] as ItemNav[])
+      : ([{ href: '/gastos', texto: 'Gastos de la caja', icono: 'gastos' }] as ItemNav[])),
+    ...(esAdmin
+      ? ([
           { href: '/reportes', texto: 'Reportes', icono: 'reportes', seccion: 'Administración' },
           { href: '/comprobantes', texto: 'Comprobantes', icono: 'factura' },
           { href: '/precios', texto: 'Actualizar precios', icono: 'precios' },

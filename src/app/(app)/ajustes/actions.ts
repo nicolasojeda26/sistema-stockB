@@ -13,6 +13,7 @@ export async function guardarAjustes(_: Resultado, f: FormData): Promise<Resulta
   const ancho = texto(f, 'ancho_ticket') === '58' ? '58' : '80'
   const curvas = f.has('curvas_talles') ? texto(f, 'curvas_talles').slice(0, 2000) : null
   const colores = f.has('colores_frecuentes') ? texto(f, 'colores_frecuentes').slice(0, 1000) : null
+  const gastos = f.has('categorias_gasto') ? texto(f, 'categorias_gasto').slice(0, 1000) : null
   if (!nombre) return { error: 'Poné el nombre del negocio.' }
   const filas = [
     { clave: 'nombre_negocio', valor: nombre },
@@ -20,6 +21,7 @@ export async function guardarAjustes(_: Resultado, f: FormData): Promise<Resulta
     { clave: 'ancho_ticket', valor: ancho },
     ...(curvas !== null ? [{ clave: 'curvas_talles', valor: curvas }] : []),
     ...(colores !== null ? [{ clave: 'colores_frecuentes', valor: colores }] : []),
+    ...(gastos !== null ? [{ clave: 'categorias_gasto', valor: gastos }] : []),
   ]
   await db()`insert into ajustes ${db()(filas)} on conflict (clave) do update set valor = excluded.valor`
   revalidatePath('/ajustes')

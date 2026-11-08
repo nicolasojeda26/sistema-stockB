@@ -27,6 +27,11 @@ type Mov = { producto_id: number; deposito_id: number; cantidad: number }
 
 /** Registra la operación y mueve el stock, todo o nada. */
 export async function registrarOperacion(sql: Sql, d: DatosOperacion): Promise<{ operacionId: number; movimientos: number }> {
+  return sql.begin((tx) => registrarOperacionTx(tx, d))
+}
+
+/** Igual que registrarOperacion, dentro de una transacción ya abierta (ej.: una compra). */
+export async function registrarOperacionTx(tx: TransactionSql, d: DatosOperacion): Promise<{ operacionId: number; movimientos: number }> {
   if (!d.items.length) throw new ErrorStock('La lista está vacía.')
   if (d.tipo === 'transferencia' && (!d.origenId || d.origenId === d.destinoId))
     throw new ErrorStock('Elegí un depósito de origen distinto del de destino.')
@@ -48,7 +53,7 @@ export async function registrarOperacion(sql: Sql, d: DatosOperacion): Promise<{
     }
   }
 
-  return sql.begin(async (tx) => {
+  {
     const ids = items.map((i) => i.productoId)
     const depositos = [d.destinoId, ...(d.origenId ? [d.origenId] : [])]
     const okDeps = await tx`select id from depositos where id = any(${depositos}::int[]) and activo`
@@ -76,7 +81,7 @@ export async function registrarOperacion(sql: Sql, d: DatosOperacion): Promise<{
       returning id`
     if (movs.length) await aplicarMovimientos(tx, movs, d.tipo, d.motivo ?? null, d.usuarioId, op.id)
     return { operacionId: Number(op.id), movimientos: movs.length }
-  })
+  }
 }
 
 async function stockBloqueado(tx: TransactionSql, ids: number[], depositoId: number) {
