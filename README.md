@@ -10,9 +10,10 @@ Sistema de stock y ventas multisucursal y multidepósito, con factura electróni
 | --- | --- |
 | 1. Base y productos: sucursales, depósitos, usuarios, categorías, productos e importación desde Dux | Lista |
 | 2. Stock: ingreso de mercadería, transferencias, ajustes, movimientos, precios masivos y etiquetas | Lista |
-| 3. Caja y ventas: venta, cobro con varias formas de pago, caja diaria, tickets | Lista |
+| 3. Caja y ventas: venta, cobro con varias formas de pago, caja diaria, tickets y presupuestos | Lista |
 | 4. Facturación ARCA y reportes | Lista (falta cargar los datos fiscales y el certificado reales) |
-| 5. Pruebas en sucursal y capacitación | Pendiente |
+| 5. Solicitudes de ayuda, informes y mejoras | Lista (el seguimiento lo realiza el equipo del negocio) |
+| 6. Pruebas en sucursal y capacitación | Pendiente |
 
 ## Puesta en marcha
 
@@ -59,6 +60,8 @@ En **Importar desde Dux** se sube el Excel (`.xlsx` o `.xls`) o un CSV.
 - **Etiquetas:** imprime en hoja A4 (3 × 8) o en impresora de etiquetas de 50 × 25 mm. Usa EAN-13 si el código es válido y CODE128 en los demás casos.
 
 ## Caja y ventas (etapa 3)
+
+- **Presupuestos:** armá una propuesta con productos buscados por nombre o código, cliente opcional, vigencia, descuentos y nota. Se puede imprimir/guardar en PDF y seguir su estado (abierto, aceptado, rechazado o cancelado). Crear un presupuesto no modifica caja ni stock.
 
 - **Caja:** cada usuario abre su caja con el efectivo inicial; las administradoras eligen en qué sucursal. Mientras está abierta se pueden registrar ingresos y retiros de efectivo, con su motivo. Al cerrarla se carga lo contado y queda guardado lo que tenía que haber y la diferencia. El resumen se puede imprimir.
 - **Vender:**
@@ -120,7 +123,11 @@ Además, se puede activar **facturar cada venta automáticamente** a consumidor 
 - Valor del stock a costo y a precio de venta.
 - Todo se baja en un Excel con una hoja por tema.
 
+**Integraciones con servicios externos:** Tiendanube y Mercado Pago no están conectados todavía. Tiendanube requiere registrar y autorizar una aplicación OAuth para la tienda; Mercado Pago requiere una aplicación y credenciales propias, además de recibir y verificar sus notificaciones de pago. La conexión productiva requiere esos accesos y configurar la URL pública de retorno/notificaciones.
+
 ## Detalles generales
+
+- **Ayuda y solicitudes:** el equipo puede pedir asistencia, un informe o una mejora desde el sistema. Administración puede responder y marcar cada pedido pendiente, en curso o resuelto. La asesoría personalizada y el acompañamiento de procesos requieren atención del equipo.
 
 - **Búsqueda:** por varias palabras en cualquier orden y sin importar acentos ni mayúsculas («remera negra», «panuelo»). Usa índices `pg_trgm` y la función `normalizar` de la base.
 - **Inicio:**

@@ -167,7 +167,7 @@ export function Navegacion({ items, pie, negocio, logo }: { items: ItemNav[]; pi
       href={it.href}
       aria-current={activo(it) ? 'page' : undefined}
       onClick={() => setAbierto(false)}
-      className={`flex h-10 items-center gap-3 rounded-lg px-3 text-[15px] transition-colors lg:h-9 lg:text-sm ${
+      className={`nav-link flex h-10 items-center gap-3 rounded-lg px-3 text-[15px] transition-colors lg:h-9 lg:text-sm ${
         activo(it) ? 'bg-marca-clara font-semibold text-marca' : 'text-tinta-suave hover:bg-fondo hover:text-tinta'
       }`}
     >
@@ -201,10 +201,13 @@ export function Navegacion({ items, pie, negocio, logo }: { items: ItemNav[]; pi
         </button>
       </header>
       <aside
-        className={`${abierto ? 'flex' : 'hidden'} fixed inset-x-0 top-14 bottom-0 z-30 flex-col border-r border-linea bg-papel lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-60 lg:shrink-0 print:hidden`}
+        className={`brand-sidebar ${abierto ? 'flex' : 'hidden'} fixed inset-x-0 top-14 bottom-0 z-30 flex-col border-r border-linea bg-papel lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-[272px] lg:shrink-0 print:hidden`}
       >
-        <Link href="/" className="mb-2 hidden h-16 items-center bg-negro px-5 lg:flex" aria-label="Inicio">
-          <Logotipo nombre={negocio} logo={logo} className="truncate text-2xl" />
+        <Link href="/" className="hidden h-[76px] items-center px-5 lg:flex" aria-label="Inicio">
+          <span className="min-w-0">
+            <Logotipo nombre={negocio} logo={logo} className="block truncate text-[1.6rem] leading-none" />
+            <span className="mt-1.5 block text-[10px] font-semibold tracking-[.16em] text-white/50">GESTIÓN COMERCIAL</span>
+          </span>
         </Link>
         <nav className="flex-1 overflow-y-auto px-3 pb-3" aria-label="Principal">
           {grupos.map((g, i) =>
@@ -214,7 +217,7 @@ export function Navegacion({ items, pie, negocio, logo }: { items: ItemNav[]; pi
                   type="button"
                   onClick={() => setConfigPedida(!config)}
                   aria-expanded={config}
-                  className="flex w-full items-center justify-between rounded-lg px-3 py-1.5 text-xs font-semibold text-apagado hover:text-tinta"
+                  className="nav-section flex w-full items-center justify-between rounded-lg px-3 py-1.5 text-[10px] font-bold text-apagado"
                 >
                   Configuración
                   <svg viewBox="0 0 24 24" className={`h-4 w-4 transition-transform ${config ? 'rotate-180' : ''}`} {...trazo}>
@@ -225,7 +228,7 @@ export function Navegacion({ items, pie, negocio, logo }: { items: ItemNav[]; pi
               </div>
             ) : (
               <div key={i} className={g.seccion ? 'mt-3' : 'pt-2 lg:pt-0'}>
-                {g.seccion && <p className="px-3 py-1.5 text-xs font-semibold text-apagado">{g.seccion}</p>}
+                {g.seccion && <p className="nav-section px-3 py-1.5 text-[10px] font-bold text-apagado">{g.seccion}</p>}
                 <div className="space-y-0.5">{g.items.map(enlace)}</div>
               </div>
             ),

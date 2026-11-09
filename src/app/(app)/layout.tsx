@@ -2,6 +2,7 @@ import { puedeVender, requerirUsuario } from '@/lib/dal'
 import { db } from '@/lib/db'
 import { estiloMarca, leerAjustes, urlLogo } from '@/lib/ajustes'
 import { salir } from '@/app/login/actions'
+import { SelectorTema } from '@/components/selector-tema'
 import { Navegacion, type ItemNav } from './navegacion'
 
 export default async function AppLayout({ children }: LayoutProps<'/'>) {
@@ -26,6 +27,7 @@ export default async function AppLayout({ children }: LayoutProps<'/'>) {
           { href: '/vender', texto: 'Vender', icono: 'vender' },
           { href: '/caja', texto: 'Caja', icono: 'caja' },
           { href: '/ventas', texto: 'Ventas', icono: 'ventas' },
+          { href: '/presupuestos', texto: 'Presupuestos', icono: 'factura' },
         ] as ItemNav[])
       : []),
     { href: '/productos', texto: 'Productos', icono: 'productos' },
@@ -64,20 +66,24 @@ export default async function AppLayout({ children }: LayoutProps<'/'>) {
           { href: '/ajustes', texto: 'Ajustes del negocio', icono: 'ajustes' },
         ] as ItemNav[])
       : []),
+    { href: '/solicitudes', texto: 'Ayuda y solicitudes', icono: 'ajustes', seccion: 'Ayuda' },
   ]
 
   const pie = (
-    <div className="flex items-center gap-3 border-t border-linea p-3 pb-20 lg:pb-3">
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-marca-clara text-sm font-bold text-marca" aria-hidden>
-        {u.nombre.trim()[0]?.toUpperCase()}
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-semibold">{u.nombre}</span>
-        <span className="block truncate text-xs text-apagado">{u.rol === 'admin' ? 'Administración' : u.rol === 'deposito' ? `Encargado · ${u.sucursal_nombre}` : u.sucursal_nombre}</span>
-      </span>
-      <form action={salir}>
-        <button className="rounded-lg px-2 py-1.5 text-xs font-medium text-tinta-suave hover:bg-fondo hover:text-tinta">Salir</button>
-      </form>
+    <div className="space-y-2 px-3 pb-20 lg:pb-3">
+      <SelectorTema />
+      <div className="nav-divider nav-user flex items-center gap-3 border-t border-linea p-3 lg:rounded-xl lg:border-0">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-marca-clara text-sm font-bold text-marca" aria-hidden>
+          {u.nombre.trim()[0]?.toUpperCase()}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-semibold">{u.nombre}</span>
+          <span className="block truncate text-xs text-apagado">{u.rol === 'admin' ? 'Administración' : u.rol === 'deposito' ? `Encargado · ${u.sucursal_nombre}` : u.sucursal_nombre}</span>
+        </span>
+        <form action={salir}>
+          <button className="nav-logout rounded-lg px-2 py-1.5 text-xs font-medium text-tinta-suave hover:bg-fondo hover:text-tinta">Salir</button>
+        </form>
+      </div>
     </div>
   )
 
@@ -85,8 +91,8 @@ export default async function AppLayout({ children }: LayoutProps<'/'>) {
     <div className="min-h-screen lg:flex">
       {estilo && <style>{estilo}</style>}
       <Navegacion items={items} pie={pie} negocio={nombre_negocio} logo={urlLogo(ajustes)} />
-      <main className="min-w-0 flex-1 px-4 pt-6 pb-24 sm:px-8 lg:py-8 print:p-0">
-        <div className="mx-auto max-w-6xl">{children}</div>
+      <main className="min-w-0 flex-1 px-4 pt-6 pb-24 sm:px-8 lg:px-10 lg:py-9 print:p-0">
+        <div className="mx-auto max-w-7xl">{children}</div>
       </main>
     </div>
   )

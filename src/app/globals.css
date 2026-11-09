@@ -7,17 +7,17 @@
 
 @theme {
   /* Texto */
-  --color-tinta: #1b2230;
-  --color-tinta-suave: #4b5565;
-  --color-apagado: #6b7385;
+  --color-tinta: #1a1f1a;
+  --color-tinta-suave: #4f5a50;
+  --color-apagado: #6e786f;
   /* Superficies */
-  --color-linea: #e2e6ee;
-  --color-fondo: #f2f4f7;
+  --color-linea: #e1e6e0;
+  --color-fondo: #f3f5f2;
   --color-papel: #ffffff;
   /* Marca MegaCel+: verde del logo (oscurecido para que el texto blanco se lea bien) */
   --color-marca: #457540;
   --color-marca-oscura: #36602f;
-  --color-marca-clara: #edf4eb;
+  --color-marca-clara: #e9f2e7;
   /* El verde claro del "Cel+" del logo, sobre negro */
   --color-acento: #94bc8c;
   --color-negro: #111312;
@@ -30,14 +30,79 @@
   --color-error-claro: #fdeceb;
 }
 
-html {
+html[data-theme="claro"] {
   color-scheme: light;
 }
 
 body {
-  background: var(--color-fondo);
+  background: #f3f5f2;
   color: var(--color-tinta);
   font-feature-settings: 'cv11';
+  background-image: radial-gradient(ellipse at 75% -20%, rgb(148 188 140 / 22%), transparent 34rem);
+}
+
+/* Sistema visual MegaCel+: negro, verde del logo y grises verdosos. */
+::selection { background: #cfe3ca; color: #16300f; }
+
+main :is(input, select, textarea) { transition: border-color .16s ease, box-shadow .16s ease, background-color .16s ease; }
+main :is(input, select, textarea):hover:not(:focus):not(:disabled) { border-color: #a9c7a3; }
+main :is(table) { border-collapse: separate; border-spacing: 0; }
+main thead th { letter-spacing: .045em; text-transform: uppercase; }
+main tbody tr:last-child > td { border-bottom: 0; }
+main tbody tr:hover > td { transition: background-color .14s ease; }
+main a { text-underline-offset: 3px; }
+
+.brand-sidebar {
+  background: linear-gradient(180deg, #111312 0%, #0b0d0c 100%);
+  border-color: rgb(255 255 255 / 9%);
+  color: #f2f5f1;
+}
+.brand-sidebar .nav-link { color: #c9d1c8; }
+.brand-sidebar .nav-link:hover { background: rgb(255 255 255 / 8%); color: #fff; }
+.brand-sidebar .nav-link[aria-current="page"] { background: #22301f; color: #c3dfbd; box-shadow: inset 3px 0 #94bc8c; }
+.brand-sidebar .nav-section { color: #8fa18c; letter-spacing: .11em; text-transform: uppercase; }
+.brand-sidebar .nav-divider { border-color: rgb(255 255 255 / 12%); }
+.brand-sidebar .nav-user { background: rgb(255 255 255 / 8%); }
+
+.brand-sidebar .nav-user .text-apagado { color: #a9b5a7; }
+.brand-sidebar .nav-logout { color: #c9d1c8; }
+.brand-sidebar .nav-logout:hover { background: rgb(255 255 255 / 10%); color: white; }
+.brand-sidebar .theme-select { border-color: rgb(255 255 255 / 14%); background-color: rgb(255 255 255 / 7%); color: #f2f5f1; }
+
+html[data-theme="oscuro"] {
+  color-scheme: dark;
+  --color-tinta: #e9eee8;
+  --color-tinta-suave: #b8c3b6;
+  --color-apagado: #93a091;
+  --color-linea: #333b32;
+  --color-fondo: #161917;
+  --color-papel: #1f2420;
+  --color-marca: #94bc8c;
+  --color-marca-oscura: #b2d2ab;
+  --color-marca-clara: #263524;
+  --color-ok: #71c794;
+  --color-ok-claro: #203d2c;
+  --color-alerta: #f0b563;
+  --color-alerta-claro: #48351e;
+  --color-error: #ff9487;
+  --color-error-claro: #4c2926;
+}
+html[data-theme="oscuro"] body {
+  background: #131614;
+  background-image: radial-gradient(ellipse at 75% -20%, rgb(148 188 140 / 8%), transparent 34rem);
+}
+html[data-theme="oscuro"] ::selection { background: #3a5535; color: #eef7ec; }
+html[data-theme="oscuro"] main :is(input, select, textarea):hover:not(:focus):not(:disabled) { border-color: #4f6a4a; }
+html[data-theme="oscuro"] .brand-sidebar {
+  background: linear-gradient(180deg, #0d0f0e 0%, #090b0a 100%);
+}
+html[data-theme="oscuro"] .brand-sidebar .nav-link[aria-current="page"] { background: #22301f; color: #c3dfbd; box-shadow: inset 3px 0 #94bc8c; }
+html[data-theme="oscuro"] .brand-sidebar .theme-select { border-color: rgb(255 255 255 / 14%); background-color: rgb(255 255 255 / 7%); color: #f2f5f1; }
+html[data-theme="oscuro"] :is(.bg-marca, .bg-marca-oscura).text-white { color: #0f1a0d; }
+
+@media (hover: hover) {
+  button, [role="button"] { transition: background-color .16s ease, color .16s ease, border-color .16s ease, transform .12s ease; }
+  button:active, [role="button"]:active { transform: translateY(1px); }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -27,10 +27,10 @@ export function BotonLink({
 
 export function Encabezado({ titulo, detalle, acciones }: { titulo: string; detalle?: ReactNode; acciones?: ReactNode }) {
   return (
-    <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+    <div className="mb-6 flex flex-wrap items-end justify-between gap-4 border-b border-linea/80 pb-5">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight sm:text-[1.75rem]">{titulo}</h1>
-        {detalle && <p className="mt-1 text-sm text-tinta-suave">{detalle}</p>}
+        <h1 className="text-[1.7rem] font-bold tracking-[-.035em] sm:text-[2rem]">{titulo}</h1>
+        {detalle && <p className="mt-1.5 text-sm text-tinta-suave">{detalle}</p>}
       </div>
       {acciones && <div className="flex flex-wrap gap-2">{acciones}</div>}
     </div>
@@ -39,7 +39,7 @@ export function Encabezado({ titulo, detalle, acciones }: { titulo: string; deta
 
 export function Tarjeta({ className, children, ...p }: ComponentProps<'section'>) {
   return (
-    <section className={cx('rounded-xl border border-linea bg-papel shadow-[0_1px_2px_rgb(27_34_48/0.04)]', className)} {...p}>
+    <section className={cx('rounded-2xl border border-linea/90 bg-papel shadow-[0_4px_18px_rgb(23_44_50/0.035)]', className)} {...p}>
       {children}
     </section>
   )
@@ -47,7 +47,7 @@ export function Tarjeta({ className, children, ...p }: ComponentProps<'section'>
 
 export function TituloTarjeta({ children, acciones }: { children: ReactNode; acciones?: ReactNode }) {
   return (
-    <div className="flex items-center justify-between gap-3 border-b border-linea px-5 py-3">
+    <div className="flex items-center justify-between gap-3 border-b border-linea/80 px-5 py-4">
       <h2 className="text-[15px] font-semibold">{children}</h2>
       {acciones}
     </div>
