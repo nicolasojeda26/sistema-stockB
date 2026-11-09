@@ -42,7 +42,7 @@ export default async function AppLayout({ children }: LayoutProps<'/'>) {
   ]
 
   const pie = (
-    <div className="flex items-center gap-3 border-t border-linea p-3 pb-20 lg:pb-3">
+    <div className="nav-divider nav-user flex items-center gap-3 border-t border-linea p-3 pb-20 lg:mx-3 lg:mb-3 lg:rounded-xl lg:border-0 lg:p-3">
       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-marca-clara text-sm font-bold text-marca" aria-hidden>
         {u.nombre.trim()[0]?.toUpperCase()}
       </span>
@@ -51,7 +51,7 @@ export default async function AppLayout({ children }: LayoutProps<'/'>) {
         <span className="block truncate text-xs text-apagado">{u.rol === 'admin' ? 'Administradora' : `Vendedora en ${u.sucursal_nombre}`}</span>
       </span>
       <form action={salir}>
-        <button className="rounded-lg px-2 py-1.5 text-xs font-medium text-tinta-suave hover:bg-fondo hover:text-tinta">Salir</button>
+        <button className="nav-logout rounded-lg px-2 py-1.5 text-xs font-medium text-tinta-suave hover:bg-fondo hover:text-tinta">Salir</button>
       </form>
     </div>
   )
@@ -59,8 +59,8 @@ export default async function AppLayout({ children }: LayoutProps<'/'>) {
   return (
     <div className="min-h-screen lg:flex">
       <Navegacion items={items} pie={pie} negocio={nombre_negocio} />
-      <main className="min-w-0 flex-1 px-4 pt-6 pb-24 sm:px-8 lg:py-8 print:p-0">
-        <div className="mx-auto max-w-6xl">{children}</div>
+      <main className="min-w-0 flex-1 px-4 pt-6 pb-24 sm:px-8 lg:px-10 lg:py-9 print:p-0">
+        <div className="mx-auto max-w-7xl">{children}</div>
       </main>
     </div>
   )

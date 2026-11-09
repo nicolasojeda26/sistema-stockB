@@ -59,9 +59,17 @@ export default async function InicioPage() {
 
   return (
     <>
-      <p className="text-sm font-medium text-tinta-suave first-letter:uppercase">{fechaLarga}</p>
-      <h1 className="mt-0.5 text-[1.75rem] font-bold tracking-tight">Hola, {primerNombre}</h1>
-      <p className="mt-1 text-sm text-tinta-suave">{esAdmin ? 'Estás viendo todas las sucursales.' : `Estás en ${u.sucursal_nombre}.`}</p>
+      <section className="relative isolate overflow-hidden rounded-2xl bg-[#173a36] px-5 py-6 text-white shadow-[0_12px_32px_rgb(23_58_54/0.13)] sm:px-7 sm:py-7">
+        <div className="pointer-events-none absolute -right-8 -top-24 -z-10 h-64 w-64 rounded-full border border-white/10" />
+        <div className="pointer-events-none absolute -right-1 -top-16 -z-10 h-48 w-48 rounded-full border border-white/10" />
+        <p className="text-[10px] font-bold tracking-[.18em] text-emerald-100/70">OPERACIÓN DIARIA <span className="mx-1.5 text-emerald-100/35">/</span> {fechaLarga}</p>
+        <h1 className="mt-3 text-3xl font-semibold tracking-[-.035em] sm:text-[2.25rem]">Hola, {primerNombre}</h1>
+        <p className="mt-1.5 text-sm text-emerald-50/75">{esAdmin ? 'Un vistazo a la operación de todas tus sucursales.' : `Resumen de hoy en ${u.sucursal_nombre}.`}</p>
+        <div className="mt-5 flex flex-wrap gap-2">
+          <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-medium text-white/90"><span className="h-1.5 w-1.5 rounded-full bg-[#8cdbb1]" />{formatoEntero(r.productos)} productos activos</span>
+          <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-medium text-white/90">{formatoEntero(esAdmin ? r.sucursales : 1)} {esAdmin ? 'sucursales' : 'sucursal'}</span>
+        </div>
+      </section>
 
       {!esAdmin && !caja && (
         <Link
@@ -77,6 +85,7 @@ export default async function InicioPage() {
       )}
 
       <Tarjeta className="mt-5 p-4 sm:p-5">
+        <p className="mb-3 text-[10px] font-bold tracking-[.15em] text-apagado">CONSULTA RÁPIDA DE PRODUCTOS</p>
         <form action="/productos" className="flex flex-col gap-3 sm:flex-row">
           <label className="sr-only" htmlFor="consulta">
             Consultar precio
@@ -93,19 +102,19 @@ export default async function InicioPage() {
         </form>
       </Tarjeta>
 
-      <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Atajo icono="vender" href="/vender" titulo="Vender" detalle={caja ? `Tu caja está abierta desde las ${hora(caja.abierta)}` : 'Abrir la caja y cobrar'} />
         <Atajo icono="ingreso" href="/mercaderia/ingreso" titulo="Ingresar mercadería" detalle="Llegó un pedido" />
         <Atajo icono="transferencia" href="/mercaderia/transferencia" titulo="Transferir" detalle="Mandar a otra sucursal o depósito" />
         <Atajo icono="etiquetas" href="/etiquetas" titulo="Imprimir etiquetas" detalle="Código de barras y precio" />
       </div>
 
-      <div className="mt-5 grid gap-5 lg:grid-cols-2">
+      <div className="mt-6 grid gap-5 lg:grid-cols-2">
         <Tarjeta>
-          <TituloTarjeta acciones={<Link href="/ventas" className="text-xs text-marca hover:underline">Ver ventas</Link>}>Hoy</TituloTarjeta>
+          <TituloTarjeta acciones={<Link href="/ventas" className="text-xs font-semibold text-marca hover:underline">Ver ventas →</Link>}>Ventas de hoy</TituloTarjeta>
           <div className="p-5">
             <p className="text-sm text-tinta-suave">{esAdmin ? 'Vendido hoy en todas las sucursales' : `Vendido hoy en ${u.sucursal_nombre}`}</p>
-            <p className="num mt-1 text-4xl font-bold tracking-tight" data-testid="vendido-hoy">
+            <p className="num mt-2 text-4xl font-bold tracking-[-.04em] text-[#176b5b]" data-testid="vendido-hoy">
               {formatoPesos(Math.round(totalHoy * 100) / 100)}
             </p>
             <p className="text-sm text-apagado">

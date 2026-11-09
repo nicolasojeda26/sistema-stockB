@@ -7,19 +7,19 @@
 
 @theme {
   /* Texto */
-  --color-tinta: #1b2230;
-  --color-tinta-suave: #4b5565;
-  --color-apagado: #6b7385;
+  --color-tinta: #172c32;
+  --color-tinta-suave: #56696b;
+  --color-apagado: #78898a;
   /* Superficies */
-  --color-linea: #e2e6ee;
-  --color-fondo: #f2f4f7;
+  --color-linea: #e3e9e5;
+  --color-fondo: #f4f6f2;
   --color-papel: #ffffff;
   /* Marca: el azul de las etiquetas de precio */
-  --color-marca: #2b50c8;
-  --color-marca-oscura: #203d9e;
-  --color-marca-clara: #ebf0fd;
+  --color-marca: #176b5b;
+  --color-marca-oscura: #105448;
+  --color-marca-clara: #e4f1eb;
   /* Solo para el sello de la marca (la etiqueta colgante) */
-  --color-acento: #d6457a;
+  --color-acento: #d87559;
   /* Estados */
   --color-ok: #16794a;
   --color-ok-claro: #e3f4ea;
@@ -34,9 +34,43 @@ html {
 }
 
 body {
-  background: var(--color-fondo);
+  background: #f3f6f3;
   color: var(--color-tinta);
   font-feature-settings: 'cv11';
+  background-image: radial-gradient(ellipse at 75% -20%, rgb(224 239 231 / 42%), transparent 34rem);
+}
+
+/* Sistema visual: superficies cálidas, tinta verde petróleo y acento hoja. */
+::selection { background: #cce8da; color: #143e37; }
+
+main :is(input, select, textarea) { transition: border-color .16s ease, box-shadow .16s ease, background-color .16s ease; }
+main :is(input, select, textarea):hover:not(:focus):not(:disabled) { border-color: #c5d3cb; }
+main :is(table) { border-collapse: separate; border-spacing: 0; }
+main thead th { letter-spacing: .045em; text-transform: uppercase; }
+main tbody tr:last-child > td { border-bottom: 0; }
+main tbody tr:hover > td { transition: background-color .14s ease; }
+main a { text-underline-offset: 3px; }
+
+.brand-sidebar {
+  background: linear-gradient(180deg, #173a36 0%, #16332f 100%);
+  border-color: rgb(255 255 255 / 9%);
+  color: #f2f7f3;
+}
+.brand-sidebar .nav-link { color: #c1d1ca; }
+.brand-sidebar .nav-link:hover { background: rgb(255 255 255 / 8%); color: #fff; }
+.brand-sidebar .nav-link[aria-current="page"] { background: #d8eee2; color: #174d40; box-shadow: inset 3px 0 #75c5a0; }
+.brand-sidebar .nav-section { color: #8caaa0; letter-spacing: .11em; text-transform: uppercase; }
+.brand-sidebar .nav-divider { border-color: rgb(255 255 255 / 12%); }
+.brand-sidebar .nav-user { background: rgb(255 255 255 / 8%); }
+.brand-sidebar .brand-mark path:first-child { fill: #8cdbb1; }
+.brand-sidebar .nav-user .text-apagado { color: #a8bdb4; }
+.brand-sidebar .nav-section { color: #8caaa0; }
+.brand-sidebar .nav-logout { color: #c1d1ca; }
+.brand-sidebar .nav-logout:hover { background: rgb(255 255 255 / 10%); color: white; }
+
+@media (hover: hover) {
+  button, [role="button"] { transition: background-color .16s ease, color .16s ease, border-color .16s ease, transform .12s ease; }
+  button:active, [role="button"]:active { transform: translateY(1px); }
 }
 
 @media (prefers-reduced-motion: reduce) {
