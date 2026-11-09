@@ -17,10 +17,13 @@ const Fila = z.object({
   talle: z.string().trim().max(30).nullable().default(null),
   color: z.string().trim().max(30).nullable().default(null),
   articulo: z.string().trim().max(150).nullable().default(null),
+  stocks: z.array(z.number().int().min(-1e7).max(1e7).nullable()).max(30).nullable().optional(),
+  codigo_origen: z.string().trim().max(64).nullable().optional(),
 })
 const Lote = z.object({
   filas: z.array(Fila).max(500),
   depositoId: z.number().int().nullable(),
+  depositosStock: z.array(z.number().int().nullable()).max(30).optional(),
   actualizarExistentes: z.boolean(),
 })
 
@@ -28,9 +31,10 @@ export async function importarLote(datos: z.input<typeof Lote>): Promise<Resumen
   const u = await requerirAdmin()
   const r = Lote.safeParse(datos)
   if (!r.success) return { error: 'Los datos del lote no son válidos.' }
-  if (r.data.depositoId) {
-    const [d] = await db()`select 1 from depositos where id = ${r.data.depositoId} and activo`
-    if (!d) return { error: 'El depósito elegido no existe o está inactivo.' }
+  const elegidos = [r.data.depositoId, ...(r.data.depositosStock ?? [])].filter((x): x is number => !!x)
+  if (elegidos.length) {
+    const [{ n }] = await db()<{ n: number }[]>`select count(*)::int as n from depositos where id = any(${[...new Set(elegidos)]}::int[]) and activo`
+    if (n !== new Set(elegidos).size) return { error: 'Algún depósito elegido no existe o está inactivo.' }
   }
   try {
     const res = await importarFilas(db(), { ...r.data, usuarioId: u.id })

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { detectarColumnas, encontrarEncabezado, leerPlanilla } from '../src/lib/importar'
+import { detectarColumnas, detectarColumnasStock, encontrarEncabezado, leerPlanilla, sugerirDeposito } from '../src/lib/importar'
 import { parseNumero } from '../src/lib/numeros'
 
 describe('parseNumero', () => {
@@ -63,5 +63,52 @@ describe('leerPlanilla', () => {
   it('informa las filas con problemas e ignora las vacías', () => {
     expect(r.errores.map((e) => e.fila)).toEqual([5, 6, 7])
     expect(r.errores[0].motivo).toMatch(/repetido/)
+  })
+})
+
+describe('stock por depósito de Dux', () => {
+  const filas = [
+    ['Consulta Stock Por Deposito'],
+    [],
+    ['Código Producto', 'Producto', 'Unidad Medida', 'DEPOT 815', 'DEPOSITO SAN LORENZO 960', 'DEPOSITO CAMPUS', 'MAYORISTA', 'TOTAL'],
+    ['9DANTI16', 'VIDRIO TEMPLADO 9D ANTIESPIA INFINIX HOT 50', 'UNIDAD', 75, 0, 2, 0, 77],
+    ['BRILLANTINA2', 'FUNDA TIKI BRILLANTINA XIAOMI NOTE 13 5G XS NEGRO', 'UNIDAD', 1, 0, 0, 0, 1],
+    ['BRILLANTINA2', 'FUNDA TIKI BRILLANTINA XIAOMI NOTE 13 5G XS BLANCO', 'UNIDAD', 2, 1, 0, 0, 3],
+    ['DUP', 'MISMO NOMBRE', 'UNIDAD', 1, 0, 0, 0, 1],
+    ['DUP', 'MISMO NOMBRE', 'UNIDAD', 1, 0, 0, 0, 1],
+  ]
+  const enc = encontrarEncabezado(filas)
+  const mapeo = detectarColumnas(filas[enc])
+  const cols = detectarColumnasStock(filas[enc], mapeo)
+
+  it('encuentra el encabezado, el código y una columna por depósito (sin TOTAL)', () => {
+    expect(enc).toBe(2)
+    expect(mapeo).toMatchObject({ codigo_alt: 0, nombre: 1 })
+    expect(cols.map((c) => c.encabezado)).toEqual(['DEPOT 815', 'DEPOSITO SAN LORENZO 960', 'DEPOSITO CAMPUS', 'MAYORISTA'])
+  })
+
+  it('agrupa las variantes de color que comparten código y lee el stock de cada columna', () => {
+    const { validas, errores } = leerPlanilla(filas, enc, mapeo, cols)
+    const [vidrio, negro, blanco] = validas
+    expect(vidrio).toMatchObject({ codigo: '9DANTI16', stocks: [75, 0, 2, 0], articulo: null })
+    expect(vidrio.codigo_origen).toBeFalsy()
+    expect(negro).toMatchObject({ codigo: 'BRILLANTINA2-NEGRO', codigo_origen: 'BRILLANTINA2', articulo: 'FUNDA TIKI BRILLANTINA XIAOMI NOTE 13 5G XS', color: 'NEGRO' })
+    expect(blanco).toMatchObject({ codigo: 'BRILLANTINA2-BLANCO', stocks: [2, 1, 0, 0] })
+    // Mismo código y mismo nombre: no se puede separar, va como repetido.
+    expect(errores).toEqual([{ fila: 8, motivo: 'Código repetido (ya está en la fila 7)' }])
+  })
+
+  it('sugiere el depósito de cada columna', () => {
+    const deps = [
+      { id: 1, nombre: 'Depósito central · Depósito', central: true },
+      { id: 2, nombre: 'Catamarca 815 · Local', clave: 'Catamarca 815' },
+      { id: 3, nombre: 'San Lorenzo 960 · Local', clave: 'San Lorenzo 960' },
+      { id: 4, nombre: 'Av. Libertad 5389 · Local', clave: 'Av. Libertad 5389 (Campus)' },
+    ]
+    expect(sugerirDeposito('DEPOT 815', deps)).toBe(1)
+    expect(sugerirDeposito('DEPOSITO CATAMARCA 815', deps)).toBe(2)
+    expect(sugerirDeposito('DEPOSITO SAN LORENZO 960', deps)).toBe(3)
+    expect(sugerirDeposito('DEPOSITO CAMPUS', deps)).toBe(4)
+    expect(sugerirDeposito('MAYORISTA', deps)).toBe(null)
   })
 })

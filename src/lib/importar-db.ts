@@ -13,9 +13,17 @@ export type ResumenLote = { creados: number; actualizados: number; omitidos: num
  */
 export async function importarFilas(
   sql: Sql,
-  opts: { filas: FilaImport[]; depositoId: number | null; actualizarExistentes: boolean; usuarioId: number },
+  opts: {
+    filas: FilaImport[]
+    depositoId: number | null
+    /** Planilla con stock por depósito: el depósito de cada columna de `fila.stocks` (null = no se importa). */
+    depositosStock?: (number | null)[]
+    actualizarExistentes: boolean
+    usuarioId: number
+  },
 ): Promise<ResumenLote> {
   const { filas, depositoId, actualizarExistentes, usuarioId } = opts
+  const depositosStock = opts.depositosStock ?? []
   if (filas.length === 0) return { creados: 0, actualizados: 0, omitidos: 0, stock: 0, categorias: 0, articulos: 0 }
   const json = JSON.stringify(filas.map((f) => ({ ...f, orden: ordenTalle(f.talle) })))
 
@@ -24,7 +32,7 @@ export async function importarFilas(
     const datos = tx`
       select * from jsonb_to_recordset(${json}::text::jsonb)
         as x(fila int, codigo text, nombre text, categoria text, costo numeric, precio numeric, stock int,
-             talle text, color text, articulo text, orden int)`
+             talle text, color text, articulo text, orden int, stocks jsonb, codigo_origen text)`
 
     const nuevasCategorias = await tx`
       insert into categorias (nombre)
@@ -44,12 +52,25 @@ export async function importarFilas(
           where lower(p.codigo) = lower(d.codigo)
           returning p.id`
       : []
+    // Una lista de precios de Dux trae el código original: actualiza precio y costo de todas sus variantes.
+    const deOrigen = actualizarExistentes
+      ? await tx<{ id: number }[]>`
+          update productos p set
+            costo = coalesce(d.costo, p.costo),
+            precio = coalesce(d.precio, p.precio),
+            categoria_id = coalesce(c.id, p.categoria_id),
+            actualizado = now()
+          from (${datos}) d left join categorias c on lower(c.nombre) = lower(d.categoria)
+          where d.codigo_origen is null and lower(p.codigo_origen) = lower(d.codigo)
+            and not exists (select 1 from productos q where lower(q.codigo) = lower(d.codigo))
+          returning p.id`
+      : []
 
     const creados = await tx<{ id: number }[]>`
-      insert into productos (codigo, nombre, categoria_id, costo, precio)
-      select d.codigo, d.nombre, c.id, coalesce(d.costo, 0), coalesce(d.precio, 0)
+      insert into productos (codigo, nombre, categoria_id, costo, precio, codigo_origen)
+      select d.codigo, d.nombre, c.id, coalesce(d.costo, 0), coalesce(d.precio, 0), d.codigo_origen
       from (${datos}) d left join categorias c on lower(c.nombre) = lower(d.categoria)
-      where not exists (select 1 from productos p where lower(p.codigo) = lower(d.codigo))
+      where not exists (select 1 from productos p where lower(p.codigo) = lower(d.codigo) or lower(p.codigo_origen) = lower(d.codigo))
       returning id`
 
     // Talles y colores: se agrupan en artículos (uno por nombre; si ya existe, se reutiliza).
@@ -70,35 +91,42 @@ export async function importarFilas(
           select 1 from productos o where o.articulo_id = a.id and o.id <> p.id
             and lower(coalesce(o.color, '')) = lower(coalesce(d.color, '')) and lower(coalesce(o.talle, '')) = lower(coalesce(d.talle, '')))`
 
-    let stock = 0
-    if (depositoId) {
-      const permitidos = [...creados.map((r) => r.id), ...actualizados.map((r) => r.id)]
-      const movs = await tx`
+    // Stock: una columna con un depósito elegido, o varias columnas (stock por depósito de Dux).
+    const permitidos = [...creados.map((r) => r.id), ...actualizados.map((r) => r.id)]
+    const cargas: { dep: number; valor: ReturnType<typeof tx> }[] = []
+    if (depositoId) cargas.push({ dep: depositoId, valor: tx`d.stock` })
+    depositosStock.forEach((dep, j) => {
+      if (dep) cargas.push({ dep, valor: tx`(d.stocks->>(${j}::int))::numeric::int` })
+    })
+    const conStock = new Set<number>()
+    for (const { dep, valor } of cargas) {
+      const movs = await tx<{ producto_id: number }[]>`
         with objetivo as (
-          select p.id as producto_id, d.stock
+          select p.id as producto_id, ${valor} as stock
           from (${datos}) d join productos p on lower(p.codigo) = lower(d.codigo)
-          where d.stock is not null and p.id = any(${permitidos}::int[])
+          where ${valor} is not null and p.id = any(${permitidos}::int[])
         ),
         previo as (
           select o.producto_id, o.stock, coalesce(s.cantidad, 0) as antes
-          from objetivo o left join stock s on s.producto_id = o.producto_id and s.deposito_id = ${depositoId}
+          from objetivo o left join stock s on s.producto_id = o.producto_id and s.deposito_id = ${dep}
         ),
         guardado as (
           insert into stock (producto_id, deposito_id, cantidad)
-          select producto_id, ${depositoId}, stock from previo
+          select producto_id, ${dep}, stock from previo
           on conflict (producto_id, deposito_id) do update set cantidad = excluded.cantidad
         )
         insert into movimientos_stock (producto_id, deposito_id, cantidad, tipo, motivo, usuario_id)
-        select producto_id, ${depositoId}, stock - antes, 'carga_inicial', 'Importación desde Dux', ${usuarioId}
+        select producto_id, ${dep}, stock - antes, 'carga_inicial', 'Importación desde Dux', ${usuarioId}
         from previo where stock <> antes
-        returning id`
-      stock = movs.length
+        returning producto_id`
+      for (const m of movs) conStock.add(m.producto_id)
     }
+    const stock = conStock.size
 
     return {
       creados: creados.length,
-      actualizados: actualizados.length,
-      omitidos: filas.length - creados.length - actualizados.length,
+      actualizados: actualizados.length + deOrigen.length,
+      omitidos: Math.max(0, filas.length - creados.length - actualizados.length - deOrigen.length),
       stock,
       categorias: nuevasCategorias.length,
       articulos: nuevosArticulos.length,

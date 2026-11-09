@@ -28,6 +28,39 @@ export type FilaImport = {
   color: string | null
   /** Nombre del artículo que agrupa los talles y colores (solo si hay talle o color). */
   articulo: string | null
+  /** Stock de cada columna de depósito (planilla "stock por depósito" de Dux), en el orden de `columnasStock`. */
+  stocks?: (number | null)[] | null
+  /** Código original de Dux cuando lo comparten varias variantes (el nuestro le suma el color). */
+  codigo_origen?: string | null
+}
+
+export type ColumnaStock = { indice: number; encabezado: string }
+
+/** Columnas de stock por depósito ("DEPOSITO SAN LORENZO 960", "DEPOT 815", "ONLINE"…), sin la de TOTAL. */
+export function detectarColumnasStock(encabezados: unknown[], mapeo: Mapeo): ColumnaStock[] {
+  const usadas = new Set(Object.values(mapeo))
+  return encabezados
+    .map((h, indice) => ({ indice, encabezado: String(h ?? '').trim(), n: normalizar(h) }))
+    .filter((c) => c.n && !usadas.has(c.indice) && /(deposito|depot|online|mayorista|sucursal|local|campus)/.test(c.n) && !/total/.test(c.n))
+    .map(({ indice, encabezado }) => ({ indice, encabezado }))
+}
+
+/** Sugiere el depósito de cada columna comparando números y palabras ("DEPOSITO SAN LORENZO 960" → "San Lorenzo 960 · Local"). */
+export function sugerirDeposito(encabezado: string, depositos: { id: number; nombre: string; clave?: string; central?: boolean }[]): number | null {
+  const n = normalizar(encabezado).replace(/\b(deposito|depot|dep)\b/g, ' ').trim()
+  const numeros = n.match(/\d+/g) ?? []
+  const palabras = n.split(' ').filter((w) => w.length > 2 && !/^\d+$/.test(w))
+  let mejor: { id: number; puntos: number } | null = null
+  for (const d of depositos) {
+    const dn = normalizar(`${d.nombre} ${d.clave ?? ''}`)
+    let puntos = 0
+    // "DEPOT 815": el depósito central de Dux, aunque comparta número con un local.
+    if (/\bdepot\b/.test(normalizar(encabezado)) && d.central) puntos += 10
+    for (const x of numeros) if (new RegExp(`\\b${x}\\b`).test(dn)) puntos += 3
+    for (const w of palabras) if (dn.includes(w)) puntos += 1
+    if (puntos > 0 && (!mejor || puntos > mejor.puntos)) mejor = { id: d.id, puntos }
+  }
+  return mejor?.id ?? null
 }
 
 const normalizar = (s: unknown) =>
@@ -93,7 +126,7 @@ function textoCelda(v: unknown): string {
 
 export type ResultadoFila = { ok: true; fila: FilaImport } | { ok: false; fila: number; motivo: string }
 
-export function leerFila(celdas: unknown[], mapeo: Mapeo, numeroFila: number): ResultadoFila | null {
+export function leerFila(celdas: unknown[], mapeo: Mapeo, numeroFila: number, columnasStock: ColumnaStock[] = []): ResultadoFila | null {
   const celda = (c: Campo) => (mapeo[c] === undefined ? undefined : celdas[mapeo[c]!])
   const codigo = textoCelda(celda('codigo')) || textoCelda(celda('codigo_alt'))
   const nombre = textoCelda(celda('nombre')).replace(/\s+/g, ' ')
@@ -144,23 +177,100 @@ export function leerFila(celdas: unknown[], mapeo: Mapeo, numeroFila: number): R
       costo: costo === null ? null : Math.round(costo * 100) / 100,
       precio: precio === null ? null : Math.round(precio * 100) / 100,
       stock: stockCrudo === null ? null : Math.trunc(stockCrudo),
+      ...(columnasStock.length
+        ? {
+            stocks: columnasStock.map((c) => {
+              const v = celdas[c.indice]
+              const n = textoCelda(v) === '' ? null : parseNumero(v)
+              return n === null ? null : Math.trunc(n)
+            }),
+          }
+        : {}),
     },
   }
 }
 
+// Rubro a partir del nombre, para planillas de Dux sin categoría (accesorios de celular).
+const RUBROS: [RegExp, string][] = [
+  [/cubrecamara|\b(templado|vidrio|protector) (de )?camara\b|\bcamara\b.*\btemplado\b|^templado camara/, 'Protectores de cámara'],
+  [/\b(funda|fundas|silicona|silicon|case|flip|carcasa)\b/, 'Fundas'],
+  [/\b(vidrio|templado|hidrogel|ceramico)\b/, 'Vidrios templados'],
+  [/\b(cargador|fuente)\b/, 'Cargadores'],
+  [/\b(cable|usb)\b/, 'Cables'],
+  [/\b(adaptador|otg)\b/, 'Adaptadores'],
+  [/\b(auricular|auriculares|earbuds|headset)\b/, 'Auriculares'],
+  [/\b(pop ?socket|popsocket|pop)\b/, 'Pop sockets'],
+  [/\b(soporte|holder)\b/, 'Soportes'],
+  [/\b(malla|pulsera|reloj|band)\b/, 'Mallas y relojes'],
+  [/\b(memoria|pendrive|micro ?sd)\b/, 'Memorias y pendrives'],
+]
+export function rubroPorNombre(nombre: string): string | null {
+  const n = normalizar(nombre)
+  return RUBROS.find(([re]) => re.test(n))?.[1] ?? null
+}
+
+const palabras = (s: string) => s.split(' ').filter(Boolean)
+const aCodigo = (s: string) =>
+  s
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '')
+    .slice(0, 20)
+
+/**
+ * Dux repite el código en las variantes de color ("BRILLANTINA2 … XS NEGRO", "BRILLANTINA2 … XS BLANCO").
+ * Se agrupan en un producto con variantes: lo común del nombre es el producto, lo que cambia al final es el color,
+ * y cada variante queda con su propio código (BRILLANTINA2-NEGRO) y el de Dux como origen.
+ * Devuelve null si los nombres no se pueden separar (son iguales).
+ */
+export function separarVariantesDux(grupo: FilaImport[]): FilaImport[] | null {
+  const ws = grupo.map((f) => palabras(f.nombre))
+  let comun = 0
+  while (ws.every((w) => comun < w.length - 1 && w[comun].toLowerCase() === ws[0][comun].toLowerCase())) comun++
+  if (comun === 0) return null
+  const colas = ws.map((w) => w.slice(comun).join(' '))
+  if (new Set(colas.map((c) => c.toLowerCase())).size !== colas.length) return null
+  const base = ws[0].slice(0, comun).join(' ')
+  const usados = new Set<string>()
+  return grupo.map((f, i) => {
+    let codigo = `${f.codigo}-${aCodigo(colas[i]) || i + 1}`.slice(0, 64)
+    for (let n = 2; usados.has(codigo.toLowerCase()); n++) codigo = `${f.codigo}-${aCodigo(colas[i])}${n}`
+    usados.add(codigo.toLowerCase())
+    return { ...f, codigo, codigo_origen: f.codigo, articulo: base.slice(0, 150), color: colas[i].slice(0, 30), talle: null }
+  })
+}
+
 /** Lee todas las filas de datos y separa las válidas de las que tienen problemas. */
-export function leerPlanilla(filas: unknown[][], encabezado: number, mapeo: Mapeo) {
+export function leerPlanilla(filas: unknown[][], encabezado: number, mapeo: Mapeo, columnasStock: ColumnaStock[] = []) {
   const validas: FilaImport[] = []
   const errores: { fila: number; motivo: string }[] = []
   const vistos = new Map<string, number>()
   const variantes = new Map<string, number>()
+  const leidas: FilaImport[] = []
   for (let i = encabezado + 1; i < filas.length; i++) {
-    const r = leerFila(filas[i] ?? [], mapeo, i + 1)
+    const r = leerFila(filas[i] ?? [], mapeo, i + 1, columnasStock)
     if (!r) continue
     if (!r.ok) {
       errores.push({ fila: r.fila, motivo: r.motivo })
       continue
     }
+    leidas.push(r.fila)
+  }
+  // Códigos repetidos sin columnas de talle/color: variantes de Dux (mismo código, distinto color al final del nombre).
+  if (mapeo.talle === undefined && mapeo.color === undefined) {
+    const grupos = new Map<string, FilaImport[]>()
+    for (const f of leidas) grupos.set(f.codigo.toLowerCase(), [...(grupos.get(f.codigo.toLowerCase()) ?? []), f])
+    for (const g of grupos.values()) {
+      if (g.length < 2) continue
+      const separadas = separarVariantesDux(g)
+      if (separadas) g.forEach((f, i) => Object.assign(f, separadas[i]))
+    }
+  }
+  // Sin columna de categoría: se deduce del nombre (FUNDA → Fundas, VIDRIO → Vidrios templados…).
+  if (mapeo.categoria === undefined) for (const f of leidas) f.categoria = rubroPorNombre(f.nombre)
+  for (const fila of leidas) {
+    const r = { fila }
     const clave = r.fila.codigo.toLowerCase()
     if (vistos.has(clave)) {
       errores.push({ fila: r.fila.fila, motivo: `Código repetido (ya está en la fila ${vistos.get(clave)})` })
@@ -177,5 +287,6 @@ export function leerPlanilla(filas: unknown[][], encabezado: number, mapeo: Mape
     }
     validas.push(r.fila)
   }
+  errores.sort((a, b) => a.fila - b.fila)
   return { validas, errores }
 }

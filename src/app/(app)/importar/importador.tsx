@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { Aviso, Boton, Campo, Etiqueta, Select, Tarjeta, TituloTarjeta, tablaCls as t } from '@/components/ui'
-import { CAMPOS, detectarColumnas, encontrarEncabezado, leerPlanilla, type Campo as CampoImport, type Mapeo } from '@/lib/importar'
+import { CAMPOS, detectarColumnas, detectarColumnasStock, encontrarEncabezado, leerPlanilla, sugerirDeposito, type Campo as CampoImport, type Mapeo } from '@/lib/importar'
 import { formatoEntero, formatoPesos } from '@/lib/formato'
 import { importarLote } from './actions'
 
@@ -12,7 +12,7 @@ const TAM_LOTE = 400
 type Hoja = { nombre: string; filas: unknown[][] }
 type Total = { creados: number; actualizados: number; omitidos: number; stock: number; categorias: number; articulos: number }
 
-export function Importador({ depositos }: { depositos: { id: number; nombre: string }[] }) {
+export function Importador({ depositos }: { depositos: { id: number; nombre: string; clave: string; central: boolean }[] }) {
   const [archivo, setArchivo] = useState<string | null>(null)
   const [hojas, setHojas] = useState<Hoja[]>([])
   const [hojaSel, setHojaSel] = useState(0)
@@ -26,7 +26,12 @@ export function Importador({ depositos }: { depositos: { id: number; nombre: str
 
   const filas = useMemo(() => hojas[hojaSel]?.filas ?? [], [hojas, hojaSel])
   const encabezados = filas[encabezado] ?? []
-  const lectura = useMemo(() => leerPlanilla(filas, encabezado, mapeo), [filas, encabezado, mapeo])
+  // Planilla de stock por depósito (Dux): una columna por depósito.
+  const columnasStock = useMemo(() => (mapeo.stock === undefined ? detectarColumnasStock(encabezados, mapeo) : []), [encabezados, mapeo])
+  const [destinos, setDestinos] = useState<Record<string, string>>({})
+  const destinoDe = (h: string) => destinos[h] ?? String(sugerirDeposito(h, depositos) ?? '')
+  const lectura = useMemo(() => leerPlanilla(filas, encabezado, mapeo, columnasStock), [filas, encabezado, mapeo, columnasStock])
+  const variantes = lectura.validas.filter((f) => f.codigo_origen).length
 
   function elegirHoja(h: Hoja[], i: number) {
     const enc = encontrarEncabezado(h[i].filas)
@@ -74,6 +79,7 @@ export function Importador({ depositos }: { depositos: { id: number; nombre: str
       const r = await importarLote({
         filas: validas.slice(i, i + TAM_LOTE),
         depositoId: mapeo.stock !== undefined && depositoId ? Number(depositoId) : null,
+        depositosStock: columnasStock.map((c) => Number(destinoDe(c.encabezado)) || null),
         actualizarExistentes: actualizar,
       })
       if ('error' in r) {
@@ -253,12 +259,20 @@ export function Importador({ depositos }: { depositos: { id: number; nombre: str
                       <td className={`${t.td} text-tinta-suave`}>{f.categoria ?? '—'}</td>
                       <td className={`${t.td} num text-right`}>{f.costo === null ? '—' : formatoPesos(f.costo)}</td>
                       <td className={`${t.td} num text-right`}>{f.precio === null ? '—' : formatoPesos(f.precio)}</td>
-                      <td className={`${t.td} num text-right`}>{f.stock === null ? '—' : formatoEntero(f.stock)}</td>
+                      <td className={`${t.td} num text-right`}>
+                        {f.stocks ? formatoEntero(f.stocks.reduce<number>((a, x) => a + (x ?? 0), 0)) : f.stock === null ? '—' : formatoEntero(f.stock)}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
+            {variantes > 0 && (
+              <p className="border-t border-linea px-5 py-3 text-sm text-tinta-suave">
+                <b className="num">{formatoEntero(variantes)}</b> filas comparten código en Dux (mismo producto, distinto color): se agrupan como variantes y cada una
+                queda con su propio código, por ejemplo <span className="font-mono">{lectura.validas.find((f) => f.codigo_origen)?.codigo}</span>.
+              </p>
+            )}
             {lectura.validas.length > 8 && (
               <p className="px-5 py-3 text-xs text-apagado">…y {formatoEntero(lectura.validas.length - 8)} filas más.</p>
             )}
@@ -279,7 +293,37 @@ export function Importador({ depositos }: { depositos: { id: number; nombre: str
           <Tarjeta>
             <TituloTarjeta>3. Confirmar</TituloTarjeta>
             <div className="space-y-4 p-5">
-              {mapeo.stock !== undefined ? (
+              {columnasStock.length > 0 ? (
+                <div>
+                  <p className="text-sm font-medium">¿A qué depósito va el stock de cada columna?</p>
+                  <p className="mb-3 text-xs text-tinta-suave">Lo sugerimos por el nombre: revisalo. El stock de cada depósito queda igual al de la planilla.</p>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {columnasStock.map((c) => {
+                      const unidades = lectura.validas.reduce((a, f) => a + (f.stocks?.[columnasStock.indexOf(c)] ?? 0), 0)
+                      return (
+                        <label key={c.indice} className="flex flex-col gap-1 rounded-lg border border-linea p-3 text-sm">
+                          <span className="flex justify-between gap-2">
+                            <span className="font-medium">{c.encabezado}</span>
+                            <span className="num text-xs text-apagado">{formatoEntero(unidades)} u.</span>
+                          </span>
+                          <Select
+                            value={destinoDe(c.encabezado)}
+                            onChange={(e) => setDestinos((d) => ({ ...d, [c.encabezado]: e.target.value }))}
+                            aria-label={`Depósito para ${c.encabezado}`}
+                          >
+                            <option value="">No cargar esta columna</option>
+                            {depositos.map((d) => (
+                              <option key={d.id} value={d.id}>
+                                {d.nombre}
+                              </option>
+                            ))}
+                          </Select>
+                        </label>
+                      )
+                    })}
+                  </div>
+                </div>
+              ) : mapeo.stock !== undefined ? (
                 <Campo etiqueta="¿En qué depósito está ese stock?" ayuda="El stock de ese depósito queda igual al de la planilla.">
                   <Select value={depositoId} onChange={(e) => setDepositoId(e.target.value)} className="max-w-md">
                     <option value="">No cargar stock</option>
