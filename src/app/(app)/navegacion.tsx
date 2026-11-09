@@ -5,7 +5,7 @@ import { Logotipo } from '@/components/marca'
 import { usePathname } from 'next/navigation'
 import { useState, type ReactNode } from 'react'
 
-export type ItemNav = { href: string; texto: string; icono: keyof typeof iconos; exacto?: boolean; seccion?: string }
+export type ItemNav = { href: string; texto: string; icono: keyof typeof iconos; exacto?: boolean; seccion?: string; aviso?: number }
 
 const trazo = { fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round' } as const
 const iconos = {
@@ -82,6 +82,19 @@ const iconos = {
       <path d="M2 7h11v9H2zM13 10h4l4 3v3h-8" />
       <circle cx="6" cy="18" r="1.8" />
       <circle cx="17" cy="18" r="1.8" />
+    </>
+  ),
+  pedidos: (
+    <>
+      <rect x="5" y="3.5" width="14" height="17.5" rx="2" />
+      <path d="M9 3.5h6v3H9zM8.5 11h7M8.5 15h4.5" />
+    </>
+  ),
+  envios: (
+    <>
+      <path d="M3 6.5h11v10H3zM14 9.5h4l3 3.5v3.5h-7" />
+      <circle cx="7" cy="18" r="1.8" />
+      <circle cx="17.5" cy="18" r="1.8" />
     </>
   ),
   compras: (
@@ -161,7 +174,12 @@ export function Navegacion({ items, pie, negocio, logo }: { items: ItemNav[]; pi
       <svg viewBox="0 0 24 24" className="h-[18px] w-[18px] shrink-0" {...trazo}>
         {iconos[it.icono]}
       </svg>
-      {it.texto}
+      <span className="flex-1">{it.texto}</span>
+      {!!it.aviso && (
+        <span className="num min-w-5 rounded-full bg-acento px-1.5 text-center text-xs leading-5 font-bold text-negro" aria-label={`${it.aviso} pendientes`}>
+          {it.aviso}
+        </span>
+      )}
     </Link>
   )
 

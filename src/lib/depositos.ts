@@ -13,7 +13,7 @@ export async function depositosPara(u: Usuario): Promise<DepositoOpcion[]> {
   const filas = await db()<Omit<DepositoOpcion, 'propio'>[]>`
     select d.id, coalesce(s.nombre, 'Central') || ' · ' || d.nombre as nombre, d.sucursal_id, d.es_principal
     from depositos d left join sucursales s on s.id = d.sucursal_id
-    where d.activo and (s.id is null or s.activa)
+    where d.activo and not d.es_transito and (s.id is null or s.activa)
     order by (d.sucursal_id is not distinct from ${u.sucursal_id}) desc, s.nombre nulls last, d.es_principal desc, d.nombre`
   return filas.map((d) => ({ ...d, propio: u.rol === 'admin' || d.sucursal_id === u.sucursal_id }))
 }

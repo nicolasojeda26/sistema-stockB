@@ -39,8 +39,8 @@ export default async function ProductoPage(props: PageProps<'/productos/[id]'>) 
       from depositos d
       left join sucursales s on s.id = d.sucursal_id
       left join stock st on st.deposito_id = d.id and st.producto_id = ${id}
-      where d.activo and (s.id is null or s.activa)
-      order by s.nombre nulls last, d.es_principal desc, d.nombre`,
+      where d.activo and (s.id is null or s.activa) and (not d.es_transito or coalesce(st.cantidad, 0) <> 0)
+      order by d.es_transito, s.nombre nulls last, d.es_principal desc, d.nombre`,
     sql<{ id: number; creado: Date; tipo: string; cantidad: number; motivo: string | null; deposito: string; usuario: string | null }[]>`
       select m.id, m.creado, m.tipo, m.cantidad, m.motivo, d.nombre as deposito, us.nombre as usuario
       from movimientos_stock m join depositos d on d.id = m.deposito_id left join usuarios us on us.id = m.usuario_id

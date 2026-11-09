@@ -12,7 +12,7 @@ export default async function ImportarPage() {
     select d.id, coalesce(s.nombre || ' · ', 'Central · ') || d.nombre as nombre,
       coalesce(s.direccion, '') as clave, (s.id is null or s.tipo = 'deposito') as central
     from depositos d left join sucursales s on s.id = d.sucursal_id
-    where d.activo and (s.id is null or s.activa)
+    where d.activo and not d.es_transito and (s.id is null or s.activa)
     order by s.nombre nulls last, d.es_principal desc, d.nombre`
   return (
     <>

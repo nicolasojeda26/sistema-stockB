@@ -20,7 +20,7 @@ export default async function SucursalesPage() {
     db()<Deposito[]>`
       select d.id, d.nombre, d.sucursal_id, d.es_principal, d.activo,
              coalesce((select sum(cantidad) from stock where deposito_id = d.id), 0)::int as unidades
-      from depositos d order by d.es_principal desc, d.activo desc, d.nombre`,
+      from depositos d where not d.es_transito order by d.es_principal desc, d.activo desc, d.nombre`,
   ])
   const centrales = depositos.filter((d) => d.sucursal_id === null)
 

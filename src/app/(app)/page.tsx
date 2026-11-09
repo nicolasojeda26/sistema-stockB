@@ -58,7 +58,11 @@ export default async function InicioPage() {
       : [],
     cajaAbierta(sql, u.id),
   ]);
-  const r = conteos[0];
+  const r = conteos[0]
+  const [{ pedidosAbiertos, porRecibir }] = await sql<{ pedidosAbiertos: number; porRecibir: number }[]>`
+    select (select count(*)::int from pedidos where estado in ('pendiente', 'parcial')) as "pedidosAbiertos",
+      (select count(*)::int from envios e join depositos d on d.id = e.destino_id
+        where e.estado = 'en_camino' ${esAdmin ? sql`` : sql`and d.sucursal_id = ${u.sucursal_id}`}) as "porRecibir"`;
   const resumen = caja ? await resumenCaja(sql, caja.id) : null;
   const totalHoy = porSucursal.reduce((a, s) => a + Number(s.total), 0);
   const ventasHoy = porSucursal.reduce((a, s) => a + s.ventas, 0);
@@ -106,6 +110,21 @@ export default async function InicioPage() {
           ? "Estás viendo todas las sucursales."
           : `Estás en ${u.sucursal_nombre}.`}
       </p>
+
+      {porRecibir > 0 && !esAdmin && (
+        <Link
+          href="/envios"
+          className="mt-5 flex items-center justify-between gap-4 rounded-xl border border-alerta/30 bg-alerta-claro px-5 py-4 hover:border-alerta/60"
+        >
+          <span>
+            <span className="block font-semibold text-alerta">
+              Tenés {porRecibir} envío{porRecibir === 1 ? '' : 's'} en camino
+            </span>
+            <span className="block text-sm text-tinta-suave">Cuando llegue, contalo y confirmá la recepción para que entre al stock.</span>
+          </span>
+          <Icono nombre="envios" className="h-7 w-7 shrink-0 text-alerta" />
+        </Link>
+      )}
 
       {vende && !esAdmin && !caja && (
         <Link

@@ -1,4 +1,5 @@
 import { puedeVender, requerirUsuario } from '@/lib/dal'
+import { db } from '@/lib/db'
 import { estiloMarca, leerAjustes, urlLogo } from '@/lib/ajustes'
 import { salir } from '@/app/login/actions'
 import { Navegacion, type ItemNav } from './navegacion'
@@ -10,6 +11,14 @@ export default async function AppLayout({ children }: LayoutProps<'/'>) {
   const estilo = estiloMarca(ajustes.color_marca)
   const esAdmin = u.rol === 'admin'
   const vende = puedeVender(u)
+  // Avisos del menú: pedidos sin atender, envíos por recibir y diferencias sin resolver.
+  const [avisos] = await db()<{ pedidos: number; por_recibir: number; diferencias: number }[]>`
+    select
+      (select count(*)::int from pedidos where estado in ('pendiente', 'parcial')
+        ${u.rol === 'vendedora' ? db()`and sucursal_id = ${u.sucursal_id}` : db()``}) as pedidos,
+      (select count(*)::int from envios e join depositos d on d.id = e.destino_id
+        where e.estado = 'en_camino' ${u.rol === 'admin' ? db()`` : db()`and d.sucursal_id = ${u.sucursal_id}`}) as por_recibir,
+      ${u.rol === 'admin' ? db()`(select count(*)::int from envios where estado = 'con_diferencias' and resuelto_en is null)` : db()`0`} as diferencias`
   const items: ItemNav[] = [
     { href: '/', texto: 'Inicio', icono: 'inicio', exacto: true },
     ...(vende
@@ -22,7 +31,14 @@ export default async function AppLayout({ children }: LayoutProps<'/'>) {
     { href: '/productos', texto: 'Productos', icono: 'productos' },
     ...(vende ? [{ href: '/clientes', texto: 'Clientes', icono: 'clientes' } as ItemNav] : []),
     { href: '/mercaderia/ingreso', texto: 'Ingreso de mercadería', icono: 'ingreso', seccion: 'Mercadería' },
-    { href: '/mercaderia/transferencia', texto: 'Transferencias', icono: 'transferencia' },
+    {
+      href: '/pedidos',
+      texto: 'Pedidos al depósito',
+      icono: 'pedidos',
+      aviso: u.rol === 'vendedora' ? 0 : avisos.pedidos,
+    },
+    { href: '/envios', texto: 'Envíos', icono: 'envios', aviso: avisos.por_recibir + avisos.diferencias },
+    ...(esAdmin ? [{ href: '/mercaderia/transferencia', texto: 'Transferencias', icono: 'transferencia' } as ItemNav] : []),
     ...(esAdmin ? [{ href: '/mercaderia/ajuste', texto: 'Ajustes de stock', icono: 'ajuste' } as ItemNav] : []),
     { href: '/mercaderia', texto: 'Movimientos', icono: 'movimientos', exacto: true },
     { href: '/etiquetas', texto: 'Etiquetas', icono: 'etiquetas' },
