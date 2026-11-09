@@ -6,6 +6,11 @@ import { requerirAdmin } from '@/lib/dal'
 import { entero, marcado, mensajeError, texto } from '@/lib/errores'
 import type { Resultado } from '@/components/form-accion'
 
+const leerTipo = (f: FormData) => {
+  const t = texto(f, 'tipo')
+  return t === 'online' || t === 'deposito' ? t : 'local'
+}
+
 const listo = (ok: string): Resultado => {
   revalidatePath('/sucursales')
   return { ok }
@@ -15,17 +20,19 @@ export async function crearSucursal(_: Resultado, f: FormData): Promise<Resultad
   await requerirAdmin()
   const nombre = texto(f, 'nombre')
   const direccion = texto(f, 'direccion') || null
+  const tipo = leerTipo(f)
   if (!nombre) return { error: 'Poné el nombre de la sucursal.' }
+  const deposito = tipo === 'deposito' ? 'Depósito' : tipo === 'online' ? 'Stock online' : 'Local'
   try {
     await db().begin(async (tx) => {
-      const [s] = await tx<{ id: number }[]>`insert into sucursales (nombre, direccion) values (${nombre}, ${direccion}) returning id`
+      const [s] = await tx<{ id: number }[]>`insert into sucursales (nombre, direccion, tipo) values (${nombre}, ${direccion}, ${tipo}) returning id`
       // Toda sucursal nace con su depósito principal: de ahí salen las ventas.
-      await tx`insert into depositos (nombre, sucursal_id, es_principal) values ('Local', ${s.id}, true)`
+      await tx`insert into depositos (nombre, sucursal_id, es_principal) values (${deposito}, ${s.id}, true)`
     })
   } catch (e) {
     return { error: mensajeError(e, 'Ya hay una sucursal con ese nombre.') }
   }
-  return listo(`Sucursal "${nombre}" creada con su depósito Local.`)
+  return listo(`"${nombre}" creada con su depósito ${deposito}.`)
 }
 
 export async function editarSucursal(_: Resultado, f: FormData): Promise<Resultado> {
@@ -34,14 +41,19 @@ export async function editarSucursal(_: Resultado, f: FormData): Promise<Resulta
   const nombre = texto(f, 'nombre')
   const direccion = texto(f, 'direccion') || null
   const activa = marcado(f, 'activa')
+  const tipo = leerTipo(f)
   if (!id || !nombre) return { error: 'Poné el nombre de la sucursal.' }
+  const [{ choca }] = await db()<{ choca: number }[]>`
+    select count(*)::int as choca from usuarios where sucursal_id = ${id} and activo
+      and ((rol = 'deposito' and ${tipo} <> 'deposito') or (rol = 'vendedora' and ${tipo} = 'deposito'))`
+  if (choca > 0) return { error: 'Hay personal asignado que no corresponde a ese tipo (vendedores en un depósito o encargados en un local). Movelos primero.' }
   if (!activa) {
     const [{ n }] = await db()<{ n: number }[]>`
       select count(*)::int as n from usuarios where sucursal_id = ${id} and activo`
     if (n > 0) return { error: `Hay ${n} usuario(s) activos en esta sucursal. Pasalos a otra antes de desactivarla.` }
   }
   try {
-    await db()`update sucursales set nombre = ${nombre}, direccion = ${direccion}, activa = ${activa} where id = ${id}`
+    await db()`update sucursales set nombre = ${nombre}, direccion = ${direccion}, activa = ${activa}, tipo = ${tipo} where id = ${id}`
   } catch (e) {
     return { error: mensajeError(e, 'Ya hay una sucursal con ese nombre.') }
   }

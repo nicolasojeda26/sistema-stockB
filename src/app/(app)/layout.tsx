@@ -1,19 +1,26 @@
-import { requerirUsuario } from '@/lib/dal'
-import { leerAjustes } from '@/lib/ajustes'
+import { puedeVender, requerirUsuario } from '@/lib/dal'
+import { estiloMarca, leerAjustes, urlLogo } from '@/lib/ajustes'
 import { salir } from '@/app/login/actions'
 import { Navegacion, type ItemNav } from './navegacion'
 
 export default async function AppLayout({ children }: LayoutProps<'/'>) {
   const u = await requerirUsuario()
-  const { nombre_negocio } = await leerAjustes()
+  const ajustes = await leerAjustes()
+  const { nombre_negocio } = ajustes
+  const estilo = estiloMarca(ajustes.color_marca)
   const esAdmin = u.rol === 'admin'
+  const vende = puedeVender(u)
   const items: ItemNav[] = [
     { href: '/', texto: 'Inicio', icono: 'inicio', exacto: true },
-    { href: '/vender', texto: 'Vender', icono: 'vender' },
-    { href: '/caja', texto: 'Caja', icono: 'caja' },
-    { href: '/ventas', texto: 'Ventas', icono: 'ventas' },
+    ...(vende
+      ? ([
+          { href: '/vender', texto: 'Vender', icono: 'vender' },
+          { href: '/caja', texto: 'Caja', icono: 'caja' },
+          { href: '/ventas', texto: 'Ventas', icono: 'ventas' },
+        ] as ItemNav[])
+      : []),
     { href: '/productos', texto: 'Productos', icono: 'productos' },
-    { href: '/clientes', texto: 'Clientes', icono: 'clientes' },
+    ...(vende ? [{ href: '/clientes', texto: 'Clientes', icono: 'clientes' } as ItemNav] : []),
     { href: '/mercaderia/ingreso', texto: 'Ingreso de mercadería', icono: 'ingreso', seccion: 'Mercadería' },
     { href: '/mercaderia/transferencia', texto: 'Transferencias', icono: 'transferencia' },
     ...(esAdmin ? [{ href: '/mercaderia/ajuste', texto: 'Ajustes de stock', icono: 'ajuste' } as ItemNav] : []),
@@ -25,7 +32,9 @@ export default async function AppLayout({ children }: LayoutProps<'/'>) {
           { href: '/proveedores', texto: 'Proveedores', icono: 'proveedores' },
           { href: '/gastos', texto: 'Gastos', icono: 'gastos' },
         ] as ItemNav[])
-      : ([{ href: '/gastos', texto: 'Gastos de la caja', icono: 'gastos' }] as ItemNav[])),
+      : vende
+        ? ([{ href: '/gastos', texto: 'Gastos de la caja', icono: 'gastos' }] as ItemNav[])
+        : []),
     ...(esAdmin
       ? ([
           { href: '/reportes', texto: 'Reportes', icono: 'reportes', seccion: 'Administración' },
@@ -34,7 +43,7 @@ export default async function AppLayout({ children }: LayoutProps<'/'>) {
           { href: '/facturacion', texto: 'Facturación ARCA', icono: 'factura', seccion: 'Configuración' },
           { href: '/categorias', texto: 'Categorías', icono: 'categorias' },
           { href: '/sucursales', texto: 'Sucursales y depósitos', icono: 'sucursales' },
-          { href: '/usuarios', texto: 'Usuarios', icono: 'usuarios' },
+          { href: '/usuarios', texto: 'Personal', icono: 'usuarios' },
           { href: '/importar', texto: 'Importar desde Dux', icono: 'importar' },
           { href: '/ajustes', texto: 'Ajustes del negocio', icono: 'ajustes' },
         ] as ItemNav[])
@@ -48,7 +57,7 @@ export default async function AppLayout({ children }: LayoutProps<'/'>) {
       </span>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-sm font-semibold">{u.nombre}</span>
-        <span className="block truncate text-xs text-apagado">{u.rol === 'admin' ? 'Administradora' : `Vendedora en ${u.sucursal_nombre}`}</span>
+        <span className="block truncate text-xs text-apagado">{u.rol === 'admin' ? 'Administración' : u.rol === 'deposito' ? `Encargado · ${u.sucursal_nombre}` : u.sucursal_nombre}</span>
       </span>
       <form action={salir}>
         <button className="rounded-lg px-2 py-1.5 text-xs font-medium text-tinta-suave hover:bg-fondo hover:text-tinta">Salir</button>
@@ -58,7 +67,8 @@ export default async function AppLayout({ children }: LayoutProps<'/'>) {
 
   return (
     <div className="min-h-screen lg:flex">
-      <Navegacion items={items} pie={pie} negocio={nombre_negocio} />
+      {estilo && <style>{estilo}</style>}
+      <Navegacion items={items} pie={pie} negocio={nombre_negocio} logo={urlLogo(ajustes)} />
       <main className="min-w-0 flex-1 px-4 pt-6 pb-24 sm:px-8 lg:py-8 print:p-0">
         <div className="mx-auto max-w-6xl">{children}</div>
       </main>

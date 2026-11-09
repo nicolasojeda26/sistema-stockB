@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
 import { db } from '@/lib/db'
-import { requerirUsuario } from '@/lib/dal'
+import { requerirVendedor } from '@/lib/dal'
 import { entero, mensajeError, texto } from '@/lib/errores'
 import { centavos, parseNumero } from '@/lib/numeros'
 import { ajustarCuenta, ErrorVenta, registrarPagoCuenta, saldoCliente } from '@/lib/ventas'
@@ -14,7 +14,7 @@ export type ClienteBuscado = { id: number; nombre: string; telefono: string | nu
 
 /** Para elegir la clienta en la caja: por nombre, teléfono o documento. */
 export async function buscarClientes(q: string): Promise<ClienteBuscado[]> {
-  await requerirUsuario()
+  await requerirVendedor()
   const sql = db()
   const t = String(q ?? '').trim().slice(0, 60)
   if (!t) return []
@@ -39,7 +39,7 @@ export async function buscarClientes(q: string): Promise<ClienteBuscado[]> {
 
 /** Datos al día de una clienta (saldo y límite), para la caja. */
 export async function clienteActual(id: number): Promise<ClienteBuscado | null> {
-  await requerirUsuario()
+  await requerirVendedor()
   if (!Number.isInteger(id)) return null
   const [c] = await db()<ClienteBuscado[]>`
     select c.id, c.nombre, c.telefono, c.doc_nro, c.limite_credito,
@@ -56,7 +56,7 @@ const Rapida = z.object({
 
 /** Alta rápida desde la caja (nombre y, si quiere, teléfono y DNI). */
 export async function crearClienteRapido(datos: z.input<typeof Rapida>): Promise<{ cliente?: ClienteBuscado; error?: string }> {
-  await requerirUsuario()
+  await requerirVendedor()
   const r = Rapida.safeParse(datos)
   if (!r.success) return { error: r.error.issues[0]?.message }
   const doc = r.data.docNro.replace(/\D/g, '') || null
@@ -73,7 +73,7 @@ export async function crearClienteRapido(datos: z.input<typeof Rapida>): Promise
 }
 
 export async function guardarCliente(_: Resultado, f: FormData): Promise<Resultado> {
-  const u = await requerirUsuario()
+  const u = await requerirVendedor()
   const id = entero(f, 'id')
   const nombre = texto(f, 'nombre').replace(/\s+/g, ' ').slice(0, 120)
   const doc = texto(f, 'doc_nro').replace(/\D/g, '').slice(0, 11) || null
@@ -116,7 +116,7 @@ export async function guardarCliente(_: Resultado, f: FormData): Promise<Resulta
 }
 
 export async function pagarCuenta(_: Resultado, f: FormData): Promise<Resultado> {
-  const u = await requerirUsuario()
+  const u = await requerirVendedor()
   const clienteId = entero(f, 'cliente_id')
   const monto = parseNumero(texto(f, 'monto'))
   const medio = texto(f, 'medio')
@@ -141,7 +141,7 @@ export async function pagarCuenta(_: Resultado, f: FormData): Promise<Resultado>
 }
 
 export async function ajustarSaldo(_: Resultado, f: FormData): Promise<Resultado> {
-  const u = await requerirUsuario()
+  const u = await requerirVendedor()
   const clienteId = entero(f, 'cliente_id')
   const monto = parseNumero(texto(f, 'monto'))
   const sentido = texto(f, 'sentido') === 'favor' ? -1 : 1

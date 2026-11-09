@@ -102,7 +102,7 @@ export default async function ProductosPage(props: PageProps<"/productos">) {
     <>
       <Encabezado
         titulo="Productos"
-        detalle={`${formatoEntero(total)} producto${total === 1 ? "" : "s"}${u.rol === "vendedora" ? `, con el stock de ${u.sucursal_nombre}` : ", con el stock de todas las sucursales"}`}
+        detalle={`${formatoEntero(total)} producto${total === 1 ? "" : "s"}${u.rol !== "admin" ? `, con el stock de ${u.sucursal_nombre}` : ", con el stock de todas las sucursales"}`}
         acciones={
           u.rol === "admin" && (
             <>

@@ -75,7 +75,7 @@ export default async function ReportesPage(props: PageProps<'/reportes'>) {
 
       <div className="mt-5 grid gap-5 lg:grid-cols-3">
         <TablaSimple titulo="Por sucursal" filas={sucs.map((s) => [s.nombre, formatoEntero(s.ventas), formatoPesos(Number(s.total))])} cols={['Sucursal', 'Ventas', 'Total']} />
-        <TablaSimple titulo="Por vendedora" filas={vends.map((s) => [s.nombre, formatoEntero(s.ventas), formatoPesos(Number(s.total))])} cols={['Vendedora', 'Ventas', 'Total']} />
+        <TablaSimple titulo="Por vendedor" filas={vends.map((s) => [s.nombre, formatoEntero(s.ventas), formatoPesos(Number(s.total))])} cols={['Vendedor', 'Ventas', 'Total']} />
         <TablaSimple
           titulo="Por medio de pago"
           filas={medios.map((m) => [MEDIOS_VENTA[m.medio as MedioVenta] ?? m.medio, formatoEntero(m.pagos), formatoPesos(Number(m.total))])}

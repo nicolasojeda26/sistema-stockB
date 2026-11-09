@@ -1,12 +1,12 @@
 import type { Metadata } from 'next'
-import { requerirUsuario } from '@/lib/dal'
+import { requerirVendedor } from '@/lib/dal'
 import { Encabezado, Tarjeta } from '@/components/ui'
 import { FormCliente } from '../form-cliente'
 
 export const metadata: Metadata = { title: 'Nuevo cliente' }
 
 export default async function NuevaClientePage() {
-  const u = await requerirUsuario()
+  const u = await requerirVendedor()
   return (
     <>
       <Encabezado titulo="Nuevo cliente" detalle="Con nombre alcanza; el resto es opcional." />

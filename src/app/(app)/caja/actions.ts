@@ -3,13 +3,13 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { db } from '@/lib/db'
-import { requerirAdmin, requerirUsuario } from '@/lib/dal'
+import { requerirAdmin, requerirVendedor } from '@/lib/dal'
 import { parseNumero } from '@/lib/numeros'
 import { cajaAbierta, cerrarCaja, ErrorVenta, movimientoCaja } from '@/lib/ventas'
 import type { Resultado } from '@/components/form-accion'
 
 export async function registrarMovimiento(_: Resultado, f: FormData): Promise<Resultado> {
-  const u = await requerirUsuario()
+  const u = await requerirVendedor()
   const caja = await cajaAbierta(db(), u.id)
   if (!caja) return { error: 'No tenés una caja abierta.' }
   const tipo = f.get('tipo') === 'ingreso' ? 'ingreso' : 'retiro'
@@ -25,7 +25,7 @@ export async function registrarMovimiento(_: Resultado, f: FormData): Promise<Re
 }
 
 export async function cerrar(_: Resultado, f: FormData): Promise<Resultado> {
-  const u = await requerirUsuario()
+  const u = await requerirVendedor()
   const caja = await cajaAbierta(db(), u.id)
   if (!caja) return { error: 'No tenés una caja abierta.' }
   const contado = parseNumero(String(f.get('contado') ?? ''))

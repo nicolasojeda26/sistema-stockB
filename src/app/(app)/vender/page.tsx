@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { db } from '@/lib/db'
-import { requerirUsuario } from '@/lib/dal'
+import { requerirVendedor } from '@/lib/dal'
 import { cajaAbierta } from '@/lib/ventas'
 import { Encabezado, Tarjeta, TituloTarjeta } from '@/components/ui'
 import { AperturaCaja } from './apertura'
@@ -9,7 +9,7 @@ import { PuntoDeVenta } from './punto-de-venta'
 export const metadata: Metadata = { title: 'Vender' }
 
 export default async function VenderPage() {
-  const u = await requerirUsuario()
+  const u = await requerirVendedor()
   const caja = await cajaAbierta(db(), u.id)
 
   if (!caja) {

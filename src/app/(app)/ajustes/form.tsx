@@ -2,7 +2,7 @@
 
 import { FormAccion } from '@/components/form-accion'
 import { Boton, Campo, Input, Select, Textarea } from '@/components/ui'
-import { guardarAjustes } from './actions'
+import { guardarAjustes, guardarMarca } from './actions'
 
 export function FormAjustes({
   ajustes,
@@ -36,6 +36,44 @@ export function FormAjustes({
           </Campo>
           <Boton type="submit" disabled={enviando}>
             Guardar
+          </Boton>
+        </>
+      )}
+    </FormAccion>
+  )
+}
+
+export function FormMarca({ color, logo }: { color: string; logo: string | null }) {
+  return (
+    <FormAccion accion={guardarMarca} className="space-y-4 p-5">
+      {(_, enviando) => (
+        <>
+          <div className="flex items-center gap-4">
+            <div className="flex h-16 w-40 items-center justify-center rounded-xl bg-negro px-3">
+              {logo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={logo} alt="Logo actual" className="max-h-12 max-w-full object-contain" />
+              ) : (
+                <span className="text-xs text-white/60">Sin logo: se usa el nombre</span>
+              )}
+            </div>
+            <Campo etiqueta="Logo" ayuda="PNG, JPG, WEBP o SVG, hasta 500 KB. Mejor con fondo transparente u oscuro." className="flex-1">
+              <input type="file" name="logo" accept="image/png,image/jpeg,image/webp,image/svg+xml" className="block w-full text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-fondo file:px-3 file:py-2 file:text-sm file:font-medium" />
+            </Campo>
+          </div>
+          {logo && (
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" name="quitar_logo" className="h-4 w-4 accent-marca" /> Quitar el logo y usar el nombre
+            </label>
+          )}
+          <Campo etiqueta="Color de marca" ayuda="El de los botones y enlaces. Vacío = el verde de MegaCel+.">
+            <span className="flex items-center gap-3">
+              <input type="color" name="color_marca" defaultValue={color || '#457540'} className="h-10 w-16 cursor-pointer rounded-lg border border-linea bg-papel p-1" aria-label="Color de marca" />
+              <span className="text-xs text-tinta-suave">Elegí uno oscuro: el texto de los botones es blanco.</span>
+            </span>
+          </Campo>
+          <Boton type="submit" disabled={enviando}>
+            Guardar marca
           </Boton>
         </>
       )}

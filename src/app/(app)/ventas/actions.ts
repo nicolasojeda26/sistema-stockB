@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { db } from '@/lib/db'
-import { requerirAdmin, requerirUsuario } from '@/lib/dal'
+import { requerirAdmin, requerirVendedor } from '@/lib/dal'
 import { anularVenta, ErrorVenta, marcarRetirada, registrarDevolucion } from '@/lib/ventas'
 import { CONSUMIDOR_FINAL, ErrorFactura, facturaDeVenta, facturarVenta, guardarCliente, notaDeCredito, type Receptor } from '@/lib/arca/facturacion'
 import type { Resultado } from '@/components/form-accion'
@@ -17,7 +17,7 @@ const refrescar = (id: number) => {
 
 /** La vendedora solo opera sobre ventas de su sucursal. */
 async function ventaPermitida(ventaId: number) {
-  const u = await requerirUsuario()
+  const u = await requerirVendedor()
   const [v] = await db()<{ sucursal_id: number }[]>`select sucursal_id from ventas where id = ${ventaId}`
   if (!v || (u.rol !== 'admin' && v.sucursal_id !== u.sucursal_id)) throw new ErrorVenta('No encontramos esa venta.')
   return u
@@ -71,7 +71,7 @@ export async function facturar(ventaId: number, receptor: z.input<typeof Recepto
 }
 
 export async function buscarCliente(docTipo: number, docNro: string) {
-  await requerirUsuario()
+  await requerirVendedor()
   const [c] = await db()<{ nombre: string; condicion_iva: number; domicilio: string | null }[]>`
     select nombre, condicion_iva, domicilio from clientes where doc_tipo = ${docTipo} and doc_nro = ${docNro.replace(/\D/g, '')}`
   return c ?? null

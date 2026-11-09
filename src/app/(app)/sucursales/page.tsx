@@ -9,7 +9,7 @@ import { EditarDeposito, EditarSucursal, NuevaSucursal, NuevoDeposito } from './
 export const metadata: Metadata = { title: 'Sucursales y depósitos' }
 
 type Deposito = { id: number; nombre: string; sucursal_id: number | null; es_principal: boolean; activo: boolean; unidades: number }
-type Sucursal = { id: number; nombre: string; direccion: string | null; activa: boolean; usuarios: number }
+type Sucursal = { id: number; nombre: string; direccion: string | null; activa: boolean; tipo: 'local' | 'online' | 'deposito'; usuarios: number }
 
 export default async function SucursalesPage() {
   await requerirAdmin()
@@ -44,10 +44,11 @@ export default async function SucursalesPage() {
                 <div>
                   <div className="flex items-center gap-2">
                     <h2 className="font-semibold">{s.nombre}</h2>
+                    {s.tipo !== 'local' && <Etiqueta tono="marca">{s.tipo === 'deposito' ? 'Depósito central' : 'Online'}</Etiqueta>}
                     {!s.activa && <Etiqueta tono="apagado">Inactiva</Etiqueta>}
                   </div>
                   <p className="mt-0.5 text-sm text-tinta-suave">
-                    {s.direccion || 'Sin dirección'} · {s.usuarios} usuario{s.usuarios === 1 ? '' : 's'}
+                    {s.direccion || 'Sin dirección'} · {s.usuarios} persona{s.usuarios === 1 ? '' : 's'}
                   </p>
                 </div>
                 <EditarSucursal sucursal={s} />

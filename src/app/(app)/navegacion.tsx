@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { Logotipo } from '@/components/marca'
 import { usePathname } from 'next/navigation'
 import { useState, type ReactNode } from 'react'
 
@@ -128,20 +129,9 @@ export function Icono({ nombre, className = 'h-5 w-5' }: { nombre: keyof typeof 
   )
 }
 
-export function MarcaEtiqueta({ className = 'h-9 w-9' }: { className?: string }) {
-  // Sello de la marca: una etiqueta colgante de ropa.
-  return (
-    <svg viewBox="0 0 36 36" className={className} aria-hidden>
-      <path d="M8 4h14.5a3 3 0 0 1 2.1.9l6.5 6.5a3 3 0 0 1 0 4.2L16.6 30.1a3 3 0 0 1-4.2 0l-7.5-7.5a3 3 0 0 1-.9-2.1V8a4 4 0 0 1 4-4z" fill="var(--color-marca)" />
-      <circle cx="11.5" cy="11.5" r="2.6" fill="var(--color-papel)" />
-      <path d="M11.5 11.5C9 7 4 6 2 8" fill="none" stroke="var(--color-acento)" strokeWidth="1.8" strokeLinecap="round" />
-    </svg>
-  )
-}
+const RAPIDOS = ['/', '/vender', '/productos', '/caja', '/pedidos', '/mercaderia/transferencia']
 
-const RAPIDOS = ['/', '/vender', '/productos', '/caja']
-
-export function Navegacion({ items, pie, negocio }: { items: ItemNav[]; pie: ReactNode; negocio: string }) {
+export function Navegacion({ items, pie, negocio, logo }: { items: ItemNav[]; pie: ReactNode; negocio: string; logo: string | null }) {
   const ruta = usePathname()
   const [abierto, setAbierto] = useState(false)
   const activo = (it: ItemNav) => (it.exacto ? ruta === it.href : ruta === it.href || ruta.startsWith(it.href + '/'))
@@ -156,7 +146,7 @@ export function Navegacion({ items, pie, negocio }: { items: ItemNav[]; pie: Rea
   // Abierto si se pidió, o siempre que se esté en una pantalla de configuración.
   const [configPedida, setConfigPedida] = useState(false)
   const config = configPedida || enConfig
-  const rapidos = RAPIDOS.map((h) => items.find((it) => it.href === h)).filter(Boolean) as ItemNav[]
+  const rapidos = (RAPIDOS.map((h) => items.find((it) => it.href === h)).filter(Boolean) as ItemNav[]).slice(0, 4)
 
   const enlace = (it: ItemNav) => (
     <Link
@@ -177,16 +167,15 @@ export function Navegacion({ items, pie, negocio }: { items: ItemNav[]; pie: Rea
 
   return (
     <>
-      <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-linea bg-papel/95 px-4 backdrop-blur lg:hidden print:hidden">
-        <Link href="/" className="flex min-w-0 items-center gap-2.5">
-          <MarcaEtiqueta className="h-8 w-8 shrink-0" />
-          <span className="truncate font-bold">{negocio}</span>
+      <header className="sticky top-0 z-30 flex h-14 items-center justify-between bg-negro px-4 lg:hidden print:hidden">
+        <Link href="/" className="flex min-w-0 items-center" aria-label="Inicio">
+          <Logotipo nombre={negocio} logo={logo} className="truncate text-xl" />
         </Link>
         <button
           onClick={() => setAbierto((a) => !a)}
           aria-expanded={abierto}
           aria-label="Menú"
-          className="flex h-10 w-10 items-center justify-center rounded-lg text-tinta-suave hover:bg-fondo"
+          className="flex h-10 w-10 items-center justify-center rounded-lg text-white/80 hover:bg-white/10"
         >
           <svg viewBox="0 0 24 24" className="h-5 w-5" {...trazo}>
             {abierto ? <path d="M6 6l12 12M18 6 6 18" /> : <path d="M4 7h16M4 12h16M4 17h16" />}
@@ -196,9 +185,8 @@ export function Navegacion({ items, pie, negocio }: { items: ItemNav[]; pie: Rea
       <aside
         className={`${abierto ? 'flex' : 'hidden'} fixed inset-x-0 top-14 bottom-0 z-30 flex-col border-r border-linea bg-papel lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-60 lg:shrink-0 print:hidden`}
       >
-        <Link href="/" className="hidden h-16 items-center gap-2.5 px-5 lg:flex">
-          <MarcaEtiqueta className="h-9 w-9 shrink-0" />
-          <span className="truncate text-[15px] font-bold">{negocio}</span>
+        <Link href="/" className="mb-2 hidden h-16 items-center bg-negro px-5 lg:flex" aria-label="Inicio">
+          <Logotipo nombre={negocio} logo={logo} className="truncate text-2xl" />
         </Link>
         <nav className="flex-1 overflow-y-auto px-3 pb-3" aria-label="Principal">
           {grupos.map((g, i) =>

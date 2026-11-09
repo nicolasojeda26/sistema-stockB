@@ -40,7 +40,7 @@ export async function GET(req: Request) {
   ])
   hoja('Por día', dias.map((d) => ({ Fecha: d.dia, Ventas: d.ventas, Total: n(d.total) })))
   hoja('Por sucursal', sucs.map((s) => ({ Sucursal: s.nombre, Ventas: s.ventas, Total: n(s.total) })))
-  hoja('Por vendedora', vends.map((s) => ({ Vendedora: s.nombre, Ventas: s.ventas, Total: n(s.total) })))
+  hoja('Por vendedor', vends.map((s) => ({ Vendedor: s.nombre, Ventas: s.ventas, Total: n(s.total) })))
   hoja('Por medio de pago', medios.map((m) => ({ Medio: MEDIOS[m.medio as MedioPago], Pagos: m.pagos, Total: n(m.total) })))
   hoja('Más vendidos', top.map((p) => ({ Código: p.codigo, Producto: p.nombre, Unidades: p.unidades, Total: n(p.total) })))
   hoja(

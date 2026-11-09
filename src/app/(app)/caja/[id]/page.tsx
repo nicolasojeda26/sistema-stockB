@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { db } from '@/lib/db'
-import { requerirUsuario } from '@/lib/dal'
+import { requerirVendedor } from '@/lib/dal'
 import { formatoFecha, formatoPesos } from '@/lib/formato'
 import { resumenCaja } from '@/lib/ventas'
 import { Aviso, Encabezado, Etiqueta, Tarjeta, TituloTarjeta, Vacio, tablaCls as t } from '@/components/ui'
@@ -13,7 +13,7 @@ import { CerrarOtraCaja } from '../formularios'
 export const metadata: Metadata = { title: 'Detalle de caja' }
 
 export default async function CajaDetallePage(props: PageProps<'/caja/[id]'>) {
-  const u = await requerirUsuario()
+  const u = await requerirVendedor()
   const id = Number((await props.params).id)
   const recienCerrada = (await props.searchParams).cerrada === '1'
   if (!Number.isInteger(id)) notFound()

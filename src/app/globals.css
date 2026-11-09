@@ -14,12 +14,13 @@
   --color-linea: #e2e6ee;
   --color-fondo: #f2f4f7;
   --color-papel: #ffffff;
-  /* Marca: el azul de las etiquetas de precio */
-  --color-marca: #2b50c8;
-  --color-marca-oscura: #203d9e;
-  --color-marca-clara: #ebf0fd;
-  /* Solo para el sello de la marca (la etiqueta colgante) */
-  --color-acento: #d6457a;
+  /* Marca MegaCel+: verde del logo (oscurecido para que el texto blanco se lea bien) */
+  --color-marca: #457540;
+  --color-marca-oscura: #36602f;
+  --color-marca-clara: #edf4eb;
+  /* El verde claro del "Cel+" del logo, sobre negro */
+  --color-acento: #94bc8c;
+  --color-negro: #111312;
   /* Estados */
   --color-ok: #16794a;
   --color-ok-claro: #e3f4ea;

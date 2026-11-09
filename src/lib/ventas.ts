@@ -4,7 +4,7 @@ import { aCentavos, aPesos, calcularVenta, descuentoEfectivo, type MedioPago, ty
 
 export class ErrorVenta extends Error {}
 
-type Quien = { id: number; rol: 'admin' | 'vendedora' }
+type Quien = { id: number; rol: 'admin' | 'vendedora' | 'deposito' }
 
 // ── Caja ────────────────────────────────────────────────────────────────
 

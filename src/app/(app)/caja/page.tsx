@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { db } from '@/lib/db'
-import { requerirUsuario } from '@/lib/dal'
+import { requerirVendedor } from '@/lib/dal'
 import { formatoFecha, formatoPesos } from '@/lib/formato'
 import { cajaAbierta, resumenCaja } from '@/lib/ventas'
 import { BotonLink, Encabezado, Tarjeta, TituloTarjeta, Vacio, tablaCls as t } from '@/components/ui'
@@ -22,7 +22,7 @@ type CajaFila = {
 }
 
 export default async function CajaPage() {
-  const u = await requerirUsuario()
+  const u = await requerirVendedor()
   const sql = db()
   const caja = await cajaAbierta(sql, u.id)
   const resumen = caja ? await resumenCaja(sql, caja.id) : null

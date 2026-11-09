@@ -145,7 +145,7 @@ describe.skipIf(!url)('ventas y caja', () => {
     const caja = await abrirCaja(sql, { usuarioId: vend.id, sucursalId: suc, montoInicial: 0 })
     const [{ id: ana }] = await sql`insert into clientes (nombre) values ('Ana') returning id`
     const base = { usuario: vend, items: [item(remera)], descuentoGlobalPct: 0, totalEsperado: 10000 }
-    await expect(registrarVenta(sql, { ...base, pagos: [{ medio: 'cuenta_corriente', monto: 10000 }] })).rejects.toThrow('Elegí la clienta')
+    await expect(registrarVenta(sql, { ...base, pagos: [{ medio: 'cuenta_corriente', monto: 10000 }] })).rejects.toThrow('Elegí el cliente')
     await expect(registrarVenta(sql, { ...base, clienteId: ana, pagos: [{ medio: 'cuenta_corriente', monto: 10000 }] })).rejects.toThrow('no tiene saldo a favor')
     await sql`update clientes set limite_credito = 20000 where id = ${ana}`
     // Seña de 4.000 en efectivo y el resto a cuenta, apartada.

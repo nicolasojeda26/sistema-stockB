@@ -61,7 +61,7 @@ export async function guardarProducto(_: Resultado, f: FormData): Promise<Result
     })
   } catch (e) {
     if ((e as { constraint_name?: string }).constraint_name === 'productos_variante')
-      return { error: 'Ya hay otra variante con ese talle y color.', errores: { talle: 'Repetido' } }
+      return { error: 'Ya hay otra variante con ese modelo y color.', errores: { talle: 'Repetido' } }
     const msg = mensajeError(e, 'Ya hay otro producto con ese código.')
     return { error: msg, errores: (e as { code?: string }).code === '23505' ? { codigo: msg } : undefined }
   }

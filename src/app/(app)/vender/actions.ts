@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { db } from '@/lib/db'
 import { coincide, ordenRelevancia } from '@/lib/busqueda'
-import { requerirUsuario } from '@/lib/dal'
+import { requerirVendedor } from '@/lib/dal'
 import { abrirCaja, cajaAbierta, ErrorVenta, itemsDevolvibles, registrarVenta, saldoCliente } from '@/lib/ventas'
 import type { ClienteBuscado } from '../clientes/actions'
 import { parseNumero } from '@/lib/numeros'
@@ -21,7 +21,7 @@ const conStock = (sucursalId: number) => db()`
 
 /** Escaneo en la caja: código exacto o sugerencias por nombre, con el stock del local. */
 export async function buscarParaVender(q: string): Promise<{ exacto?: ProductoVenta; sugerencias: ProductoVenta[]; error?: string }> {
-  const u = await requerirUsuario()
+  const u = await requerirVendedor()
   const caja = await cajaAbierta(db(), u.id)
   if (!caja) return { sugerencias: [], error: 'La caja está cerrada.' }
   const texto = String(q ?? '').trim().slice(0, 100)
@@ -41,7 +41,7 @@ export async function buscarParaVender(q: string): Promise<{ exacto?: ProductoVe
 
 /** Precios actuales de los productos del carrito (por si alguien los cambió). */
 export async function preciosActuales(ids: number[]): Promise<Record<number, number>> {
-  await requerirUsuario()
+  await requerirVendedor()
   const lista = z.array(z.number().int()).max(300).parse(ids)
   const filas = await db()<{ id: number; precio: number }[]>`select id, precio from productos where id = any(${lista}::int[])`
   return Object.fromEntries(filas.map((f) => [f.id, f.precio]))
@@ -88,7 +88,7 @@ export type ResultadoCobro = {
 }
 
 export async function cobrar(datos: z.input<typeof Cobro>): Promise<ResultadoCobro> {
-  const u = await requerirUsuario()
+  const u = await requerirVendedor()
   const r = Cobro.safeParse(datos)
   if (!r.success) return { error: 'Revisá los datos del cobro.' }
   let res
@@ -124,7 +124,7 @@ export async function cobrar(datos: z.input<typeof Cobro>): Promise<ResultadoCob
 
 /** Factura a consumidor final desde la pantalla de cobro. */
 export async function facturarConsumidorFinal(ventaId: number): Promise<{ comprobante?: { id: number; tipo: string; simulado: boolean }; error?: string }> {
-  const u = await requerirUsuario()
+  const u = await requerirVendedor()
   const [v] = await db()<{ usuario_id: number }[]>`select usuario_id from ventas where id = ${ventaId}`
   if (!v || (u.rol !== 'admin' && v.usuario_id !== u.id)) return { error: 'No encontramos la venta.' }
   try {
@@ -137,7 +137,7 @@ export async function facturarConsumidorFinal(ventaId: number): Promise<{ compro
 }
 
 export async function abrir(_: Resultado, f: FormData): Promise<Resultado> {
-  const u = await requerirUsuario()
+  const u = await requerirVendedor()
   const sucursalId = u.rol === 'admin' ? Number(f.get('sucursal_id')) : u.sucursal_id
   const monto = parseNumero(String(f.get('monto_inicial') ?? '').trim() || '0')
   if (!sucursalId) return { error: 'Elegí la sucursal.' }
@@ -162,7 +162,7 @@ export type VentaParaCambio = {
 
 /** Para un cambio de producto: la venta original (por número o escaneando el ticket de cambio). */
 export async function ventaParaCambio(q: string): Promise<{ venta?: VentaParaCambio; error?: string }> {
-  const u = await requerirUsuario()
+  const u = await requerirVendedor()
   const caja = await cajaAbierta(db(), u.id)
   if (!caja) return { error: 'La caja está cerrada.' }
   const id = Number(String(q ?? '').replace(/\D/g, ''))

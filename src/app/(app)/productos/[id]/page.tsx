@@ -151,7 +151,7 @@ export default async function ProductoPage(props: PageProps<'/productos/[id]'>) 
             </TituloTarjeta>
             <ul className="divide-y divide-linea">
               {stocks.map((s, i) => (
-                <li key={i} className={`flex items-center justify-between gap-3 px-5 py-3 text-sm ${s.mia && u.rol === 'vendedora' ? 'bg-marca-clara/50' : ''}`}>
+                <li key={i} className={`flex items-center justify-between gap-3 px-5 py-3 text-sm ${s.mia && u.rol !== 'admin' ? 'bg-marca-clara/50' : ''}`}>
                   <span className="min-w-0">
                     <span className="block truncate">{s.sucursal ?? 'Central'}</span>
                     <span className="block truncate text-xs text-apagado">

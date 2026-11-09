@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { db } from '@/lib/db'
-import { requerirAdmin, requerirUsuario } from '@/lib/dal'
+import { requerirAdmin, requerirVendedor } from '@/lib/dal'
 import { entero, marcado, texto } from '@/lib/errores'
 import { centavos, parseNumero } from '@/lib/numeros'
 import { anularGasto, ErrorCompra, registrarGasto, type MedioGasto } from '@/lib/compras'
@@ -11,7 +11,7 @@ import { hoyAR } from '@/lib/formato'
 import type { Resultado } from '@/components/form-accion'
 
 export async function cargarGasto(_: Resultado, f: FormData): Promise<Resultado> {
-  const u = await requerirUsuario()
+  const u = await requerirVendedor()
   const monto = parseNumero(texto(f, 'monto'))
   const medio = (u.rol === 'admin' ? texto(f, 'medio') : 'efectivo') as MedioGasto
   const fecha = u.rol === 'admin' ? texto(f, 'fecha') || hoyAR() : hoyAR()

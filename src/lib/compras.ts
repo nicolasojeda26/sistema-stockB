@@ -7,7 +7,7 @@ export { totalesCompra, MEDIOS_PROVEEDOR, TIPOS_COMPROBANTE, type MedioProveedor
 
 export class ErrorCompra extends Error {}
 
-type Quien = { id: number; rol: 'admin' | 'vendedora' }
+type Quien = { id: number; rol: 'admin' | 'vendedora' | 'deposito' }
 type Tx = Sql | TransactionSql
 
 export async function saldoProveedor(sql: Tx, proveedorId: number): Promise<number> {

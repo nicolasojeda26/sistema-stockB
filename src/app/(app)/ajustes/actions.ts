@@ -27,3 +27,24 @@ export async function guardarAjustes(_: Resultado, f: FormData): Promise<Resulta
   revalidatePath('/ajustes')
   return { ok: 'Guardado.' }
 }
+
+const TIPOS_LOGO = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml']
+
+/** Logo y color de marca. */
+export async function guardarMarca(_: Resultado, f: FormData): Promise<Resultado> {
+  await requerirAdmin()
+  const color = texto(f, 'color_marca').toLowerCase()
+  if (color && !/^#[0-9a-f]{6}$/.test(color)) return { error: 'El color no es válido.' }
+  const filas: { clave: string; valor: string }[] = [{ clave: 'color_marca', valor: color }]
+  const archivo = f.get('logo')
+  if (f.get('quitar_logo') === 'on') filas.push({ clave: 'logo', valor: '' })
+  else if (archivo instanceof File && archivo.size > 0) {
+    if (!TIPOS_LOGO.includes(archivo.type)) return { error: 'El logo tiene que ser PNG, JPG, WEBP o SVG.' }
+    if (archivo.size > 500_000) return { error: 'El logo es muy pesado (máximo 500 KB).' }
+    const datos = Buffer.from(await archivo.arrayBuffer()).toString('base64')
+    filas.push({ clave: 'logo', valor: `data:${archivo.type};base64,${datos}` }, { clave: 'logo_version', valor: String(Date.now()) })
+  }
+  await db()`insert into ajustes ${db()(filas)} on conflict (clave) do update set valor = excluded.valor`
+  revalidatePath('/', 'layout')
+  return { ok: 'Marca guardada.' }
+}

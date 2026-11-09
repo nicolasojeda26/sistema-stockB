@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { db } from '@/lib/db'
-import { requerirUsuario } from '@/lib/dal'
+import { requerirVendedor } from '@/lib/dal'
 import { formatoEntero, formatoFecha, formatoPesos } from '@/lib/formato'
 import { MEDIOS, MEDIOS_VENTA, type MedioPago, type MedioVenta } from '@/lib/venta-calculo'
 import { BotonLink, Encabezado, Etiqueta, Input, Select, Tarjeta, Vacio, tablaCls as t } from '@/components/ui'
@@ -13,7 +13,7 @@ const hoyAR = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Argent
 const fecha = (v: unknown) => (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : '')
 
 export default async function VentasPage(props: PageProps<'/ventas'>) {
-  const u = await requerirUsuario()
+  const u = await requerirVendedor()
   const sp = await props.searchParams
   const desde = fecha(sp.desde) || hoyAR()
   const hasta = fecha(sp.hasta) || desde
@@ -95,8 +95,8 @@ export default async function VentasPage(props: PageProps<'/ventas'>) {
                 </option>
               ))}
             </Select>
-            <Select name="usuario" defaultValue={vendedora ?? ''} aria-label="Vendedora">
-              <option value="">Todas las vendedoras</option>
+            <Select name="usuario" defaultValue={vendedora ?? ''} aria-label="Vendedor">
+              <option value="">Todos los vendedores</option>
               {usuarios.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.nombre}
@@ -145,7 +145,7 @@ export default async function VentasPage(props: PageProps<'/ventas'>) {
                 <tr>
                   <th className={t.th}>N.º</th>
                   <th className={t.th}>Fecha</th>
-                  <th className={`${t.th} hidden md:table-cell`}>Sucursal y vendedora</th>
+                  <th className={`${t.th} hidden md:table-cell`}>Sucursal y vendedor</th>
                   <th className={`${t.th} hidden sm:table-cell`}>Pago</th>
                   <th className={`${t.th} text-right`}>Total</th>
                 </tr>

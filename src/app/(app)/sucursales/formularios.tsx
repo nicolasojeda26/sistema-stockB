@@ -2,7 +2,23 @@
 
 import { useState } from 'react'
 import { FormAccion } from '@/components/form-accion'
-import { Boton, Campo, Input, Tarjeta, TituloTarjeta } from '@/components/ui'
+import { Boton, Campo, Input, Select, Tarjeta, TituloTarjeta } from '@/components/ui'
+
+const TIPOS = { local: 'Local a la calle', online: 'Ventas online (Instagram, WhatsApp)', deposito: 'Depósito central (no vende)' }
+
+function CampoTipo({ valor = 'local' }: { valor?: string }) {
+  return (
+    <Campo etiqueta="Tipo">
+      <Select name="tipo" defaultValue={valor}>
+        {Object.entries(TIPOS).map(([k, v]) => (
+          <option key={k} value={k}>
+            {v}
+          </option>
+        ))}
+      </Select>
+    </Campo>
+  )
+}
 import { crearDeposito, crearSucursal, editarDeposito, editarSucursal } from './actions'
 
 export function NuevaSucursal() {
@@ -13,11 +29,12 @@ export function NuevaSucursal() {
         {(_, enviando) => (
           <>
             <Campo etiqueta="Nombre">
-              <Input name="nombre" placeholder="Ej.: Centro" required />
+              <Input name="nombre" placeholder="Ej.: San Lorenzo 960" required />
             </Campo>
             <Campo etiqueta="Dirección" ayuda="Opcional">
-              <Input name="direccion" placeholder="Ej.: Junín 1234" />
+              <Input name="direccion" placeholder="Ej.: San Lorenzo 960" />
             </Campo>
+            <CampoTipo />
             <Boton type="submit" disabled={enviando} className="w-full">
               Crear sucursal
             </Boton>
@@ -28,7 +45,7 @@ export function NuevaSucursal() {
   )
 }
 
-export function EditarSucursal({ sucursal }: { sucursal: { id: number; nombre: string; direccion: string | null; activa: boolean } }) {
+export function EditarSucursal({ sucursal }: { sucursal: { id: number; nombre: string; direccion: string | null; activa: boolean; tipo: string } }) {
   const [abierto, setAbierto] = useState(false)
   if (!abierto)
     return (
@@ -39,7 +56,7 @@ export function EditarSucursal({ sucursal }: { sucursal: { id: number; nombre: s
   return (
     <FormAccion accion={editarSucursal} alGuardar={() => setAbierto(false)} className="w-full">
       {(_, enviando) => (
-        <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+        <div className="grid gap-3 sm:grid-cols-[1fr_1fr_1fr_auto] sm:items-end">
           <input type="hidden" name="id" value={sucursal.id} />
           <Campo etiqueta="Nombre">
             <Input name="nombre" defaultValue={sucursal.nombre} required />
@@ -47,10 +64,11 @@ export function EditarSucursal({ sucursal }: { sucursal: { id: number; nombre: s
           <Campo etiqueta="Dirección">
             <Input name="direccion" defaultValue={sucursal.direccion ?? ''} />
           </Campo>
+          <CampoTipo valor={sucursal.tipo} />
           <label className="flex h-10 items-center gap-2 text-sm">
             <input type="checkbox" name="activa" defaultChecked={sucursal.activa} className="h-4 w-4 accent-marca" /> Activa
           </label>
-          <div className="flex gap-2 sm:col-span-3">
+          <div className="flex gap-2 sm:col-span-4">
             <Boton type="submit" disabled={enviando}>
               Guardar
             </Boton>
