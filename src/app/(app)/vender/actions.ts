@@ -76,7 +76,7 @@ const Cobro = z.object({
 export type ResultadoCobro = {
   ventaId?: number
   vuelto?: number
-  /** Cambio de prenda: lo que se le devolvió en efectivo o le quedó a favor. */
+  /** Cambio de producto: lo que se le devolvió en efectivo o le quedó a favor. */
   reintegro?: number
   aFavor?: number
   error?: string
@@ -160,7 +160,7 @@ export type VentaParaCambio = {
   items: { ventaItemId: number; nombre: string; disponibles: number; unitario: number }[]
 }
 
-/** Para un cambio de prenda: la venta original (por número o escaneando el ticket de cambio). */
+/** Para un cambio de producto: la venta original (por número o escaneando el ticket de cambio). */
 export async function ventaParaCambio(q: string): Promise<{ venta?: VentaParaCambio; error?: string }> {
   const u = await requerirUsuario()
   const caja = await cajaAbierta(db(), u.id)

@@ -20,9 +20,10 @@ export async function verificarIngreso(sql: Sql, usuario: string, password: stri
     const minutos = Math.max(1, Math.ceil((b.ultimo.getTime() + MINUTOS_BLOQUEO * 60_000 - Date.now()) / 60_000))
     return { ok: false, motivo: 'bloqueado', minutos }
   }
-  const [u] = await sql<{ id: number; password_hash: string; activo: boolean; version_sesion: number }[]>`
+  const [u] = await sql<{ id: number; password_hash: string | null; activo: boolean; version_sesion: number }[]>`
     select id, password_hash, activo, version_sesion from usuarios where usuario = ${usuario}`
-  const bien = u ? await verificarPassword(password, u.password_hash) : false
+  // Sin contraseña todavía (usuario nuevo con código de acceso): no entra hasta crearla.
+  const bien = u?.password_hash ? await verificarPassword(password, u.password_hash) : false
   if (!u || !bien || !u.activo) {
     await sql`insert into intentos_login (usuario) values (${usuario})`
     await sql`delete from intentos_login where creado < now() - interval '1 day'`

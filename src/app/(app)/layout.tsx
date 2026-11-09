@@ -13,7 +13,7 @@ export default async function AppLayout({ children }: LayoutProps<'/'>) {
     { href: '/caja', texto: 'Caja', icono: 'caja' },
     { href: '/ventas', texto: 'Ventas', icono: 'ventas' },
     { href: '/productos', texto: 'Productos', icono: 'productos' },
-    { href: '/clientes', texto: 'Clientas', icono: 'clientes' },
+    { href: '/clientes', texto: 'Clientes', icono: 'clientes' },
     { href: '/mercaderia/ingreso', texto: 'Ingreso de mercadería', icono: 'ingreso', seccion: 'Mercadería' },
     { href: '/mercaderia/transferencia', texto: 'Transferencias', icono: 'transferencia' },
     ...(esAdmin ? [{ href: '/mercaderia/ajuste', texto: 'Ajustes de stock', icono: 'ajuste' } as ItemNav] : []),

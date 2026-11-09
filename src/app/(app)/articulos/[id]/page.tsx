@@ -72,7 +72,7 @@ export default async function ArticuloPage(props: PageProps<'/articulos/[id]'>) 
       />
       {sp.creado === '1' && (
         <div className="mb-5">
-          <Aviso tipo="ok">Artículo creado. Ahora ingresá la mercadería por talle y color, o imprimí las etiquetas.</Aviso>
+          <Aviso tipo="ok">Artículo creado. Ahora ingresá la mercadería por modelo y color, o imprimí las etiquetas.</Aviso>
         </div>
       )}
       {!articulo.activo && (
@@ -84,7 +84,7 @@ export default async function ArticuloPage(props: PageProps<'/articulos/[id]'>) 
       <Tarjeta>
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-linea px-5 py-3">
           <div>
-            <h2 className="text-[15px] font-semibold">Stock por talle y color</h2>
+            <h2 className="text-[15px] font-semibold">Stock por modelo y color</h2>
             <p className="text-xs text-tinta-suave">
               {formatoEntero(total)} unidades {sucursalId ? `en ${sucursales.find((s) => s.id === sucursalId)?.nombre ?? ''}` : 'en todas las sucursales'}
               {precios.length ? `, ${precios.length === 1 ? formatoPesos(precios[0]) : `de ${formatoPesos(precios[0])} a ${formatoPesos(precios.at(-1)!)}`}` : ''}

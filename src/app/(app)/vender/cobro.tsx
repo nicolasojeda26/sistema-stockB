@@ -31,7 +31,7 @@ export function Cobro({
   lineas: LineaCarrito[]
   descuentoGlobalPct: number
   totalCentavos: number
-  /** Lo que devuelve en un cambio de prenda (en centavos). */
+  /** Lo que devuelve en un cambio de producto (en centavos). */
   creditoCentavos?: number
   cambio?: CambioCarrito | null
   cliente?: ClienteBuscado | null
@@ -253,7 +253,7 @@ export function Cobro({
               <div>
                 <p className="text-sm text-tinta-suave">{cambio ? (sobrante ? 'No paga nada: le sobra' : 'Paga la diferencia') : 'Total a cobrar'}</p>
                 <p className="num text-4xl font-semibold tracking-tight">{formatoPesos(aPesos(sobrante || total))}</p>
-                {cliente && <p className="mt-1 text-sm text-tinta-suave">Clienta: {cliente.nombre}</p>}
+                {cliente && <p className="mt-1 text-sm text-tinta-suave">Cliente: {cliente.nombre}</p>}
               </div>
               <button onClick={alCerrar} aria-label="Volver a la venta" className="rounded-lg px-2 py-1 text-tinta-suave hover:bg-fondo">
                 ✕
@@ -276,7 +276,7 @@ export function Cobro({
                     onChange={() => setExcedente('cuenta_corriente')}
                     className="accent-marca"
                   />
-                  {cliente ? `Dejárselo a favor de ${cliente.nombre}` : 'Dejárselo a favor (elegí la clienta primero)'}
+                  {cliente ? `Dejárselo a favor de ${cliente.nombre}` : 'Dejárselo a favor (elegí el cliente primero)'}
                 </label>
               </fieldset>
             )}

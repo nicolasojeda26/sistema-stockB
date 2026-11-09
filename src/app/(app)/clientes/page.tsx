@@ -5,7 +5,7 @@ import { requerirUsuario } from '@/lib/dal'
 import { formatoPesos } from '@/lib/formato'
 import { BotonLink, Encabezado, Etiqueta, Input, Select, Tarjeta, Vacio, tablaCls as t } from '@/components/ui'
 
-export const metadata: Metadata = { title: 'Clientas' }
+export const metadata: Metadata = { title: 'Clientes' }
 
 export default async function ClientesPage(props: PageProps<'/clientes'>) {
   await requerirUsuario()
@@ -45,14 +45,14 @@ export default async function ClientesPage(props: PageProps<'/clientes'>) {
   return (
     <>
       <Encabezado
-        titulo="Clientas"
-        detalle={`Te deben ${formatoPesos(Number(deuda))} en cuentas corrientes; hay ${formatoPesos(Number(favor))} de saldo a favor de clientas.`}
-        acciones={<BotonLink href="/clientes/nueva">Nueva clienta</BotonLink>}
+        titulo="Clientes"
+        detalle={`Te deben ${formatoPesos(Number(deuda))} en cuentas corrientes; hay ${formatoPesos(Number(favor))} de saldo a favor de clientes.`}
+        acciones={<BotonLink href="/clientes/nueva">Nuevo cliente</BotonLink>}
       />
       <form className="mb-4 grid gap-2 sm:grid-cols-[1fr_200px_auto]">
-        <Input name="q" defaultValue={q} placeholder="Nombre, teléfono o DNI" aria-label="Buscar clienta" autoFocus />
+        <Input name="q" defaultValue={q} placeholder="Nombre, teléfono o DNI" aria-label="Buscar cliente" autoFocus />
         <Select name="filtro" defaultValue={filtro} aria-label="Filtro">
-          <option value="todas">Todas</option>
+          <option value="todas">Todos</option>
           <option value="deben">Deben plata</option>
           <option value="a-favor">Tienen saldo a favor</option>
         </Select>
@@ -60,15 +60,15 @@ export default async function ClientesPage(props: PageProps<'/clientes'>) {
       </form>
       <Tarjeta className="overflow-hidden">
         {filas.length === 0 ? (
-          <Vacio accion={<BotonLink href="/clientes/nueva">Cargar una clienta</BotonLink>}>
-            {q || filtro !== 'todas' ? 'No hay clientas que coincidan.' : 'Todavía no hay clientas cargadas. También se cargan desde la caja, al vender.'}
+          <Vacio accion={<BotonLink href="/clientes/nueva">Cargar un cliente</BotonLink>}>
+            {q || filtro !== 'todas' ? 'No hay clientes que coincidan.' : 'Todavía no hay clientes cargados. También se cargan desde la caja, al vender.'}
           </Vacio>
         ) : (
           <div className="overflow-x-auto">
             <table className={t.tabla}>
               <thead>
                 <tr>
-                  <th className={t.th}>Clienta</th>
+                  <th className={t.th}>Cliente</th>
                   <th className={`${t.th} hidden sm:table-cell`}>Teléfono</th>
                   <th className={`${t.th} hidden md:table-cell`}>Última compra</th>
                   <th className={`${t.th} text-right`}>Saldo</th>

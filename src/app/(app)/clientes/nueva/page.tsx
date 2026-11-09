@@ -3,13 +3,13 @@ import { requerirUsuario } from '@/lib/dal'
 import { Encabezado, Tarjeta } from '@/components/ui'
 import { FormCliente } from '../form-cliente'
 
-export const metadata: Metadata = { title: 'Nueva clienta' }
+export const metadata: Metadata = { title: 'Nuevo cliente' }
 
 export default async function NuevaClientePage() {
   const u = await requerirUsuario()
   return (
     <>
-      <Encabezado titulo="Nueva clienta" detalle="Con nombre alcanza; el resto es opcional." />
+      <Encabezado titulo="Nuevo cliente" detalle="Con nombre alcanza; el resto es opcional." />
       <Tarjeta className="max-w-2xl">
         <FormCliente esAdmin={u.rol === 'admin'} />
       </Tarjeta>

@@ -61,7 +61,7 @@ export function FormProducto({ producto, categorias }: { producto?: ProductoForm
                 <Campo etiqueta="Color" error={errores.color}>
                   <Input name="color" defaultValue={producto.color ?? ''} />
                 </Campo>
-                <Campo etiqueta="Talle" error={errores.talle}>
+                <Campo etiqueta="Modelo" error={errores.talle}>
                   <Input name="talle" defaultValue={producto.talle ?? ''} />
                 </Campo>
               </div>

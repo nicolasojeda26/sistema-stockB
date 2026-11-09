@@ -91,15 +91,15 @@ export function EditarArticulo({
       </Tarjeta>
 
       <Tarjeta>
-        <TituloTarjeta>Agregar talles o colores</TituloTarjeta>
+        <TituloTarjeta>Agregar modelos o colores</TituloTarjeta>
         <div className="space-y-4 p-5">
           <p className="text-sm text-tinta-suave">
-            Hoy tiene {talles.length ? `los talles ${talles.join(', ')}` : 'talle único'} y {colores.length ? `los colores ${colores.join(', ')}` : 'color único'}. Se crean
+            Hoy tiene {talles.length ? `los modelos ${talles.join(', ')}` : 'modelo único'} y {colores.length ? `los colores ${colores.join(', ')}` : 'color único'}. Se crean
             las combinaciones que falten, con el precio más usado del artículo.
           </p>
           <div className="grid gap-4 sm:grid-cols-2">
-            <Campo etiqueta="Talles nuevos" ayuda="Separados por coma">
-              <Input value={nuevosTalles} onChange={(e) => setNuevosTalles(e.target.value)} placeholder="Ej.: XL, XXL" />
+            <Campo etiqueta="Modelos nuevos" ayuda="Separados por coma">
+              <Input value={nuevosTalles} onChange={(e) => setNuevosTalles(e.target.value)} placeholder="Ej.: A16, A26" />
             </Campo>
             <Campo etiqueta="Colores nuevos" ayuda="Separados por coma">
               <Input value={nuevosColores} onChange={(e) => setNuevosColores(e.target.value)} placeholder="Ej.: Bordó" />

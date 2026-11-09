@@ -44,7 +44,7 @@ export function SelectorChips({
               onClick={() => setElegidos(g.talles)}
               className="rounded-md border border-dashed border-linea px-2.5 py-1 text-xs font-medium text-tinta-suave hover:border-marca hover:text-marca"
             >
-              Curva {g.nombre || g.talles.join('-')}
+              Lista {g.nombre || g.talles.join('-')}
             </button>
           ))}
           {elegidos.length > 0 && (

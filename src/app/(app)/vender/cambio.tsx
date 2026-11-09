@@ -13,7 +13,7 @@ export type CambioCarrito = {
   total: number
 }
 
-/** Cambio de prenda: elegir qué devuelve de una venta anterior. */
+/** Cambio de producto: elegir qué devuelve de una venta anterior. */
 export function ElegirCambio({ alUsar, alCerrar }: { alUsar: (c: CambioCarrito, venta: VentaParaCambio) => void; alCerrar: () => void }) {
   const [q, setQ] = useState('')
   const [venta, setVenta] = useState<VentaParaCambio | null>(null)
@@ -36,10 +36,10 @@ export function ElegirCambio({ alUsar, alCerrar }: { alUsar: (c: CambioCarrito, 
   const total = elegidos.reduce((a, i) => a + aCentavos(i.unitario) * cantidades[i.ventaItemId], 0)
 
   return (
-    <div className="fixed inset-0 z-40 flex items-end justify-center bg-tinta/40 sm:items-center sm:p-4" role="dialog" aria-modal aria-label="Cambio de prenda">
+    <div className="fixed inset-0 z-40 flex items-end justify-center bg-tinta/40 sm:items-center sm:p-4" role="dialog" aria-modal aria-label="Cambio de producto">
       <div className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-papel p-5 shadow-xl sm:rounded-2xl">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-bold">Cambio de prenda</h2>
+          <h2 className="text-lg font-bold">Cambio de producto</h2>
           <button type="button" onClick={alCerrar} className="rounded-lg px-3 py-1.5 text-sm text-tinta-suave hover:bg-fondo">
             Cerrar
           </button>

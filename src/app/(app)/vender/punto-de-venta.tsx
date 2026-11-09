@@ -108,12 +108,12 @@ export function PuntoDeVenta({ usuarioId, sucursal, abierta, descuentoMax }: { u
       setAviso({ tipo: 'info', texto: `Se actualizó el precio de ${cambiados.map((l) => l.nombre).join(', ')}. Revisá el total.` })
       return
     }
-    // Y el saldo y el límite de la clienta, que pueden haber cambiado.
+    // Y el saldo y el límite del cliente, que pueden haber cambiado.
     if (carrito.cliente) {
       const c = await clienteActual(carrito.cliente.id)
       setCarrito((x) => ({ ...x, cliente: c }))
       if (!c) {
-        setAviso({ tipo: 'info', texto: 'La clienta elegida ya no está activa.' })
+        setAviso({ tipo: 'info', texto: 'El cliente elegido ya no está activo.' })
         return
       }
     }
@@ -154,7 +154,7 @@ export function PuntoDeVenta({ usuarioId, sucursal, abierta, descuentoMax }: { u
             onClick={() => setEligiendoCambio(true)}
             className="h-11 rounded-xl border border-linea bg-papel px-4 text-sm font-semibold text-tinta-suave hover:border-marca hover:text-marca"
           >
-            Cambio de prenda
+            Cambio de producto
           </button>
         </div>
         {cambio && (
@@ -399,7 +399,7 @@ export function PuntoDeVenta({ usuarioId, sucursal, abierta, descuentoMax }: { u
           alUsar={(c, venta) => {
             setCarrito((x) => ({ ...x, cambio: c, cliente: x.cliente ?? venta.cliente }))
             setEligiendoCambio(false)
-            setAviso({ tipo: 'info', texto: 'Ahora escaneá la prenda que se lleva.' })
+            setAviso({ tipo: 'info', texto: 'Ahora escaneá el producto que se lleva.' })
             enfocar()
           }}
         />

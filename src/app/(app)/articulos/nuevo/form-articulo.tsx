@@ -65,7 +65,7 @@ export function FormArticulo({
     <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_380px]">
       <div className="min-w-0 space-y-5">
         <Tarjeta className="space-y-4 p-5">
-          <Campo etiqueta="Nombre del artículo" error={errores.nombre} ayuda="Sin talle ni color: eso se agrega abajo.">
+          <Campo etiqueta="Nombre del artículo" error={errores.nombre} ayuda="Sin modelo ni color: eso se agrega abajo.">
             <Input value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej.: Jean wide leg tiro alto" autoFocus />
           </Campo>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -90,7 +90,7 @@ export function FormArticulo({
             <Campo
               etiqueta="Precio de venta"
               error={errores.precio}
-              ayuda={m !== null ? `Margen sobre el costo: ${m.toLocaleString('es-AR')} %` : 'El mismo para todos los talles; después podés cambiar uno.'}
+              ayuda={m !== null ? `Margen sobre el costo: ${m.toLocaleString('es-AR')} %` : 'El mismo para todos los modelos; después podés cambiar uno.'}
             >
               <Input inputMode="decimal" value={precio} onChange={(e) => setPrecio(e.target.value)} placeholder="0" />
             </Campo>
@@ -102,12 +102,12 @@ export function FormArticulo({
 
         <Tarjeta className="space-y-6 p-5">
           <SelectorChips
-            titulo="Talles"
+            titulo="Modelos de celular"
             grupos={curvas}
             sugeridos={tallesSugeridos}
             elegidos={talles}
             setElegidos={setTalles}
-            placeholder="Otro talle (ej.: 50)"
+            placeholder="Otro modelo (ej.: A16)"
           />
           <SelectorChips titulo="Colores" sugeridos={coloresSugeridos} elegidos={colores} setElegidos={setColores} placeholder="Otro color (ej.: Verde militar)" />
           {errores.variantes && <p className="text-sm font-medium text-error">{errores.variantes}</p>}
@@ -119,7 +119,7 @@ export function FormArticulo({
           <TituloTarjeta>Se van a crear {combinaciones} variante{combinaciones === 1 ? '' : 's'}</TituloTarjeta>
           <div className="max-h-[50vh] overflow-y-auto px-5 py-3">
             {combinaciones === 0 ? (
-              <p className="py-6 text-center text-sm text-tinta-suave">Elegí talles y colores para ver las variantes.</p>
+              <p className="py-6 text-center text-sm text-tinta-suave">Elegí modelos y colores para ver las variantes.</p>
             ) : (
               <ul className="divide-y divide-linea text-sm">
                 {cs.flatMap((c) =>
@@ -154,7 +154,7 @@ export function FormArticulo({
             <label className="flex items-start gap-2 text-sm">
               <input type="checkbox" checked={propios} onChange={(e) => setPropios(e.target.checked)} className="mt-0.5 h-4 w-4 accent-marca" />
               <span>
-                Las prendas ya traen código de barras
+                Los productos ya traen código de barras
                 <span className="block text-xs text-apagado">Escaneá cada una en su variante. Si no, el sistema genera los códigos para imprimir.</span>
               </span>
             </label>

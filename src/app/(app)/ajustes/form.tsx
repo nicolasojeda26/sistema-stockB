@@ -25,7 +25,7 @@ export function FormAjustes({
               <option value="58">58 mm</option>
             </Select>
           </Campo>
-          <Campo etiqueta="Curvas de talles" ayuda="Una por línea: nombre, dos puntos y los talles separados por coma. Aparecen al crear un artículo.">
+          <Campo etiqueta="Listas de modelos" ayuda="Una por línea: marca, dos puntos y los modelos separados por coma. Aparecen al crear un producto con variantes.">
             <Textarea name="curvas_talles" defaultValue={ajustes.curvas_talles} rows={5} className="font-mono text-xs" />
           </Campo>
           <Campo etiqueta="Colores frecuentes" ayuda="Separados por coma.">

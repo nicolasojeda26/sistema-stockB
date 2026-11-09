@@ -68,7 +68,7 @@ export default async function ProductoPage(props: PageProps<'/productos/[id]'>) 
               <>
                 {' · '}
                 <Link href={`/articulos/${producto.articulo_id}`} className="font-medium text-marca hover:underline">
-                  Ver todos los talles y colores
+                  Ver todos los modelos y colores
                 </Link>
               </>
             )}

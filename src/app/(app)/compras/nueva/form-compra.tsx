@@ -305,7 +305,7 @@ export function FormCompra({
                 Escaneá o buscá el producto
               </label>
               <button type="button" onClick={() => setGrilla(true)} className="text-sm font-semibold text-marca hover:underline">
-                Cargar por talle y color
+                Cargar por modelo y color
               </button>
             </div>
             <input
@@ -385,7 +385,7 @@ export function FormCompra({
             {lineas.length ? `${formatoEntero(lineas.length)} producto${lineas.length === 1 ? '' : 's'} · ${formatoEntero(unidades)} unidades` : 'Productos de la factura'}
           </TituloTarjeta>
           {lineas.length === 0 ? (
-            <p className="px-5 py-10 text-center text-sm text-apagado">Escaneá cada prenda o cargá por talle y color. El costo viene con el último que pagaste: corregilo si cambió.</p>
+            <p className="px-5 py-10 text-center text-sm text-apagado">Escaneá cada producto o cargá por modelo y color. El costo viene con el último que pagaste: corregilo si cambió.</p>
           ) : (
             <div className="overflow-x-auto">
               <table className={t.tabla}>

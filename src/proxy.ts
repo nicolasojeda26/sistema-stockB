@@ -6,7 +6,8 @@ import { COOKIE_SESION, leerSesion } from '@/lib/sesion'
 export async function proxy(req: NextRequest) {
   const sesion = await leerSesion(req.cookies.get(COOKIE_SESION)?.value)
   const enLogin = req.nextUrl.pathname === '/login'
-  if (!sesion && !enLogin) return NextResponse.redirect(new URL('/login', req.url))
+  const publica = enLogin || ['/activar', '/logo'].includes(req.nextUrl.pathname)
+  if (!sesion && !publica) return NextResponse.redirect(new URL('/login', req.url))
   if (sesion && enLogin) return NextResponse.redirect(new URL('/', req.url))
   return NextResponse.next()
 }

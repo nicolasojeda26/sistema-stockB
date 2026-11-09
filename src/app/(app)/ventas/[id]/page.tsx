@@ -45,7 +45,7 @@ export default async function VentaPage(props: PageProps<'/ventas/[id]'>) {
             {formatoFecha(v.creado)} · {v.sucursal} · {v.vendedora ?? 'Usuario eliminado'}
             {v.cliente_id && (
               <>
-                {' · Clienta: '}
+                {' · Cliente: '}
                 <Link href={`/clientes/${v.cliente_id}`} className="font-medium text-marca hover:underline">
                   {v.cliente}
                 </Link>
@@ -82,7 +82,7 @@ export default async function VentaPage(props: PageProps<'/ventas/[id]'>) {
       {v.para_retirar && v.estado === 'completada' && (
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-alerta-claro px-4 py-3 text-sm text-alerta">
           <span>
-            <b>Apartada</b> para {v.cliente}: la prenda está separada hasta que la retire.
+            <b>Apartada</b> para {v.cliente}: el producto está separado hasta que lo retire.
           </span>
           <MarcarRetirada ventaId={v.id} />
         </div>

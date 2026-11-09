@@ -52,7 +52,7 @@ export function ClienteCaja({ cliente, setCliente }: { cliente: ClienteBuscado |
         onClick={() => setAbierto(true)}
         className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-linea text-sm font-medium text-tinta-suave hover:border-marca hover:text-marca"
       >
-        + Clienta (para cuenta corriente, apartar o cambios)
+        + Cliente (para cuenta corriente, apartar o cambios)
       </button>
     )
 
@@ -66,7 +66,7 @@ export function ClienteCaja({ cliente, setCliente }: { cliente: ClienteBuscado |
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Nombre, teléfono o DNI"
-              aria-label="Buscar clienta"
+              aria-label="Buscar cliente"
               className="h-10 min-w-0 flex-1 rounded-lg border border-linea px-3 text-sm focus:border-marca focus:outline-none"
             />
             <button type="button" onClick={() => setAbierto(false)} className="rounded-lg px-2 text-sm text-tinta-suave hover:bg-fondo">
@@ -99,7 +99,7 @@ export function ClienteCaja({ cliente, setCliente }: { cliente: ClienteBuscado |
             }}
             className="mt-1 text-sm font-semibold text-marca hover:underline"
           >
-            + Cargar clienta nueva{q.trim() && !/^\d+$/.test(q.trim()) ? `: ${q.trim()}` : ''}
+            + Cargar cliente nuevo{q.trim() && !/^\d+$/.test(q.trim()) ? `: ${q.trim()}` : ''}
           </button>
         </>
       ) : (
@@ -109,7 +109,7 @@ export function ClienteCaja({ cliente, setCliente }: { cliente: ClienteBuscado |
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Nombre y apellido"
-            aria-label="Nombre de la clienta nueva"
+            aria-label="Nombre del cliente nuevo"
             className="h-10 w-full rounded-lg border border-linea px-3 text-sm"
           />
           <div className="grid grid-cols-2 gap-2">
@@ -118,7 +118,7 @@ export function ClienteCaja({ cliente, setCliente }: { cliente: ClienteBuscado |
               onChange={(e) => setTelefono(e.target.value)}
               placeholder="Teléfono"
               inputMode="tel"
-              aria-label="Teléfono de la clienta nueva"
+              aria-label="Teléfono del cliente nuevo"
               className="h-10 min-w-0 rounded-lg border border-linea px-3 text-sm"
             />
             <input
@@ -126,7 +126,7 @@ export function ClienteCaja({ cliente, setCliente }: { cliente: ClienteBuscado |
               onChange={(e) => setDoc(e.target.value)}
               placeholder="DNI (opcional)"
               inputMode="numeric"
-              aria-label="DNI de la clienta nueva"
+              aria-label="DNI del cliente nuevo"
               className="h-10 min-w-0 rounded-lg border border-linea px-3 text-sm"
             />
           </div>
@@ -150,7 +150,7 @@ export function ClienteCaja({ cliente, setCliente }: { cliente: ClienteBuscado |
               }
               className="h-10 flex-1 rounded-lg bg-marca text-sm font-semibold text-white hover:bg-marca-oscura disabled:opacity-60"
             >
-              Guardar clienta
+              Guardar cliente
             </button>
             <button type="button" onClick={() => setNueva(false)} className="h-10 rounded-lg border border-linea px-3 text-sm">
               Volver

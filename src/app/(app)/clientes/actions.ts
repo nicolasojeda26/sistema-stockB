@@ -68,7 +68,7 @@ export async function crearClienteRapido(datos: z.input<typeof Rapida>): Promise
     revalidatePath('/clientes')
     return { cliente: c }
   } catch (e) {
-    return { error: mensajeError(e, 'Ya hay una clienta con ese documento.') }
+    return { error: mensajeError(e, 'Ya hay un cliente con ese documento.') }
   }
 }
 
@@ -106,7 +106,7 @@ export async function guardarCliente(_: Resultado, f: FormData): Promise<Resulta
       nuevoId = c.id
     }
   } catch (e) {
-    const msg = mensajeError(e, 'Ya hay una clienta con ese documento.')
+    const msg = mensajeError(e, 'Ya hay un cliente con ese documento.')
     return { error: msg, errores: (e as { code?: string }).code === '23505' ? { doc_nro: msg } : undefined }
   }
   revalidatePath('/clientes')
@@ -120,7 +120,7 @@ export async function pagarCuenta(_: Resultado, f: FormData): Promise<Resultado>
   const clienteId = entero(f, 'cliente_id')
   const monto = parseNumero(texto(f, 'monto'))
   const medio = texto(f, 'medio')
-  if (!clienteId) return { error: 'Falta la clienta.' }
+  if (!clienteId) return { error: 'Falta el cliente.' }
   if (monto === null || monto <= 0) return { error: 'Poné el monto que paga.', errores: { monto: 'Monto no válido.' } }
   if (!['efectivo', 'transferencia', 'debito', 'credito'].includes(medio)) return { error: 'Elegí cómo paga.' }
   try {

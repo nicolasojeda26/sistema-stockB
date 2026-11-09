@@ -12,7 +12,7 @@ export type ResultadoArticulo = { id?: number; ok?: string; error?: string; erro
 
 function errorUnico(e: unknown): string {
   const c = (e as { constraint_name?: string }).constraint_name
-  if (c === 'productos_variante') return 'Esa combinación de talle y color ya existe.'
+  if (c === 'productos_variante') return 'Esa combinación de modelo y color ya existe.'
   if (c === 'productos_codigo') return 'Uno de los códigos ya lo usa otro producto.'
   return mensajeError(e, 'Ya existe un dato igual.')
 }
@@ -49,7 +49,7 @@ export async function crearArticulo(datos: z.input<typeof Nuevo>): Promise<Resul
   const precios = preciosDe(d, errores)
   const talles = separarLista(d.talles.join(','))
   const colores = separarLista(d.colores.join(','))
-  if (!talles.length && !colores.length) errores.variantes = 'Elegí al menos un talle o un color.'
+  if (!talles.length && !colores.length) errores.variantes = 'Elegí al menos un modelo o un color.'
   const codigos = Object.values(d.codigos).filter(Boolean).map((c) => c.toLowerCase())
   if (new Set(codigos).size !== codigos.length) errores.variantes = 'Hay dos variantes con el mismo código.'
   if (Object.keys(errores).length) return { error: 'Revisá los campos marcados.', errores }
@@ -129,7 +129,7 @@ const Agregar = z.object({
 export async function agregarVariantes(datos: z.input<typeof Agregar>): Promise<ResultadoArticulo> {
   const u = await requerirAdmin()
   const r = Agregar.safeParse(datos)
-  if (!r.success) return { error: 'Revisá los talles y colores.' }
+  if (!r.success) return { error: 'Revisá los modelos y colores.' }
   const { id } = r.data
   const sql = db()
   const [a] = await sql<{ id: number; nombre: string; categoria_id: number | null }[]>`select id, nombre, categoria_id from articulos where id = ${id}`

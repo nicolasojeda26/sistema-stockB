@@ -56,7 +56,7 @@ export default async function TicketPage(props: PageProps<'/ticket/[id]'>) {
             <div className="my-2 text-center">
               <CodigoBarras valor={`V${String(v.id).padStart(6, '0')}`} />
             </div>
-            <p className="text-center">Presentá este ticket para cambiar la prenda.</p>
+            <p className="text-center">Presentá este ticket para hacer un cambio.</p>
             {ajustes.pie_ticket && <p className="mt-1 text-center">{ajustes.pie_ticket}</p>}
           </>
         ) : (
@@ -114,7 +114,7 @@ export default async function TicketPage(props: PageProps<'/ticket/[id]'>) {
           )}
         </div>
         <hr className="my-2 border-dashed border-black" />
-        {v.cliente && <p>Clienta: {v.cliente}</p>}
+        {v.cliente && <p>Cliente: {v.cliente}</p>}
         {ajustes.pie_ticket && <p className="text-center">{ajustes.pie_ticket}</p>}
           </>
         )}

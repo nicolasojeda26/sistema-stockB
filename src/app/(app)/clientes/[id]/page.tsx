@@ -10,7 +10,7 @@ import { Aviso, Etiqueta, Tarjeta, TituloTarjeta, Vacio, tablaCls as t } from '@
 import { FormCliente, type ClienteForm } from '../form-cliente'
 import { AjusteSaldo, PagoCuenta } from './cuenta'
 
-export const metadata: Metadata = { title: 'Clienta' }
+export const metadata: Metadata = { title: 'Cliente' }
 
 const TIPOS: Record<string, string> = {
   venta: 'Compra a cuenta',
@@ -66,7 +66,7 @@ export default async function ClientePage(props: PageProps<'/clientes/[id]'>) {
       </div>
       {!c.activo && (
         <div className="mb-5">
-          <Aviso tipo="alerta">Esta clienta está dada de baja.</Aviso>
+          <Aviso tipo="alerta">Este cliente está dado de baja.</Aviso>
         </div>
       )}
 
@@ -134,7 +134,7 @@ export default async function ClientePage(props: PageProps<'/clientes/[id]'>) {
           <Tarjeta className="overflow-hidden">
             <TituloTarjeta>Compras</TituloTarjeta>
             {compras.length === 0 ? (
-              <Vacio>Todavía no compró con su nombre. En la caja, elegí la clienta antes de cobrar.</Vacio>
+              <Vacio>Todavía no compró con su nombre. En la caja, elegí el cliente antes de cobrar.</Vacio>
             ) : (
               <ul className="divide-y divide-linea text-sm">
                 {compras.map((v) => (
@@ -144,7 +144,7 @@ export default async function ClientePage(props: PageProps<'/clientes/[id]'>) {
                         Venta #{v.id}
                       </Link>
                       <span className="block text-xs text-apagado">
-                        {formatoFecha(v.creado)}, {v.sucursal}, {v.prendas} prenda{v.prendas === 1 ? '' : 's'}
+                        {formatoFecha(v.creado)}, {v.sucursal}, {v.prendas} producto{v.prendas === 1 ? '' : 's'}
                       </span>
                     </span>
                     <span className="flex items-center gap-2">

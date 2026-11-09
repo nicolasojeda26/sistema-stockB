@@ -10,7 +10,7 @@ export const CAMPOS = {
   costo: 'Costo',
   precio: 'Precio de venta',
   stock: 'Stock',
-  talle: 'Talle',
+  talle: 'Modelo',
   color: 'Color',
 } as const
 export type Campo = keyof typeof CAMPOS
@@ -170,7 +170,7 @@ export function leerPlanilla(filas: unknown[][], encabezado: number, mapeo: Mape
     if (r.fila.articulo) {
       const variante = `${r.fila.articulo}|${r.fila.color ?? ''}|${r.fila.talle ?? ''}`.toLowerCase()
       if (variantes.has(variante)) {
-        errores.push({ fila: r.fila.fila, motivo: `Talle y color repetidos para el mismo artículo (fila ${variantes.get(variante)})` })
+        errores.push({ fila: r.fila.fila, motivo: `Modelo y color repetidos para el mismo producto (fila ${variantes.get(variante)})` })
         continue
       }
       variantes.set(variante, r.fila.fila)

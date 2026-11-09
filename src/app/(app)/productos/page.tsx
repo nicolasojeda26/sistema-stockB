@@ -116,7 +116,7 @@ export default async function ProductosPage(props: PageProps<"/productos">) {
                 Producto suelto
               </BotonLink>
               <BotonLink href="/articulos/nuevo">
-                Nuevo artículo con talles
+                Nuevo producto con variantes
               </BotonLink>
             </>
           )

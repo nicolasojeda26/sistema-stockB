@@ -63,10 +63,10 @@ export function GrillaTalles({
   }
 
   return (
-    <div className="fixed inset-0 z-40 flex items-end justify-center bg-tinta/40 p-0 sm:items-center sm:p-4" role="dialog" aria-modal aria-label="Cargar por talle y color">
+    <div className="fixed inset-0 z-40 flex items-end justify-center bg-tinta/40 p-0 sm:items-center sm:p-4" role="dialog" aria-modal aria-label="Cargar por modelo y color">
       <div className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-t-2xl bg-papel p-5 shadow-xl sm:rounded-2xl">
         <div className="mb-4 flex items-center justify-between gap-3">
-          <h2 className="text-lg font-bold">{articulo ? articulo.nombre : 'Cargar por talle y color'}</h2>
+          <h2 className="text-lg font-bold">{articulo ? articulo.nombre : 'Cargar por modelo y color'}</h2>
           <button type="button" onClick={alCerrar} className="rounded-lg px-3 py-1.5 text-sm font-medium text-tinta-suave hover:bg-fondo">
             Cerrar
           </button>
@@ -91,13 +91,13 @@ export function GrillaTalles({
                   </button>
                 </li>
               ))}
-              {!resultados.length && <li className="py-6 text-center text-sm text-tinta-suave">{cargando ? 'Cargando…' : 'No hay artículos con talles que coincidan.'}</li>}
+              {!resultados.length && <li className="py-6 text-center text-sm text-tinta-suave">{cargando ? 'Cargando…' : 'No hay productos con variantes que coincidan.'}</li>}
             </ul>
           </>
         ) : (
           <>
             <p className="mb-3 text-sm text-tinta-suave">
-              Poné cuántas unidades de cada talle y color.{mostrarStock ? ' Abajo de cada casillero, lo que hay ahora.' : ''}
+              Poné cuántas unidades de cada modelo y color.{mostrarStock ? ' Abajo de cada casillero, lo que hay ahora.' : ''}
             </p>
             <div className="overflow-x-auto">
               <table className="border-separate border-spacing-1 text-sm">

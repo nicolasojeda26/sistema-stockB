@@ -50,7 +50,7 @@ export function FormCliente({ cliente, esAdmin }: { cliente?: ClienteForm; esAdm
           <Campo etiqueta="Domicilio">
             <Input name="domicilio" defaultValue={cliente?.domicilio ?? ''} />
           </Campo>
-          <Campo etiqueta="Notas" ayuda="Talles que usa, preferencias, etc.">
+          <Campo etiqueta="Notas" ayuda="Celular que usa, preferencias, etc.">
             <Textarea name="notas" defaultValue={cliente?.notas ?? ''} rows={2} />
           </Campo>
           {esAdmin && (
@@ -69,7 +69,7 @@ export function FormCliente({ cliente, esAdmin }: { cliente?: ClienteForm; esAdm
             </label>
           )}
           <Boton type="submit" disabled={enviando}>
-            {cliente ? 'Guardar cambios' : 'Crear clienta'}
+            {cliente ? 'Guardar cambios' : 'Crear cliente'}
           </Boton>
         </>
       )}

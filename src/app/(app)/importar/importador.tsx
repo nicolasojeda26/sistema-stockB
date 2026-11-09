@@ -110,7 +110,7 @@ export function Importador({ depositos }: { depositos: { id: number; nombre: str
           </li>
           {r.articulos > 0 && (
             <li>
-              <b className="num">{formatoEntero(r.articulos)}</b> artículos con talles y colores agrupados
+              <b className="num">{formatoEntero(r.articulos)}</b> productos con variantes (modelo/color) agrupados
             </li>
           )}
           <li>

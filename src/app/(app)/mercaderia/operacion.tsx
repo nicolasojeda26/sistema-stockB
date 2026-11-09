@@ -295,7 +295,7 @@ export function OperacionStock({
               Escaneá o buscá el producto
             </label>
             <button type="button" onClick={() => setGrilla(true)} className="text-sm font-semibold text-marca hover:underline">
-              Cargar por talle y color
+              Cargar por modelo y color
             </button>
           </div>
           <input

@@ -9,12 +9,12 @@ export const MEDIOS: Record<MedioPago, string> = {
   credito: 'Crédito',
 }
 
-/** Medios que no son plata: cargar a la cuenta de la clienta, o lo devuelto en un cambio. */
+/** Medios que no son plata: cargar a la cuenta del cliente, o lo devuelto en un cambio. */
 export type MedioVenta = MedioPago | 'cuenta_corriente' | 'cambio'
 export const MEDIOS_VENTA: Record<MedioVenta, string> = {
   ...MEDIOS,
-  cuenta_corriente: 'A cuenta de la clienta',
-  cambio: 'Cambio de prenda',
+  cuenta_corriente: 'A cuenta del cliente',
+  cambio: 'Cambio de producto',
 }
 
 export type LineaCalculo = { precio: number; cantidad: number; descuentoPct: number }

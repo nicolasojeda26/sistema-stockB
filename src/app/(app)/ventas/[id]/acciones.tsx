@@ -113,7 +113,7 @@ export function FacturarVenta({
 }
 
 type MedioDevolucion = MedioPago | 'cuenta_corriente'
-const NOMBRES: Record<MedioDevolucion, string> = { ...MEDIOS, cuenta_corriente: 'Saldo a favor de la clienta' }
+const NOMBRES: Record<MedioDevolucion, string> = { ...MEDIOS, cuenta_corriente: 'Saldo a favor del cliente' }
 
 export function DevolverVenta({ ventaId, items, facturada, conCliente = false }: { ventaId: number; items: ItemVendido[]; facturada: boolean; conCliente?: boolean }) {
   const [cantidades, setCantidades] = useState<Record<number, number>>({})
@@ -182,7 +182,7 @@ export function DevolverVenta({ ventaId, items, facturada, conCliente = false }:
       </div>
       <p className="text-xs text-apagado">
         {medio === 'cuenta_corriente'
-          ? 'No sale plata: queda a favor de la clienta para su próxima compra.'
+          ? 'No sale plata: queda a favor del cliente para su próxima compra.'
           : 'La plata sale de tu caja.'}{' '}
         El producto vuelve al stock de tu local.{facturada ? ' Se emite la nota de crédito.' : ''}
       </p>

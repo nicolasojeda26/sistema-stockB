@@ -67,7 +67,7 @@ export function AjusteProveedor({ proveedorId }: { proveedorId: number }) {
             </Campo>
           </div>
           <Campo etiqueta="Motivo">
-            <Input name="nota" required maxLength={200} placeholder="Ej.: NC 0003-00000045 por prendas falladas" />
+            <Input name="nota" required maxLength={200} placeholder="Ej.: NC 0003-00000045 por productos fallados" />
           </Campo>
           <Boton type="submit" variante="secundario" disabled={enviando}>
             Registrar

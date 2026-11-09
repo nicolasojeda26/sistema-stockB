@@ -17,8 +17,8 @@ export default async function NuevoArticuloPage() {
   return (
     <>
       <Encabezado
-        titulo="Nuevo artículo con talles y colores"
-        detalle="Cargás la prenda una sola vez y el sistema crea cada talle y color con su código y su stock."
+        titulo="Nuevo producto con variantes"
+        detalle="Cargás el producto una sola vez y el sistema crea cada modelo y color con su código y su stock."
       />
       <FormArticulo
         categorias={categorias}

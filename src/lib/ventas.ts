@@ -126,7 +126,7 @@ export async function cerrarCaja(sql: Sql, d: { cajaId: number; usuarioId: numbe
 
 type Tx = Sql | TransactionSql
 
-/** Saldo de la clienta: positivo debe, negativo tiene a favor. */
+/** Saldo del cliente: positivo debe, negativo tiene a favor. */
 export async function saldoCliente(sql: Tx, clienteId: number): Promise<number> {
   const [{ saldo }] = await sql<{ saldo: number }[]>`select coalesce(sum(monto), 0) as saldo from cuenta_movimientos where cliente_id = ${clienteId}`
   return Number(saldo)
@@ -139,7 +139,7 @@ async function cargarACuenta(
 ) {
   const [c] = await tx<{ nombre: string; limite_credito: number; activo: boolean }[]>`
     select nombre, limite_credito, activo from clientes where id = ${d.clienteId} for update`
-  if (!c || !c.activo) throw new ErrorVenta('La clienta no existe o está dada de baja.')
+  if (!c || !c.activo) throw new ErrorVenta('El cliente no existe o está dado de baja.')
   const saldo = await saldoCliente(tx, d.clienteId)
   const nuevo = aCentavos(saldo) + aCentavos(d.monto)
   if (d.usuario.rol !== 'admin' && nuevo > aCentavos(Number(c.limite_credito)))
@@ -160,7 +160,7 @@ export async function registrarPagoCuenta(sql: Sql, d: { clienteId: number; usua
     const caja = await cajaAbierta(tx as unknown as Sql, d.usuario.id)
     if (!caja) throw new ErrorVenta('Abrí tu caja: el pago entra ahí.')
     const [c] = await tx`select 1 from clientes where id = ${d.clienteId}`
-    if (!c) throw new ErrorVenta('La clienta no existe.')
+    if (!c) throw new ErrorVenta('El cliente no existe.')
     const [m] = await tx<{ id: number }[]>`
       insert into cuenta_movimientos (cliente_id, tipo, monto, caja_id, medio, usuario_id, nota)
       values (${d.clienteId}, 'pago', ${-d.monto}, ${caja.id}, ${d.medio}, ${d.usuario.id}, ${d.nota?.trim() || null})
@@ -191,9 +191,9 @@ export type DatosVenta = {
   /** Total que vio la vendedora: si el precio cambió mientras tanto, se avisa. */
   totalEsperado: number
   clienteId?: number | null
-  /** Apartado con seña: la prenda queda separada hasta que la retiran. */
+  /** Apartado con seña: el producto queda separado hasta que lo retiran. */
   paraRetirar?: boolean
-  /** Cambio de prenda: lo que devuelve de otra venta paga esta. */
+  /** Cambio de producto: lo que devuelve de otra venta paga esta. */
   cambio?: {
     ventaId: number
     items: { ventaItemId: number; cantidad: number }[]
@@ -216,7 +216,7 @@ export async function registrarVenta(
   for (const p of d.pagos) if (!(aCentavos(p.monto) > 0)) throw new ErrorVenta('Hay un pago sin monto.')
   const aCuenta = d.pagos.filter((p) => p.medio === 'cuenta_corriente').reduce((a, p) => a + aCentavos(p.monto), 0)
   if ((aCuenta > 0 || d.paraRetirar || d.cambio?.excedente === 'cuenta_corriente') && !d.clienteId)
-    throw new ErrorVenta('Elegí la clienta: hace falta para cargar a su cuenta o apartar.')
+    throw new ErrorVenta('Elegí el cliente: hace falta para cargar a su cuenta o apartar.')
 
   return sql.begin(async (tx) => {
     const caja = await cajaAbierta(tx as unknown as Sql, d.usuario.id)
@@ -227,7 +227,7 @@ export async function registrarVenta(
     const tope = d.usuario.rol === 'admin' ? 100 : Number(descuento_max)
     if (d.clienteId) {
       const [c] = await tx`select 1 from clientes where id = ${d.clienteId} and activo`
-      if (!c) throw new ErrorVenta('La clienta no existe o está dada de baja.')
+      if (!c) throw new ErrorVenta('El cliente no existe o está dado de baja.')
     }
 
     const ids = [...new Set(d.items.map((i) => i.productoId))]
@@ -246,7 +246,7 @@ export async function registrarVenta(
     const calc = calcularVenta(lineas, d.descuentoGlobalPct)
     if (calc.total !== aCentavos(d.totalEsperado)) throw new ErrorVenta('Cambió el precio de algún producto. Revisá el total y cobrá de nuevo.')
 
-    // Cambio de prenda: primero entra lo devuelto (stock y crédito), después se cobra la diferencia.
+    // Cambio de producto: primero entra lo devuelto (stock y crédito), después se cobra la diferencia.
     let devuelto = 0
     let devolucionId: number | undefined
     if (d.cambio) {
@@ -255,7 +255,7 @@ export async function registrarVenta(
         usuario: d.usuario,
         items: d.cambio.items,
         medio: 'cambio',
-        motivo: 'Cambio de prenda',
+        motivo: 'Cambio de producto',
         clienteId: d.clienteId ?? null,
       })
       devuelto = aCentavos(r.total)
@@ -346,11 +346,11 @@ export async function anularVenta(sql: Sql, d: { ventaId: number; usuarioId: num
     const [dev] = await tx`select 1 from devoluciones where venta_id = ${d.ventaId}`
     if (dev) throw new ErrorVenta('Esta venta ya tiene devoluciones: devolvé lo que queda en lugar de anularla.')
     const [cambio] = await tx`select 1 from venta_pagos where venta_id = ${d.ventaId} and medio = 'cambio'`
-    if (cambio) throw new ErrorVenta('Esta venta es parte de un cambio de prenda: hacé una devolución en lugar de anularla.')
+    if (cambio) throw new ErrorVenta('Esta venta es parte de un cambio de producto: hacé una devolución en lugar de anularla.')
     await tx`
       update ventas set estado = 'anulada', anulada_en = now(), anulada_por = ${d.usuarioId}, motivo_anulacion = ${d.motivo.trim()}
       where id = ${d.ventaId}`
-    // Lo que se había cargado a la cuenta de la clienta, se descuenta.
+    // Lo que se había cargado a la cuenta del cliente, se descuenta.
     await tx`
       insert into cuenta_movimientos (cliente_id, tipo, monto, venta_id, usuario_id, nota)
       select cliente_id, 'ajuste', -sum(monto), ${d.ventaId}, ${d.usuarioId}, 'Anulación de la venta'
@@ -400,13 +400,13 @@ type DatosDevolucion = {
   ventaId: number
   usuario: Quien
   items: { ventaItemId: number; cantidad: number }[]
-  /** cuenta_corriente: queda a favor de la clienta (o le baja la deuda); cambio: paga una venta nueva. */
+  /** cuenta_corriente: queda a favor del cliente (o le baja la deuda); cambio: paga una venta nueva. */
   medio: MedioVenta
   motivo: string
   clienteId?: number | null
 }
 
-/** Devolución dentro de una transacción ya abierta (la usan la devolución sola y el cambio de prenda). */
+/** Devolución dentro de una transacción ya abierta (la usan la devolución sola y el cambio de producto). */
 async function devolverEnTx(tx: Tx, caja: CajaAbierta, depositoId: number, d: DatosDevolucion): Promise<{ devolucionId: number; total: number }> {
   if (!d.motivo.trim()) throw new ErrorVenta('Contá el motivo de la devolución.')
   const pedidos = d.items.filter((i) => i.cantidad > 0)
@@ -419,7 +419,7 @@ async function devolverEnTx(tx: Tx, caja: CajaAbierta, depositoId: number, d: Da
   if (v.estado === 'anulada') throw new ErrorVenta('La venta está anulada.')
   if (d.usuario.rol !== 'admin' && v.sucursal_id !== caja.sucursal_id) throw new ErrorVenta('Solo podés hacer devoluciones o cambios de ventas de tu sucursal.')
   const clienteId = d.clienteId ?? v.cliente_id
-  if (d.medio === 'cuenta_corriente' && !clienteId) throw new ErrorVenta('Para dejar el saldo a favor, la venta tiene que tener una clienta.')
+  if (d.medio === 'cuenta_corriente' && !clienteId) throw new ErrorVenta('Para dejar el saldo a favor, la venta tiene que tener un cliente.')
 
   const disponibles = await itemsDevolvibles(tx, d.ventaId)
   const lineas = pedidos.map((p) => {
