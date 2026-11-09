@@ -59,14 +59,14 @@ export default async function InicioPage() {
 
   return (
     <>
-      <section className="relative isolate overflow-hidden rounded-2xl bg-[#173a36] px-5 py-6 text-white shadow-[0_12px_32px_rgb(23_58_54/0.13)] sm:px-7 sm:py-7">
+      <section className="relative isolate overflow-hidden rounded-2xl bg-[#403719] px-5 py-6 text-white shadow-[0_12px_32px_rgb(64_55_25/0.14)] sm:px-7 sm:py-7">
         <div className="pointer-events-none absolute -right-8 -top-24 -z-10 h-64 w-64 rounded-full border border-white/10" />
         <div className="pointer-events-none absolute -right-1 -top-16 -z-10 h-48 w-48 rounded-full border border-white/10" />
         <p className="text-[10px] font-bold tracking-[.18em] text-emerald-100/70">OPERACIÓN DIARIA <span className="mx-1.5 text-emerald-100/35">/</span> {fechaLarga}</p>
         <h1 className="mt-3 text-3xl font-semibold tracking-[-.035em] sm:text-[2.25rem]">Hola, {primerNombre}</h1>
         <p className="mt-1.5 text-sm text-emerald-50/75">{esAdmin ? 'Un vistazo a la operación de todas tus sucursales.' : `Resumen de hoy en ${u.sucursal_nombre}.`}</p>
         <div className="mt-5 flex flex-wrap gap-2">
-          <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-medium text-white/90"><span className="h-1.5 w-1.5 rounded-full bg-[#8cdbb1]" />{formatoEntero(r.productos)} productos activos</span>
+          <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-medium text-white/90"><span className="h-1.5 w-1.5 rounded-full bg-[#f0ce68]" />{formatoEntero(r.productos)} productos activos</span>
           <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-medium text-white/90">{formatoEntero(esAdmin ? r.sucursales : 1)} {esAdmin ? 'sucursales' : 'sucursal'}</span>
         </div>
       </section>
@@ -114,7 +114,7 @@ export default async function InicioPage() {
           <TituloTarjeta acciones={<Link href="/ventas" className="text-xs font-semibold text-marca hover:underline">Ver ventas →</Link>}>Ventas de hoy</TituloTarjeta>
           <div className="p-5">
             <p className="text-sm text-tinta-suave">{esAdmin ? 'Vendido hoy en todas las sucursales' : `Vendido hoy en ${u.sucursal_nombre}`}</p>
-            <p className="num mt-2 text-4xl font-bold tracking-[-.04em] text-[#176b5b]" data-testid="vendido-hoy">
+            <p className="num mt-2 text-4xl font-bold tracking-[-.04em] text-marca" data-testid="vendido-hoy">
               {formatoPesos(Math.round(totalHoy * 100) / 100)}
             </p>
             <p className="text-sm text-apagado">

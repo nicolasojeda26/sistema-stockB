@@ -7,17 +7,17 @@
 
 @theme {
   /* Texto */
-  --color-tinta: #172c32;
-  --color-tinta-suave: #56696b;
-  --color-apagado: #78898a;
+  --color-tinta: #302b1c;
+  --color-tinta-suave: #665f49;
+  --color-apagado: #89816a;
   /* Superficies */
-  --color-linea: #e3e9e5;
-  --color-fondo: #f4f6f2;
-  --color-papel: #ffffff;
-  /* Marca: el azul de las etiquetas de precio */
-  --color-marca: #176b5b;
-  --color-marca-oscura: #105448;
-  --color-marca-clara: #e4f1eb;
+  --color-linea: #e8e2cf;
+  --color-fondo: #f8f6ee;
+  --color-papel: #fffdf7;
+  /* Mostaza: cálida, reconocible y con contraste para texto y controles. */
+  --color-marca: #866300;
+  --color-marca-oscura: #6b4f00;
+  --color-marca-clara: #f7efcf;
   /* Solo para el sello de la marca (la etiqueta colgante) */
   --color-acento: #d87559;
   /* Estados */
@@ -29,22 +29,22 @@
   --color-error-claro: #fdeceb;
 }
 
-html {
+html[data-theme="claro"] {
   color-scheme: light;
 }
 
 body {
-  background: #f3f6f3;
+  background: #f8f6ee;
   color: var(--color-tinta);
   font-feature-settings: 'cv11';
-  background-image: radial-gradient(ellipse at 75% -20%, rgb(224 239 231 / 42%), transparent 34rem);
+  background-image: radial-gradient(ellipse at 75% -20%, rgb(245 231 177 / 34%), transparent 34rem);
 }
 
-/* Sistema visual: superficies cálidas, tinta verde petróleo y acento hoja. */
-::selection { background: #cce8da; color: #143e37; }
+/* Sistema visual: manteca, tinta cálida y acento mostaza. */
+::selection { background: #f2df9e; color: #3f310b; }
 
 main :is(input, select, textarea) { transition: border-color .16s ease, box-shadow .16s ease, background-color .16s ease; }
-main :is(input, select, textarea):hover:not(:focus):not(:disabled) { border-color: #c5d3cb; }
+main :is(input, select, textarea):hover:not(:focus):not(:disabled) { border-color: #d5c58c; }
 main :is(table) { border-collapse: separate; border-spacing: 0; }
 main thead th { letter-spacing: .045em; text-transform: uppercase; }
 main tbody tr:last-child > td { border-bottom: 0; }
@@ -52,21 +52,52 @@ main tbody tr:hover > td { transition: background-color .14s ease; }
 main a { text-underline-offset: 3px; }
 
 .brand-sidebar {
-  background: linear-gradient(180deg, #173a36 0%, #16332f 100%);
+  background: linear-gradient(180deg, #302b1c 0%, #262319 100%);
   border-color: rgb(255 255 255 / 9%);
-  color: #f2f7f3;
+  color: #f8f4e6;
 }
-.brand-sidebar .nav-link { color: #c1d1ca; }
+.brand-sidebar .nav-link { color: #d0c9b5; }
 .brand-sidebar .nav-link:hover { background: rgb(255 255 255 / 8%); color: #fff; }
-.brand-sidebar .nav-link[aria-current="page"] { background: #d8eee2; color: #174d40; box-shadow: inset 3px 0 #75c5a0; }
-.brand-sidebar .nav-section { color: #8caaa0; letter-spacing: .11em; text-transform: uppercase; }
+.brand-sidebar .nav-link[aria-current="page"] { background: #f5e8b8; color: #493800; box-shadow: inset 3px 0 #d6aa2c; }
+.brand-sidebar .nav-section { color: #b6aa86; letter-spacing: .11em; text-transform: uppercase; }
 .brand-sidebar .nav-divider { border-color: rgb(255 255 255 / 12%); }
 .brand-sidebar .nav-user { background: rgb(255 255 255 / 8%); }
-.brand-sidebar .brand-mark path:first-child { fill: #8cdbb1; }
-.brand-sidebar .nav-user .text-apagado { color: #a8bdb4; }
-.brand-sidebar .nav-section { color: #8caaa0; }
-.brand-sidebar .nav-logout { color: #c1d1ca; }
+.brand-sidebar .brand-mark path:first-child { fill: #f0ce68; }
+.brand-sidebar .nav-user .text-apagado { color: #c2b99f; }
+.brand-sidebar .nav-logout { color: #d0c9b5; }
 .brand-sidebar .nav-logout:hover { background: rgb(255 255 255 / 10%); color: white; }
+.brand-sidebar .theme-select { border-color: rgb(255 255 255 / 14%); background-color: rgb(255 255 255 / 7%); color: #f8f4e6; }
+
+html[data-theme="oscuro"] {
+  color-scheme: dark;
+  --color-tinta: #f0ebd9;
+  --color-tinta-suave: #c4bda7;
+  --color-apagado: #a49b82;
+  --color-linea: #454132;
+  --color-fondo: #24231e;
+  --color-papel: #302e27;
+  --color-marca: #e8c453;
+  --color-marca-oscura: #f0d579;
+  --color-marca-clara: #4a401f;
+  --color-ok: #71c794;
+  --color-ok-claro: #203d2c;
+  --color-alerta: #f0b563;
+  --color-alerta-claro: #48351e;
+  --color-error: #ff9487;
+  --color-error-claro: #4c2926;
+}
+html[data-theme="oscuro"] body {
+  background: #211f1a;
+  background-image: radial-gradient(ellipse at 75% -20%, rgb(171 133 30 / 12%), transparent 34rem);
+}
+html[data-theme="oscuro"] ::selection { background: #69551e; color: #fff6d9; }
+html[data-theme="oscuro"] main :is(input, select, textarea):hover:not(:focus):not(:disabled) { border-color: #796632; }
+html[data-theme="oscuro"] .brand-sidebar {
+  background: linear-gradient(180deg, #25231e 0%, #201f1a 100%);
+}
+html[data-theme="oscuro"] .brand-sidebar .nav-link[aria-current="page"] { background: #4a401f; color: #f4da82; box-shadow: inset 3px 0 #d6aa2c; }
+html[data-theme="oscuro"] .brand-sidebar .theme-select { border-color: rgb(255 255 255 / 14%); background-color: rgb(255 255 255 / 7%); color: #f8f4e6; }
+html[data-theme="oscuro"] :is(.bg-marca, .bg-marca-oscura).text-white { color: #30260b; }
 
 @media (hover: hover) {
   button, [role="button"] { transition: background-color .16s ease, color .16s ease, border-color .16s ease, transform .12s ease; }

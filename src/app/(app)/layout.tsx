@@ -1,6 +1,7 @@
 import { requerirUsuario } from '@/lib/dal'
 import { leerAjustes } from '@/lib/ajustes'
 import { salir } from '@/app/login/actions'
+import { SelectorTema } from '@/components/selector-tema'
 import { Navegacion, type ItemNav } from './navegacion'
 
 export default async function AppLayout({ children }: LayoutProps<'/'>) {
@@ -42,17 +43,20 @@ export default async function AppLayout({ children }: LayoutProps<'/'>) {
   ]
 
   const pie = (
-    <div className="nav-divider nav-user flex items-center gap-3 border-t border-linea p-3 pb-20 lg:mx-3 lg:mb-3 lg:rounded-xl lg:border-0 lg:p-3">
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-marca-clara text-sm font-bold text-marca" aria-hidden>
-        {u.nombre.trim()[0]?.toUpperCase()}
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-semibold">{u.nombre}</span>
-        <span className="block truncate text-xs text-apagado">{u.rol === 'admin' ? 'Administradora' : `Vendedora en ${u.sucursal_nombre}`}</span>
-      </span>
-      <form action={salir}>
-        <button className="nav-logout rounded-lg px-2 py-1.5 text-xs font-medium text-tinta-suave hover:bg-fondo hover:text-tinta">Salir</button>
-      </form>
+    <div className="space-y-2 px-3 pb-20 lg:pb-3">
+      <SelectorTema />
+      <div className="nav-divider nav-user flex items-center gap-3 border-t border-linea p-3 lg:rounded-xl lg:border-0">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-marca-clara text-sm font-bold text-marca" aria-hidden>
+          {u.nombre.trim()[0]?.toUpperCase()}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-semibold">{u.nombre}</span>
+          <span className="block truncate text-xs text-apagado">{u.rol === 'admin' ? 'Administradora' : `Vendedora en ${u.sucursal_nombre}`}</span>
+        </span>
+        <form action={salir}>
+          <button className="nav-logout rounded-lg px-2 py-1.5 text-xs font-medium text-tinta-suave hover:bg-fondo hover:text-tinta">Salir</button>
+        </form>
+      </div>
     </div>
   )
 
