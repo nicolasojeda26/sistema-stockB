@@ -13,6 +13,7 @@ export default async function AppLayout({ children }: LayoutProps<'/'>) {
     { href: '/vender', texto: 'Vender', icono: 'vender' },
     { href: '/caja', texto: 'Caja', icono: 'caja' },
     { href: '/ventas', texto: 'Ventas', icono: 'ventas' },
+    { href: '/presupuestos', texto: 'Presupuestos', icono: 'factura' },
     { href: '/productos', texto: 'Productos', icono: 'productos' },
     { href: '/clientes', texto: 'Clientas', icono: 'clientes' },
     { href: '/mercaderia/ingreso', texto: 'Ingreso de mercadería', icono: 'ingreso', seccion: 'Mercadería' },
@@ -40,6 +41,7 @@ export default async function AppLayout({ children }: LayoutProps<'/'>) {
           { href: '/ajustes', texto: 'Ajustes del negocio', icono: 'ajustes' },
         ] as ItemNav[])
       : []),
+    { href: '/solicitudes', texto: 'Ayuda y solicitudes', icono: 'ajustes', seccion: 'Ayuda' },
   ]
 
   const pie = (
