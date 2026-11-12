@@ -62,7 +62,7 @@ export default async function UsuariosPage(props: PageProps<'/usuarios'>) {
         titulo="Personal y permisos"
         detalle="Quién trabaja en cada sucursal, con qué rol y qué puede hacer cada rol. Los cambios rigen al instante."
       />
-      <nav className="mb-5 flex gap-1 overflow-x-auto border-b border-linea" aria-label="Secciones">
+      <nav className="mb-5 flex gap-1 overflow-x-auto overflow-y-hidden border-b border-linea [scrollbar-width:none]" aria-label="Secciones">
         {PESTANAS.map((p) => (
           <Link
             key={p.clave}
