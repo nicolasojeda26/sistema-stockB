@@ -10,13 +10,12 @@ on conflict (clave) do update set valor = excluded.valor;
 
 -- Puntos de venta y depósito central.
 insert into sucursales (nombre, direccion, tipo) values
-  ('Depósito central', 'Depósito 815', 'deposito'),
+  ('Depósito central', 'Av. Libertad 5389 (Campus)', 'deposito'),
   ('San Lorenzo 960', 'San Lorenzo 960', 'local'),
   ('San Lorenzo 833', 'San Lorenzo 833', 'local'),
   ('Catamarca 815', 'Catamarca 815', 'local'),
   ('Irigoyen 1933', 'H. Yrigoyen 1933', 'local'),
   ('Av. Maipú 231', 'Av. Maipú 231', 'local'),
-  ('Av. Libertad 5389', 'Av. Libertad 5389 (Campus)', 'local'),
   ('Ventas online', 'Instagram y WhatsApp', 'online')
 on conflict (nombre) do update set direccion = excluded.direccion, tipo = excluded.tipo, activa = true;
 
@@ -24,7 +23,7 @@ on conflict (nombre) do update set direccion = excluded.direccion, tipo = exclud
 insert into depositos (nombre, sucursal_id, es_principal)
 select case s.tipo when 'deposito' then 'Depósito' when 'online' then 'Stock online' else 'Local' end, s.id, true
 from sucursales s
-where s.nombre in ('Depósito central', 'San Lorenzo 960', 'San Lorenzo 833', 'Catamarca 815', 'Irigoyen 1933', 'Av. Maipú 231', 'Av. Libertad 5389', 'Ventas online')
+where s.nombre in ('Depósito central', 'San Lorenzo 960', 'San Lorenzo 833', 'Catamarca 815', 'Irigoyen 1933', 'Av. Maipú 231', 'Ventas online')
   and not exists (select 1 from depositos d where d.sucursal_id = s.id and d.es_principal);
 
 -- Personal (sin contraseña todavía).
@@ -41,7 +40,7 @@ from (values
   ('leandro', 'Leandro', 'vendedora', 'Irigoyen 1933'),
   ('matias', 'Matías', 'vendedora', 'Irigoyen 1933'),
   ('rocio', 'Rocío', 'vendedora', 'Av. Maipú 231'),
-  ('leila', 'Leila', 'vendedora', 'Av. Libertad 5389')
+  ('leila', 'Leila', 'deposito', 'Depósito central')
 ) as p(usuario, nombre, rol, sucursal)
 join sucursales s on s.nombre = p.sucursal
 on conflict (usuario) do nothing;
