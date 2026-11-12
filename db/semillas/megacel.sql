@@ -14,7 +14,7 @@ insert into sucursales (nombre, direccion, tipo) values
   ('San Lorenzo 960', 'San Lorenzo 960', 'local'),
   ('San Lorenzo 833', 'San Lorenzo 833', 'local'),
   ('Catamarca 815', 'Catamarca 815', 'local'),
-  ('Irigoyen 2031', 'H. Irigoyen 2031', 'local'),
+  ('Irigoyen 1933', 'H. Yrigoyen 1933', 'local'),
   ('Av. Maipú 231', 'Av. Maipú 231', 'local'),
   ('Av. Libertad 5389', 'Av. Libertad 5389 (Campus)', 'local'),
   ('Ventas online', 'Instagram y WhatsApp', 'online')
@@ -24,7 +24,7 @@ on conflict (nombre) do update set direccion = excluded.direccion, tipo = exclud
 insert into depositos (nombre, sucursal_id, es_principal)
 select case s.tipo when 'deposito' then 'Depósito' when 'online' then 'Stock online' else 'Local' end, s.id, true
 from sucursales s
-where s.nombre in ('Depósito central', 'San Lorenzo 960', 'San Lorenzo 833', 'Catamarca 815', 'Irigoyen 2031', 'Av. Maipú 231', 'Av. Libertad 5389', 'Ventas online')
+where s.nombre in ('Depósito central', 'San Lorenzo 960', 'San Lorenzo 833', 'Catamarca 815', 'Irigoyen 1933', 'Av. Maipú 231', 'Av. Libertad 5389', 'Ventas online')
   and not exists (select 1 from depositos d where d.sucursal_id = s.id and d.es_principal);
 
 -- Personal (sin contraseña todavía).
@@ -37,9 +37,9 @@ from (values
   ('marva', 'Marva', 'vendedora', 'San Lorenzo 960'),
   ('jaquelin', 'Jaquelín', 'vendedora', 'San Lorenzo 833'),
   ('marianela', 'Marianela', 'vendedora', 'Catamarca 815'),
-  ('ingrid', 'Ingrid', 'vendedora', 'Irigoyen 2031'),
-  ('leandro', 'Leandro', 'vendedora', 'Irigoyen 2031'),
-  ('matias', 'Matías', 'vendedora', 'Irigoyen 2031'),
+  ('ingrid', 'Ingrid', 'vendedora', 'Irigoyen 1933'),
+  ('leandro', 'Leandro', 'vendedora', 'Irigoyen 1933'),
+  ('matias', 'Matías', 'vendedora', 'Irigoyen 1933'),
   ('rocio', 'Rocío', 'vendedora', 'Av. Maipú 231'),
   ('leila', 'Leila', 'vendedora', 'Av. Libertad 5389')
 ) as p(usuario, nombre, rol, sucursal)
