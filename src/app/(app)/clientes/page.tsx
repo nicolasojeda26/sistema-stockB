@@ -1,14 +1,14 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { db } from '@/lib/db'
-import { requerirVendedor } from '@/lib/dal'
+import { requerirPermiso } from '@/lib/dal'
 import { formatoPesos } from '@/lib/formato'
 import { BotonLink, Encabezado, Etiqueta, Input, Select, Tarjeta, Vacio, tablaCls as t } from '@/components/ui'
 
 export const metadata: Metadata = { title: 'Clientes' }
 
 export default async function ClientesPage(props: PageProps<'/clientes'>) {
-  await requerirVendedor()
+  await requerirPermiso('clientes')
   const sp = await props.searchParams
   const q = (typeof sp.q === 'string' ? sp.q : '').trim().slice(0, 60)
   const filtro = typeof sp.filtro === 'string' ? sp.filtro : 'todas'

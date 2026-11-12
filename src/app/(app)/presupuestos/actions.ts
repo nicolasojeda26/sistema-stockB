@@ -3,14 +3,14 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { db } from '@/lib/db'
-import { requerirUsuario } from '@/lib/dal'
+import { requerirVendedor } from '@/lib/dal'
 import { coincide, ordenRelevancia } from '@/lib/busqueda'
 import { calcularVenta } from '@/lib/venta-calculo'
 
 export type ProductoPresupuesto = { id: number; codigo: string; nombre: string; precio: number }
 
 export async function buscarProductosPresupuesto(q: string): Promise<ProductoPresupuesto[]> {
-  await requerirUsuario()
+  await requerirVendedor()
   const texto = String(q ?? '').trim().slice(0, 100)
   if (!texto) return []
   const sql = db()
@@ -34,7 +34,7 @@ const Crear = z.object({
 })
 
 export async function crearPresupuesto(datos: z.input<typeof Crear>): Promise<{ id?: number; error?: string }> {
-  const u = await requerirUsuario()
+  const u = await requerirVendedor()
   const validado = Crear.safeParse(datos)
   if (!validado.success) return { error: 'Revisá los productos, cantidades y descuentos.' }
   const d = validado.data
@@ -81,7 +81,7 @@ export async function crearPresupuesto(datos: z.input<typeof Crear>): Promise<{ 
 }
 
 export async function cambiarEstadoPresupuesto(id: number, estado: 'abierto' | 'aceptado' | 'rechazado' | 'cancelado'): Promise<{ error?: string }> {
-  const u = await requerirUsuario()
+  const u = await requerirVendedor()
   if (!Number.isInteger(id) || id <= 0) return { error: 'El presupuesto no es válido.' }
   const sql = db()
   const [p] = await sql<{ sucursal_id: number; estado: string }[]>`select sucursal_id, estado from presupuestos where id = ${id}`

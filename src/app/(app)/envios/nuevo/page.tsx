@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { db } from '@/lib/db'
-import { requerirUsuario } from '@/lib/dal'
+import { requerirPermiso } from '@/lib/dal'
 import { depositosPara } from '@/lib/depositos'
 import { Encabezado } from '@/components/ui'
 import { FormEnvio } from './form'
@@ -8,7 +8,7 @@ import { FormEnvio } from './form'
 export const metadata: Metadata = { title: 'Armar envío' }
 
 export default async function NuevoEnvioPage(props: PageProps<'/envios/nuevo'>) {
-  const u = await requerirUsuario()
+  const u = await requerirPermiso('envios')
   const pedidoId = Number((await props.searchParams).pedido) || null
   const sql = db()
   const depositos = await depositosPara(u)

@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { db } from '@/lib/db'
-import { requerirAdmin } from '@/lib/dal'
+import { requerirPermiso } from '@/lib/dal'
 import { importarFilas, type ResumenLote } from '@/lib/importar-db'
 
 const Fila = z.object({
@@ -28,7 +28,7 @@ const Lote = z.object({
 })
 
 export async function importarLote(datos: z.input<typeof Lote>): Promise<ResumenLote | { error: string }> {
-  const u = await requerirAdmin()
+  const u = await requerirPermiso('configuracion')
   const r = Lote.safeParse(datos)
   if (!r.success) return { error: 'Los datos del lote no son válidos.' }
   const elegidos = [r.data.depositoId, ...(r.data.depositosStock ?? [])].filter((x): x is number => !!x)

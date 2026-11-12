@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { db } from '@/lib/db'
-import { requerirAdmin, requerirVendedor } from '@/lib/dal'
+import { requerirVendedor, veTodas } from '@/lib/dal'
 import { parseNumero } from '@/lib/numeros'
 import { cajaAbierta, cerrarCaja, ErrorVenta, movimientoCaja } from '@/lib/ventas'
 import type { Resultado } from '@/components/form-accion'
@@ -42,7 +42,8 @@ export async function cerrar(_: Resultado, f: FormData): Promise<Resultado> {
 
 /** La administradora cierra una caja que alguien dejó abierta. */
 export async function cerrarOtra(_: Resultado, f: FormData): Promise<Resultado> {
-  const u = await requerirAdmin()
+  const u = await requerirVendedor()
+  if (!veTodas(u)) return { error: 'Solo quien ve todas las sucursales cierra cajas de otras personas.' }
   const cajaId = Number(f.get('caja_id'))
   const contado = parseNumero(String(f.get('contado') ?? ''))
   if (!Number.isInteger(cajaId)) return { error: 'Falta la caja.' }

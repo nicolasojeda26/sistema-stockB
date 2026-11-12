@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { db } from '@/lib/db'
-import { requerirAdmin } from '@/lib/dal'
+import { requerirPermiso } from '@/lib/dal'
 import { crearVariantes, ordenTalle, separarLista, sincronizarVariantes } from '@/lib/articulos'
 import { mensajeError } from '@/lib/errores'
 import { centavos, parseNumero } from '@/lib/numeros'
@@ -41,7 +41,7 @@ function preciosDe(d: { costo: string; precio: string; stockMinimo: string }, er
 }
 
 export async function crearArticulo(datos: z.input<typeof Nuevo>): Promise<ResultadoArticulo> {
-  const u = await requerirAdmin()
+  const u = await requerirPermiso('productos')
   const r = Nuevo.safeParse(datos)
   if (!r.success) return { error: r.error.issues[0]?.message ?? 'Revisá los datos.' }
   const d = r.data
@@ -87,7 +87,7 @@ const Edicion = z.object({
 })
 
 export async function guardarArticulo(datos: z.input<typeof Edicion>): Promise<ResultadoArticulo> {
-  const u = await requerirAdmin()
+  const u = await requerirPermiso('productos')
   const r = Edicion.safeParse(datos)
   if (!r.success) return { error: r.error.issues[0]?.message ?? 'Revisá los datos.' }
   const d = r.data
@@ -127,7 +127,7 @@ const Agregar = z.object({
 
 /** Agrega talles o colores: crea las combinaciones que falten con el precio y costo más usados del artículo. */
 export async function agregarVariantes(datos: z.input<typeof Agregar>): Promise<ResultadoArticulo> {
-  const u = await requerirAdmin()
+  const u = await requerirPermiso('productos')
   const r = Agregar.safeParse(datos)
   if (!r.success) return { error: 'Revisá los modelos y colores.' }
   const { id } = r.data

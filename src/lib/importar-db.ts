@@ -95,9 +95,17 @@ export async function importarFilas(
     const permitidos = [...creados.map((r) => r.id), ...actualizados.map((r) => r.id)]
     const cargas: { dep: number; valor: ReturnType<typeof tx> }[] = []
     if (depositoId) cargas.push({ dep: depositoId, valor: tx`d.stock` })
+    // Si varias columnas van al mismo depósito (ej. DEPOT 815 y CAMPUS, que son el mismo lugar), se suman.
+    const columnasPorDeposito = new Map<number, number[]>()
     depositosStock.forEach((dep, j) => {
-      if (dep) cargas.push({ dep, valor: tx`(d.stocks->>(${j}::int))::numeric::int` })
+      if (dep) columnasPorDeposito.set(dep, [...(columnasPorDeposito.get(dep) ?? []), j])
     })
+    for (const [dep, cols] of columnasPorDeposito) {
+      const celda = (j: number) => tx`(d.stocks->>(${j}::int))::numeric::int`
+      const alguna = cols.slice(1).reduce((acc, j) => tx`${acc} or ${celda(j)} is not null`, tx`${celda(cols[0])} is not null`)
+      const suma = cols.slice(1).reduce((acc, j) => tx`${acc} + coalesce(${celda(j)}, 0)`, tx`coalesce(${celda(cols[0])}, 0)`)
+      cargas.push({ dep, valor: tx`(case when ${alguna} then ${suma} end)` })
+    }
     const conStock = new Set<number>()
     for (const { dep, valor } of cargas) {
       const movs = await tx<{ producto_id: number }[]>`

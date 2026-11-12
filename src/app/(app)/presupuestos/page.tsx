@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { db } from '@/lib/db'
-import { requerirUsuario } from '@/lib/dal'
+import { requerirVendedor } from '@/lib/dal'
 import { formatoDia, formatoFecha, formatoPesos, hoyAR } from '@/lib/formato'
 import { BotonLink, Encabezado, Etiqueta, Select, Tarjeta, Vacio, tablaCls as t } from '@/components/ui'
 
@@ -15,7 +15,7 @@ const ESTADOS = {
 } as const
 
 export default async function PresupuestosPage(props: PageProps<'/presupuestos'>) {
-  const u = await requerirUsuario()
+  const u = await requerirVendedor()
   const sp = await props.searchParams
   const estado = typeof sp.estado === 'string' && sp.estado in ESTADOS ? sp.estado : 'todos'
   const sucursalId = u.rol === 'admin' ? Number(sp.sucursal) || null : u.sucursal_id

@@ -4,25 +4,49 @@ import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { db } from './db'
 import { COOKIE_SESION, leerSesion } from './sesion'
+import { permisosDeRol, tienePermiso, type Base, type Permiso } from './permisos'
 
 export type Usuario = {
   id: number
   usuario: string
   nombre: string
-  rol: 'admin' | 'vendedora' | 'deposito'
+  /** Dónde trabaja: admin = todas las sucursales, vendedora = un local u online, deposito = el depósito. */
+  rol: Base
+  rol_id: number
+  rol_nombre: string
+  permisos: Permiso[]
   sucursal_id: number | null
   sucursal_nombre: string | null
   /** Tipo de punto donde trabaja (local, online o depósito). */
   sucursal_tipo: 'local' | 'online' | 'deposito' | null
 }
 
-/** Usuario logueado, verificado contra la base en cada pedido. */
+/** Usuario logueado, verificado contra la base en cada pedido (así un cambio de permisos rige al instante). */
 export const usuarioActual = cache(async (): Promise<Usuario | null> => {
   const sesion = await leerSesion((await cookies()).get(COOKIE_SESION)?.value)
   if (!sesion) return null
-  const [u] = await db()<(Usuario & { activo: boolean; version_sesion: number })[]>`
-    select u.id, u.usuario, u.nombre, u.rol, u.sucursal_id, s.nombre as sucursal_nombre, s.tipo as sucursal_tipo, u.activo, u.version_sesion
-    from usuarios u left join sucursales s on s.id = u.sucursal_id
+  const [u] = await db()<
+    {
+      id: number
+      usuario: string
+      nombre: string
+      rol: Base
+      rol_id: number
+      rol_nombre: string
+      rol_sistema: boolean
+      rol_permisos: string[]
+      sucursal_id: number | null
+      sucursal_nombre: string | null
+      sucursal_tipo: Usuario['sucursal_tipo']
+      activo: boolean
+      version_sesion: number
+    }[]
+  >`
+    select u.id, u.usuario, u.nombre, r.base as rol, r.id as rol_id, r.nombre as rol_nombre, r.sistema as rol_sistema,
+      r.permisos as rol_permisos, u.sucursal_id, s.nombre as sucursal_nombre, s.tipo as sucursal_tipo, u.activo, u.version_sesion
+    from usuarios u
+    join roles r on r.id = u.rol_id
+    left join sucursales s on s.id = u.sucursal_id
     where u.id = ${sesion.uid}`
   if (!u || !u.activo || u.version_sesion !== sesion.v) return null
   return {
@@ -30,6 +54,9 @@ export const usuarioActual = cache(async (): Promise<Usuario | null> => {
     usuario: u.usuario,
     nombre: u.nombre,
     rol: u.rol,
+    rol_id: u.rol_id,
+    rol_nombre: u.rol_nombre,
+    permisos: permisosDeRol({ base: u.rol, sistema: u.rol_sistema, permisos: u.rol_permisos }),
     sucursal_id: u.sucursal_id,
     sucursal_nombre: u.sucursal_nombre,
     sucursal_tipo: u.sucursal_tipo,
@@ -42,18 +69,27 @@ export async function requerirUsuario(): Promise<Usuario> {
   return u
 }
 
-export async function requerirAdmin(): Promise<Usuario> {
+/** Corta si la persona no tiene el permiso (la manda al inicio). */
+export async function requerirPermiso(p: Permiso): Promise<Usuario> {
   const u = await requerirUsuario()
-  if (u.rol !== 'admin') redirect('/')
+  if (!tienePermiso(u, p)) redirect('/')
   return u
 }
 
-/** Puede vender y manejar caja: la administradora y quienes atienden un local o las ventas online. */
-export const puedeVender = (u: Usuario) => u.rol !== 'deposito'
-
-/** Para pantallas de venta: el encargado de depósito no vende. */
-export async function requerirVendedor(): Promise<Usuario> {
+/** Corta si no tiene ninguno de esos permisos. */
+export async function requerirAlguno(...ps: Permiso[]): Promise<Usuario> {
   const u = await requerirUsuario()
-  if (!puedeVender(u)) redirect('/')
+  if (!ps.some((p) => tienePermiso(u, p))) redirect('/')
   return u
 }
+
+export const puede = tienePermiso
+
+/** Trabaja en todas las sucursales (ve los datos de todas). */
+export const veTodas = (u: Pick<Usuario, 'rol'>) => u.rol === 'admin'
+
+/** Puede vender y manejar caja. */
+export const puedeVender = (u: Usuario) => tienePermiso(u, 'vender')
+
+/** Para pantallas de venta. */
+export const requerirVendedor = () => requerirPermiso('vender')

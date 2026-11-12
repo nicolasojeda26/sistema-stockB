@@ -4,7 +4,7 @@ import { Fragment } from "react";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { coincide } from "@/lib/busqueda";
-import { requerirUsuario } from "@/lib/dal";
+import { puede, requerirUsuario } from "@/lib/dal";
 import { formatoEntero, formatoPesos } from "@/lib/formato";
 import {
   BotonLink,
@@ -104,7 +104,7 @@ export default async function ProductosPage(props: PageProps<"/productos">) {
         titulo="Productos"
         detalle={`${formatoEntero(total)} producto${total === 1 ? "" : "s"}${u.rol !== "admin" ? `, con el stock de ${u.sucursal_nombre}` : ", con el stock de todas las sucursales"}`}
         acciones={
-          u.rol === "admin" && (
+          puede(u, "productos") && (
             <>
               <a
                 href={`/productos/exportar?${new URLSearchParams({ ...(q ? { q } : {}), ...(categoria ? { categoria: String(categoria) } : {}), estado })}`}
@@ -169,7 +169,7 @@ export default async function ProductosPage(props: PageProps<"/productos">) {
           ) : (
             <Vacio
               accion={
-                u.rol === "admin" && (
+                puede(u, "productos") && (
                   <>
                     <BotonLink href="/importar">Importar desde Dux</BotonLink>
                     <BotonLink variante="secundario" href="/productos/nuevo">

@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { db } from '@/lib/db'
-import { requerirUsuario } from '@/lib/dal'
+import { puede, requerirUsuario } from '@/lib/dal'
 import { formatoEntero, formatoFecha, formatoPesos } from '@/lib/formato'
 import { Aviso, BotonLink, Encabezado, Etiqueta, Tarjeta, TituloTarjeta, Vacio, tablaCls as t } from '@/components/ui'
 import { FormProducto, type ProductoForm } from '../form-producto'
@@ -45,8 +45,8 @@ export default async function ProductoPage(props: PageProps<'/productos/[id]'>) 
       select m.id, m.creado, m.tipo, m.cantidad, m.motivo, d.nombre as deposito, us.nombre as usuario
       from movimientos_stock m join depositos d on d.id = m.deposito_id left join usuarios us on us.id = m.usuario_id
       where m.producto_id = ${id} order by m.creado desc, m.id desc limit 20`,
-    u.rol === 'admin' ? sql<{ id: number; nombre: string }[]>`select id, nombre from categorias where activa or id = ${producto.categoria_id} order by lower(nombre)` : [],
-    u.rol === 'admin'
+    puede(u, 'productos') ? sql<{ id: number; nombre: string }[]>`select id, nombre from categorias where activa or id = ${producto.categoria_id} order by lower(nombre)` : [],
+    puede(u, 'productos')
       ? sql<{ id: number; creado: Date; precio_anterior: number; precio_nuevo: number; origen: string | null; usuario: string | null }[]>`
           select c.id, c.creado, c.precio_anterior, c.precio_nuevo, c.origen, us.nombre as usuario
           from cambios_precio c left join usuarios us on us.id = c.usuario_id
@@ -93,7 +93,7 @@ export default async function ProductoPage(props: PageProps<'/productos/[id]'>) 
 
       <div className="grid gap-5 lg:grid-cols-[1fr_340px]">
         <div className="min-w-0 space-y-5">
-          {u.rol === 'admin' ? (
+          {puede(u, 'productos') ? (
             <Tarjeta>
               <TituloTarjeta>Datos del producto</TituloTarjeta>
               <FormProducto producto={producto} categorias={categorias} />

@@ -7,7 +7,7 @@ export { totalesCompra, MEDIOS_PROVEEDOR, TIPOS_COMPROBANTE, type MedioProveedor
 
 export class ErrorCompra extends Error {}
 
-type Quien = { id: number; rol: 'admin' | 'vendedora' | 'deposito' }
+type Quien = { id: number; rol: 'admin' | 'vendedora' | 'deposito'; permisos?: readonly string[] }
 type Tx = Sql | TransactionSql
 
 export async function saldoProveedor(sql: Tx, proveedorId: number): Promise<number> {
@@ -45,7 +45,7 @@ export type DatosCompra = {
 }
 
 export async function registrarCompra(sql: Sql, d: DatosCompra) {
-  if (d.usuario.rol !== 'admin') throw new ErrorCompra('Solo la administradora carga compras.')
+  if (!puedeEn(d.usuario, 'compras')) throw new ErrorCompra('No tenés permiso para cargar compras.')
   if (!d.items.length) throw new ErrorCompra('Agregá los productos de la factura.')
   for (const it of d.items) {
     if (!Number.isInteger(it.cantidad) || it.cantidad <= 0) throw new ErrorCompra('Hay una cantidad no válida.')
@@ -120,7 +120,7 @@ async function pagoTx(
 }
 
 export async function registrarPagoProveedor(sql: Sql, d: PagoInicial & { proveedorId: number; usuario: Quien; nota?: string | null }) {
-  if (d.usuario.rol !== 'admin') throw new ErrorCompra('Solo la administradora registra pagos a proveedores.')
+  if (!puedeEn(d.usuario, 'compras')) throw new ErrorCompra('No tenés permiso para registrar pagos a proveedores.')
   return sql.begin(async (tx) => {
     const [p] = await tx<{ nombre: string }[]>`select nombre from proveedores where id = ${d.proveedorId} for update`
     if (!p) throw new ErrorCompra('El proveedor no existe.')
@@ -131,7 +131,7 @@ export async function registrarPagoProveedor(sql: Sql, d: PagoInicial & { provee
 
 /** Nota de crédito o ajuste manual de la cuenta del proveedor. Positivo = le debemos más. */
 export async function ajustarCuentaProveedor(sql: Sql, d: { proveedorId: number; usuario: Quien; monto: number; tipo: 'nota_credito' | 'ajuste'; nota: string }) {
-  if (d.usuario.rol !== 'admin') throw new ErrorCompra('Solo la administradora ajusta cuentas.')
+  if (!puedeEn(d.usuario, 'compras')) throw new ErrorCompra('No tenés permiso para ajustar cuentas de proveedores.')
   if (!aCentavos(d.monto)) throw new ErrorCompra('Poné un monto distinto de cero.')
   if (!d.nota.trim()) throw new ErrorCompra('Contá el motivo.')
   const monto = d.tipo === 'nota_credito' ? -Math.abs(d.monto) : d.monto
@@ -142,7 +142,7 @@ export async function ajustarCuentaProveedor(sql: Sql, d: { proveedorId: number;
 
 /** Anula la compra: saca del stock lo que había entrado y descuenta la deuda. Los pagos quedan como saldo a favor. */
 export async function anularCompra(sql: Sql, d: { compraId: number; usuario: Quien; motivo: string }) {
-  if (d.usuario.rol !== 'admin') throw new ErrorCompra('Solo la administradora anula compras.')
+  if (!puedeEn(d.usuario, 'compras')) throw new ErrorCompra('No tenés permiso para anular compras.')
   if (!d.motivo.trim()) throw new ErrorCompra('Contá por qué se anula.')
   return sql.begin(async (tx) => {
     const [c] = await tx<{ id: number; estado: string; deposito_id: number; proveedor_id: number; total: number }[]>`
@@ -170,6 +170,7 @@ export async function anularCompra(sql: Sql, d: { compraId: number; usuario: Qui
 // ── Gastos ──────────────────────────────────────────────────────────────
 
 import type { MedioGasto } from './compras-tipos'
+import { puedeEn } from './permisos'
 export type { MedioGasto }
 
 export async function registrarGasto(
@@ -191,11 +192,11 @@ export async function registrarGasto(
   if (!/^\d{4}-\d{2}-\d{2}$/.test(d.fecha)) throw new ErrorCompra('La fecha no es válida.')
   if (d.desdeCaja && d.medio !== 'efectivo') throw new ErrorCompra('De la caja solo sale efectivo.')
   // La vendedora solo carga gastos de su local, pagados con la caja.
-  if (d.usuario.rol !== 'admin') {
+  if (!puedeEn(d.usuario, 'gastos')) {
     if (!d.desdeCaja) throw new ErrorCompra('Los gastos que cargás vos salen de tu caja.')
   }
   return sql.begin(async (tx) => {
-    let sucursalId = d.usuario.rol === 'admin' ? d.sucursalId : d.usuario.sucursal_id
+    let sucursalId = puedeEn(d.usuario, 'gastos') ? d.sucursalId : d.usuario.sucursal_id
     let movCaja: number | null = null
     if (d.desdeCaja) {
       const motivo = `Gasto: ${d.categoria.trim()}${d.descripcion?.trim() ? ` (${d.descripcion.trim()})` : ''}`
@@ -214,7 +215,7 @@ export async function registrarGasto(
 
 /** Anula un gasto. Si salió de una caja todavía abierta, la plata vuelve a esa caja. */
 export async function anularGasto(sql: Sql, d: { gastoId: number; usuario: Quien }) {
-  if (d.usuario.rol !== 'admin') throw new ErrorCompra('Solo la administradora anula gastos.')
+  if (!puedeEn(d.usuario, 'gastos')) throw new ErrorCompra('No tenés permiso para anular gastos.')
   return sql.begin(async (tx) => {
     const [g] = await tx<{ anulado: boolean; movimiento_caja_id: number | null; monto: number; categoria: string }[]>`
       select anulado, movimiento_caja_id, monto, categoria from gastos where id = ${d.gastoId} for update`

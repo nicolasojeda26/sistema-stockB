@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { db } from '@/lib/db'
-import { puedeVender, requerirUsuario } from '@/lib/dal'
+import { puede, puedeVender, requerirUsuario } from '@/lib/dal'
 import { formatoEntero, formatoPesos } from '@/lib/formato'
 import { cajaAbierta, resumenCaja } from '@/lib/ventas'
 import { Etiqueta, Tarjeta, TituloTarjeta, Vacio } from '@/components/ui'
@@ -124,12 +124,12 @@ export default async function InicioPage() {
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {vende && <Atajo icono="vender" href="/vender" titulo="Vender" detalle={caja ? `Tu caja está abierta desde las ${hora(caja.abierta)}` : 'Abrir la caja y cobrar'} />}
-        <Atajo icono="ingreso" href="/mercaderia/ingreso" titulo="Ingresar mercadería" detalle="Llegó un pedido" />
-        {u.rol === 'vendedora' ? (
-          <Atajo icono="pedidos" href="/pedidos/nuevo" titulo="Pedir al depósito" detalle="Lo que te falta en la sucursal" />
-        ) : (
+        {puede(u, 'ingreso') && <Atajo icono="ingreso" href="/mercaderia/ingreso" titulo="Ingresar mercadería" detalle="Llegó un pedido" />}
+        {puede(u, 'envios') ? (
           <Atajo icono="pedidos" href="/pedidos" titulo="Pedidos" detalle={pedidosAbiertos ? `${pedidosAbiertos} para preparar` : 'Sin pedidos pendientes'} />
-        )}
+        ) : puede(u, 'pedidos') ? (
+          <Atajo icono="pedidos" href="/pedidos/nuevo" titulo="Pedir al depósito" detalle="Lo que te falta en la sucursal" />
+        ) : null}
         <Atajo icono="envios" href="/envios" titulo="Envíos" detalle={porRecibir ? `${porRecibir} en camino para recibir` : 'Armar o recibir mercadería'} />
         <Atajo icono="etiquetas" href="/etiquetas" titulo="Imprimir etiquetas" detalle="Código de barras y precio" />
       </div>
@@ -228,7 +228,7 @@ export default async function InicioPage() {
         </Tarjeta>
       )}
 
-      {esAdmin && pasos.some((p) => !p.hecho) && (
+      {puede(u, 'configuracion') && pasos.some((p) => !p.hecho) && (
         <Tarjeta className="mt-5 p-5">
           <h2 className="font-semibold">Para empezar</h2>
           <ol className="mt-3 space-y-2">

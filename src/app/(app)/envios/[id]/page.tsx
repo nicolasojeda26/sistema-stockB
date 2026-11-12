@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { db } from '@/lib/db'
-import { requerirUsuario } from '@/lib/dal'
+import { puede, requerirUsuario } from '@/lib/dal'
 import { formatoFecha } from '@/lib/formato'
 import { Aviso, Encabezado, Etiqueta, Tarjeta, TituloTarjeta, tablaCls as t } from '@/components/ui'
 import { ESTADOS_ENVIO, type EstadoEnvio } from '../estados'
@@ -82,7 +82,7 @@ export default async function EnvioPage(props: PageProps<'/envios/[id]'>) {
         {e.nota && <Aviso tipo="info">Nota del envío: {e.nota}</Aviso>}
         {e.estado === 'con_diferencias' && !e.resuelto_en && (
           <Aviso tipo="error">
-            Llegó distinto de lo que se mandó. {u.rol === 'admin' ? 'Revisá las diferencias y decidí qué pasó.' : 'La administración ya está avisada.'}
+            Llegó distinto de lo que se mandó. {puede(u, 'diferencias') ? 'Revisá las diferencias y decidí qué pasó.' : 'La administración ya está avisada.'}
           </Aviso>
         )}
         {e.resuelto_en && <Aviso tipo="info">Diferencias resueltas el {formatoFecha(e.resuelto_en)}: {e.resolucion}</Aviso>}
@@ -132,7 +132,7 @@ export default async function EnvioPage(props: PageProps<'/envios/[id]'>) {
       )}
 
       <div className="mt-5 flex flex-wrap gap-4">
-        {u.rol === 'admin' && e.estado === 'con_diferencias' && !e.resuelto_en && <Resolver envioId={e.id} />}
+        {puede(u, 'diferencias') && e.estado === 'con_diferencias' && !e.resuelto_en && <Resolver envioId={e.id} />}
         {puedeCancelar && <CancelarEnvio envioId={e.id} />}
       </div>
     </>

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { requerirVendedor } from '@/lib/dal'
+import { puede, requerirVendedor } from '@/lib/dal'
 import { leerVenta } from '@/lib/venta-detalle'
 import { formatoFecha, formatoPesos } from '@/lib/formato'
 import { MEDIOS_VENTA as MEDIOS } from '@/lib/venta-calculo'
@@ -235,7 +235,7 @@ export default async function VentaPage(props: PageProps<'/ventas/[id]'>) {
               <DevolverVenta conCliente={!!v.cliente_id} ventaId={v.id} items={devolvibles.filter((i) => i.cantidad > i.devuelto)} facturada={!!factura} />
             </Tarjeta>
           )}
-          {u.rol === 'admin' && v.estado === 'completada' && devoluciones.length === 0 && (
+          {puede(u, 'anular_ventas') && v.estado === 'completada' && devoluciones.length === 0 && (
             <Tarjeta>
               <TituloTarjeta>Anular venta</TituloTarjeta>
               <AnularVenta ventaId={v.id} />

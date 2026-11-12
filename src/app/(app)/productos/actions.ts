@@ -3,14 +3,14 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { db } from '@/lib/db'
-import { requerirAdmin } from '@/lib/dal'
+import { requerirPermiso } from '@/lib/dal'
 import { entero, marcado, mensajeError, texto } from '@/lib/errores'
 import { centavos, parseNumero } from '@/lib/numeros'
 import { nombreVariante, ordenTalle } from '@/lib/articulos'
 import type { Resultado } from '@/components/form-accion'
 
 export async function guardarProducto(_: Resultado, f: FormData): Promise<Resultado> {
-  const u = await requerirAdmin()
+  const u = await requerirPermiso('productos')
   const id = entero(f, 'id')
   const codigo = texto(f, 'codigo')
   let nombre = texto(f, 'nombre')

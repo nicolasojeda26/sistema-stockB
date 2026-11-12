@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { db } from '@/lib/db'
-import { requerirAdmin } from '@/lib/dal'
+import { requerirPermiso } from '@/lib/dal'
 import { entero, marcado, mensajeError, texto } from '@/lib/errores'
 import { centavos, parseNumero } from '@/lib/numeros'
 import { ajustarCuentaProveedor, ErrorCompra, MEDIOS_PROVEEDOR, registrarPagoProveedor, type MedioProveedor } from '@/lib/compras'
@@ -14,7 +14,7 @@ export type ProveedorCorto = { id: number; nombre: string; cuit: string | null }
 const cuitValido = (c: string) => c.length === 11
 
 export async function guardarProveedor(_: Resultado, f: FormData): Promise<Resultado> {
-  await requerirAdmin()
+  await requerirPermiso('compras')
   const id = entero(f, 'id')
   const nombre = texto(f, 'nombre').replace(/\s+/g, ' ').slice(0, 120)
   const cuit = texto(f, 'cuit').replace(/\D/g, '') || null
@@ -50,7 +50,7 @@ export async function guardarProveedor(_: Resultado, f: FormData): Promise<Resul
 
 /** Alta rápida desde la carga de una compra. */
 export async function crearProveedorRapido(nombre: string, cuit: string): Promise<{ proveedor?: ProveedorCorto; error?: string }> {
-  await requerirAdmin()
+  await requerirPermiso('compras')
   const n = String(nombre ?? '').trim().replace(/\s+/g, ' ').slice(0, 120)
   const c = String(cuit ?? '').replace(/\D/g, '') || null
   if (n.length < 2) return { error: 'Poné el nombre del proveedor.' }
@@ -65,7 +65,7 @@ export async function crearProveedorRapido(nombre: string, cuit: string): Promis
 }
 
 export async function pagarProveedor(_: Resultado, f: FormData): Promise<Resultado> {
-  const u = await requerirAdmin()
+  const u = await requerirPermiso('compras')
   const proveedorId = entero(f, 'proveedor_id')
   const monto = parseNumero(texto(f, 'monto'))
   const medio = texto(f, 'medio') as MedioProveedor
@@ -75,7 +75,7 @@ export async function pagarProveedor(_: Resultado, f: FormData): Promise<Resulta
   try {
     const r = await registrarPagoProveedor(db(), {
       proveedorId,
-      usuario: { id: u.id, rol: u.rol },
+      usuario: { id: u.id, rol: u.rol, permisos: u.permisos },
       monto: centavos(monto),
       medio,
       desdeCaja: medio === 'efectivo' && marcado(f, 'desde_caja'),
@@ -92,7 +92,7 @@ export async function pagarProveedor(_: Resultado, f: FormData): Promise<Resulta
 }
 
 export async function ajustarProveedor(_: Resultado, f: FormData): Promise<Resultado> {
-  const u = await requerirAdmin()
+  const u = await requerirPermiso('compras')
   const proveedorId = entero(f, 'proveedor_id')
   const monto = parseNumero(texto(f, 'monto'))
   const tipo = texto(f, 'tipo')
@@ -100,7 +100,7 @@ export async function ajustarProveedor(_: Resultado, f: FormData): Promise<Resul
   try {
     await ajustarCuentaProveedor(db(), {
       proveedorId,
-      usuario: { id: u.id, rol: u.rol },
+      usuario: { id: u.id, rol: u.rol, permisos: u.permisos },
       tipo: tipo === 'nota_credito' ? 'nota_credito' : 'ajuste',
       // Ajuste: "deuda" suma a lo que le debemos; "favor" resta.
       monto: tipo === 'favor' ? -centavos(monto) : centavos(monto),

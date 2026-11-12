@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { db } from '@/lib/db'
-import { requerirUsuario } from '@/lib/dal'
+import { puede, requerirAlguno } from '@/lib/dal'
 import { formatoFecha } from '@/lib/formato'
 import { Aviso, BotonLink, Encabezado, Etiqueta, Tarjeta, Vacio } from '@/components/ui'
 import { CancelarPedido } from './cancelar'
@@ -16,7 +16,7 @@ const ESTADOS = {
 } as const
 
 export default async function PedidosPage(props: PageProps<'/pedidos'>) {
-  const u = await requerirUsuario()
+  const u = await requerirAlguno('pedidos', 'envios')
   const sp = await props.searchParams
   const nuevo = Number(sp.nuevo) || null
   const verTodos = sp.ver === 'todos'
@@ -40,7 +40,7 @@ export default async function PedidosPage(props: PageProps<'/pedidos'>) {
       and ${verTodos ? sql`true` : sql`(p.estado in ('pendiente', 'parcial') or p.creado > now() - interval '7 days')`}
     order by (p.estado in ('pendiente', 'parcial')) desc, p.creado ${u.rol === 'vendedora' ? sql`desc` : sql`asc`}
     limit 200`
-  const atiende = u.rol === 'admin' || u.rol === 'deposito'
+  const atiende = puede(u, 'envios')
   const pendientes = pedidos.filter((p) => p.estado === 'pendiente' || p.estado === 'parcial').length
 
   return (
@@ -54,7 +54,7 @@ export default async function PedidosPage(props: PageProps<'/pedidos'>) {
               : 'No hay pedidos para preparar.'
             : 'Lo que le pediste al depósito. Cuando te lo mandan, lo recibís en Envíos.'
         }
-        acciones={u.rol !== 'deposito' ? <BotonLink href="/pedidos/nuevo">Nuevo pedido</BotonLink> : undefined}
+        acciones={puede(u, 'pedidos') && u.rol !== 'deposito' ? <BotonLink href="/pedidos/nuevo">Nuevo pedido</BotonLink> : undefined}
       />
       {nuevo && (
         <div className="mb-4">
@@ -63,7 +63,7 @@ export default async function PedidosPage(props: PageProps<'/pedidos'>) {
       )}
       {pedidos.length === 0 ? (
         <Tarjeta>
-          <Vacio accion={u.rol !== 'deposito' ? <BotonLink href="/pedidos/nuevo">Hacer un pedido</BotonLink> : undefined}>No hay pedidos.</Vacio>
+          <Vacio accion={puede(u, 'pedidos') && u.rol !== 'deposito' ? <BotonLink href="/pedidos/nuevo">Hacer un pedido</BotonLink> : undefined}>No hay pedidos.</Vacio>
         </Tarjeta>
       ) : (
         <div className="space-y-4">

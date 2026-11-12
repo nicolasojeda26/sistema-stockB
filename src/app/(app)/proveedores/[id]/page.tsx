@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { db } from '@/lib/db'
-import { requerirAdmin } from '@/lib/dal'
+import { requerirPermiso } from '@/lib/dal'
 import { cajaAbierta } from '@/lib/ventas'
 import { formatoDia, formatoPesos } from '@/lib/formato'
 import { MEDIOS_PROVEEDOR, TIPOS_COMPROBANTE, type MedioProveedor, type TipoComprobante } from '@/lib/compras'
@@ -21,7 +21,7 @@ const TIPOS: Record<string, string> = {
 }
 
 export default async function ProveedorPage(props: PageProps<'/proveedores/[id]'>) {
-  const u = await requerirAdmin()
+  const u = await requerirPermiso('compras')
   const id = Number((await props.params).id)
   if (!Number.isInteger(id)) notFound()
   const sql = db()

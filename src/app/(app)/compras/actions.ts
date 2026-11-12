@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { db } from '@/lib/db'
-import { requerirAdmin } from '@/lib/dal'
+import { requerirPermiso } from '@/lib/dal'
 import { anularCompra, ErrorCompra, registrarCompra } from '@/lib/compras'
 import { ErrorStock } from '@/lib/stock'
 import { centavos } from '@/lib/numeros'
@@ -29,14 +29,14 @@ const Compra = z.object({
 })
 
 export async function confirmarCompra(datos: z.input<typeof Compra>): Promise<{ compraId?: number; operacionId?: number; error?: string }> {
-  const u = await requerirAdmin()
+  const u = await requerirPermiso('compras')
   const r = Compra.safeParse(datos)
   if (!r.success) return { error: 'Revisá las cantidades y los costos de la lista.' }
   const d = r.data
   try {
     const c = await registrarCompra(db(), {
       ...d,
-      usuario: { id: u.id, rol: u.rol },
+      usuario: { id: u.id, rol: u.rol, permisos: u.permisos },
       items: d.items.map((i) => ({ ...i, costo: centavos(i.costo) })),
       percepciones: centavos(d.percepciones),
       pago: d.pago ? { ...d.pago, monto: centavos(d.pago.monto) } : null,
@@ -56,9 +56,9 @@ export async function confirmarCompra(datos: z.input<typeof Compra>): Promise<{ 
 }
 
 export async function anular(compraId: number, motivo: string): Promise<{ error?: string }> {
-  const u = await requerirAdmin()
+  const u = await requerirPermiso('compras')
   try {
-    await anularCompra(db(), { compraId, usuario: { id: u.id, rol: u.rol }, motivo: String(motivo ?? '').slice(0, 200) })
+    await anularCompra(db(), { compraId, usuario: { id: u.id, rol: u.rol, permisos: u.permisos }, motivo: String(motivo ?? '').slice(0, 200) })
   } catch (e) {
     if (e instanceof ErrorCompra || e instanceof ErrorStock) return { error: e.message }
     throw e

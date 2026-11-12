@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { db } from '@/lib/db'
-import { requerirUsuario } from '@/lib/dal'
+import { puede, requerirUsuario } from '@/lib/dal'
 import { formatoEntero, formatoFecha } from '@/lib/formato'
 import { BotonLink, Encabezado, Etiqueta, Input, Select, Tarjeta, Vacio, tablaCls as t } from '@/components/ui'
 
@@ -77,11 +77,13 @@ export default async function MovimientosPage(props: PageProps<'/mercaderia'>) {
         detalle={u.rol === 'admin' ? 'Ingresos, transferencias y ajustes de todas las sucursales.' : `Ingresos y transferencias de ${u.sucursal_nombre}.`}
         acciones={
           <>
-            <BotonLink href="/mercaderia/ingreso">Ingreso</BotonLink>
-            <BotonLink href="/mercaderia/transferencia" variante="secundario">
-              Transferencia
-            </BotonLink>
-            {u.rol === 'admin' && (
+            {puede(u, 'ingreso') && <BotonLink href="/mercaderia/ingreso">Ingreso</BotonLink>}
+            {puede(u, 'transferencias') && (
+              <BotonLink href="/mercaderia/transferencia" variante="secundario">
+                Transferencia
+              </BotonLink>
+            )}
+            {puede(u, 'ajustes_stock') && (
               <BotonLink href="/mercaderia/ajuste" variante="secundario">
                 Ajuste
               </BotonLink>

@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { db } from '@/lib/db'
-import { requerirUsuario } from '@/lib/dal'
+import { puede, requerirUsuario } from '@/lib/dal'
 import { formatoEntero, formatoPesos } from '@/lib/formato'
 import { Aviso, BotonLink, Encabezado, Etiqueta, Tarjeta, TituloTarjeta, tablaCls as t } from '@/components/ui'
 import { EditarArticulo } from './editar'
@@ -46,7 +46,7 @@ export default async function ArticuloPage(props: PageProps<'/articulos/[id]'>) 
       from stock s join productos p on p.id = s.producto_id join depositos d on d.id = s.deposito_id
       where p.articulo_id = ${id} ${sucursalId ? sql`and d.sucursal_id = ${sucursalId}` : sql``}
       group by s.producto_id`,
-    u.rol === 'admin' ? sql<{ id: number; nombre: string }[]>`select id, nombre from categorias where activa or id = ${articulo.categoria_id} order by lower(nombre)` : [],
+    puede(u, 'productos') ? sql<{ id: number; nombre: string }[]>`select id, nombre from categorias where activa or id = ${articulo.categoria_id} order by lower(nombre)` : [],
   ])
   const stockDe = new Map(stocks.map((s) => [s.producto_id, s.cantidad]))
   const talles = [...new Map(variantes.map((v) => [String(v.talle ?? ''), v])).values()].sort((a, b) => a.orden_talle - b.orden_talle).map((v) => v.talle)
@@ -188,7 +188,7 @@ export default async function ArticuloPage(props: PageProps<'/articulos/[id]'>) 
             </table>
           </div>
         </Tarjeta>
-        {u.rol === 'admin' && (
+        {puede(u, 'productos') && (
           <div className="min-w-0">
             <EditarArticulo
               articulo={{ ...articulo, marca: articulo.marca ?? '' }}

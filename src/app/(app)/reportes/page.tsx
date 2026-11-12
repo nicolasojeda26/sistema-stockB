@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { db } from '@/lib/db'
-import { requerirAdmin } from '@/lib/dal'
+import { requerirPermiso } from '@/lib/dal'
 import { formatoEntero, formatoFecha, formatoPesos } from '@/lib/formato'
 import { MEDIOS_VENTA, type MedioVenta } from '@/lib/venta-calculo'
 import { fechaValida, hoyAR, inicioDeMes, masVendidos, porDia, porMedio, porSucursal, porVendedora, resumen, sinMovimiento, valorStock } from '@/lib/reportes'
@@ -11,7 +11,7 @@ import { GraficoDias } from './grafico'
 export const metadata: Metadata = { title: 'Reportes' }
 
 export default async function ReportesPage(props: PageProps<'/reportes'>) {
-  await requerirAdmin()
+  await requerirPermiso('reportes')
   const sp = await props.searchParams
   const desde = fechaValida(sp.desde) || inicioDeMes()
   const hasta = fechaValida(sp.hasta) || hoyAR()

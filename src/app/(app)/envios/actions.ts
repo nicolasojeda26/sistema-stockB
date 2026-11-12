@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { db } from '@/lib/db'
-import { requerirAdmin, requerirUsuario } from '@/lib/dal'
+import { requerirPermiso, requerirUsuario } from '@/lib/dal'
 import { cancelarEnvio, crearEnvio, ErrorEnvio, recibirEnvio, resolverDiferencias } from '@/lib/envios'
 
 const Items = z.array(z.object({ productoId: z.number().int(), cantidad: z.number().int().min(0).max(100000) })).max(500)
@@ -32,7 +32,7 @@ export async function nuevoEnvio(d: {
   pedidoId: number | null
   cerrarPedido: boolean
 }): Promise<{ envioId?: number; error?: string }> {
-  const u = await requerirUsuario()
+  const u = await requerirPermiso('envios')
   const items = Items.safeParse(d.items)
   if (!items.success || !items.data.some((i) => i.cantidad > 0)) return { error: 'Revisá las cantidades.' }
   const r = await intentar(() =>
@@ -60,7 +60,7 @@ export async function recibir(envioId: number, contados: z.input<typeof Items>, 
 }
 
 export async function resolver(envioId: number, accion: 'perdida' | 'devolver', nota: string): Promise<{ error?: string }> {
-  const u = await requerirAdmin()
+  const u = await requerirPermiso('diferencias')
   const r = await intentar(() => resolverDiferencias(db(), { usuario: u, envioId, accion: accion === 'devolver' ? 'devolver' : 'perdida', nota }))
   refrescar(envioId)
   return r ?? {}

@@ -1,5 +1,6 @@
 import type { Sql, TransactionSql } from 'postgres'
 import { ErrorStock, registrarOperacionTx } from './stock'
+import { puedeEn } from './permisos'
 
 /**
  * Pedidos y envíos entre el depósito y las sucursales.
@@ -11,7 +12,7 @@ import { ErrorStock, registrarOperacionTx } from './stock'
 
 export class ErrorEnvio extends Error {}
 
-type Quien = { id: number; rol: 'admin' | 'vendedora' | 'deposito'; sucursal_id: number | null }
+type Quien = { id: number; rol: 'admin' | 'vendedora' | 'deposito'; sucursal_id: number | null; permisos?: readonly string[] }
 type Tx = Sql | TransactionSql
 type Item = { productoId: number; cantidad: number }
 
@@ -43,7 +44,7 @@ async function sucursalDe(sql: Tx, depositoId: number) {
 export async function crearPedido(sql: Sql, d: { usuario: Quien; items: Item[]; nota?: string | null; sucursalId?: number | null }) {
   const sucursalId = d.usuario.rol === 'admin' ? (d.sucursalId ?? d.usuario.sucursal_id) : d.usuario.sucursal_id
   if (!sucursalId) throw new ErrorEnvio('Elegí para qué sucursal es el pedido.')
-  if (d.usuario.rol === 'deposito') throw new ErrorEnvio('Los pedidos los hacen las sucursales.')
+  if (d.usuario.rol === 'deposito' || !puedeEn(d.usuario, 'pedidos')) throw new ErrorEnvio('Los pedidos los hacen las sucursales.')
   const items = unificar(d.items)
   return sql.begin(async (tx) => {
     const [dep] = await tx<{ id: number; tipo: string }[]>`
@@ -174,7 +175,7 @@ export async function recibirEnvio(sql: Sql, d: { usuario: Quien; envioId: numbe
  * - 'devolver': lo que faltó vuelve al stock del origen (no se llegó a mandar).
  */
 export async function resolverDiferencias(sql: Sql, d: { usuario: Quien; envioId: number; accion: 'perdida' | 'devolver'; nota?: string | null }) {
-  if (d.usuario.rol !== 'admin') throw new ErrorEnvio('Las diferencias las resuelve la administración.')
+  if (!puedeEn(d.usuario, 'diferencias')) throw new ErrorEnvio('Las diferencias las resuelve la administración.')
   return sql.begin(async (tx) => {
     const [e] = await tx<{ id: number; origen_id: number; estado: string; resuelto_en: Date | null }[]>`
       select id, origen_id, estado, resuelto_en from envios where id = ${d.envioId} for update`

@@ -2,12 +2,12 @@
 
 import { revalidatePath } from 'next/cache'
 import { db } from '@/lib/db'
-import { requerirAdmin } from '@/lib/dal'
+import { requerirPermiso } from '@/lib/dal'
 import { texto } from '@/lib/errores'
 import type { Resultado } from '@/components/form-accion'
 
 export async function guardarAjustes(_: Resultado, f: FormData): Promise<Resultado> {
-  await requerirAdmin()
+  await requerirPermiso('configuracion')
   const nombre = texto(f, 'nombre_negocio').slice(0, 60)
   const pie = texto(f, 'pie_ticket').slice(0, 200)
   const ancho = texto(f, 'ancho_ticket') === '58' ? '58' : '80'
@@ -32,7 +32,7 @@ const TIPOS_LOGO = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml']
 
 /** Logo y color de marca. */
 export async function guardarMarca(_: Resultado, f: FormData): Promise<Resultado> {
-  await requerirAdmin()
+  await requerirPermiso('configuracion')
   const color = texto(f, 'color_marca').toLowerCase()
   if (color && !/^#[0-9a-f]{6}$/.test(color)) return { error: 'El color no es válido.' }
   const filas: { clave: string; valor: string }[] = [{ clave: 'color_marca', valor: color }]

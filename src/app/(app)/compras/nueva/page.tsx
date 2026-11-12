@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { db } from '@/lib/db'
-import { requerirAdmin } from '@/lib/dal'
+import { requerirPermiso } from '@/lib/dal'
 import { depositosPara } from '@/lib/depositos'
 import { cajaAbierta } from '@/lib/ventas'
 import { hoyAR } from '@/lib/formato'
@@ -10,7 +10,7 @@ import { FormCompra } from './form-compra'
 export const metadata: Metadata = { title: 'Cargar compra' }
 
 export default async function NuevaCompraPage(props: PageProps<'/compras/nueva'>) {
-  const u = await requerirAdmin()
+  const u = await requerirPermiso('compras')
   const proveedor = Number((await props.searchParams).proveedor) || null
   const sql = db()
   const [proveedores, depositos, categorias, caja] = await Promise.all([

@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { db } from '@/lib/db'
-import { requerirAdmin, requerirVendedor } from '@/lib/dal'
+import { requerirPermiso, requerirVendedor } from '@/lib/dal'
 import { anularVenta, ErrorVenta, marcarRetirada, registrarDevolucion } from '@/lib/ventas'
 import { CONSUMIDOR_FINAL, ErrorFactura, facturaDeVenta, facturarVenta, guardarCliente, notaDeCredito, type Receptor } from '@/lib/arca/facturacion'
 import type { Resultado } from '@/components/form-accion'
@@ -24,7 +24,7 @@ async function ventaPermitida(ventaId: number) {
 }
 
 export async function anular(_: Resultado, f: FormData): Promise<Resultado> {
-  const u = await requerirAdmin()
+  const u = await requerirPermiso('anular_ventas')
   const id = Number(f.get('id'))
   const motivo = String(f.get('motivo') ?? '').trim()
   if (!Number.isInteger(id)) return { error: 'Falta la venta.' }
@@ -91,7 +91,7 @@ export async function devolver(datos: {
   }
   let dev
   try {
-    dev = await registrarDevolucion(db(), { ...datos, usuario: { id: u.id, rol: u.rol } })
+    dev = await registrarDevolucion(db(), { ...datos, usuario: { id: u.id, rol: u.rol, permisos: u.permisos } })
   } catch (e) {
     if (e instanceof ErrorVenta) return { error: e.message }
     throw e
@@ -127,7 +127,7 @@ export async function reintentarNotaCredito(devolucionId: number): Promise<{ err
 export async function retirar(ventaId: number): Promise<{ error?: string }> {
   try {
     const u = await ventaPermitida(ventaId)
-    await marcarRetirada(db(), { ventaId, usuario: { id: u.id, rol: u.rol }, sucursalId: u.sucursal_id })
+    await marcarRetirada(db(), { ventaId, usuario: { id: u.id, rol: u.rol, permisos: u.permisos }, sucursalId: u.sucursal_id })
   } catch (e) {
     return { error: (e as Error).message }
   }

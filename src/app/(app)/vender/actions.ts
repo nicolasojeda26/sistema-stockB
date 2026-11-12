@@ -93,7 +93,7 @@ export async function cobrar(datos: z.input<typeof Cobro>): Promise<ResultadoCob
   if (!r.success) return { error: 'Revisá los datos del cobro.' }
   let res
   try {
-    res = await registrarVenta(db(), { ...r.data, usuario: { id: u.id, rol: u.rol } })
+    res = await registrarVenta(db(), { ...r.data, usuario: { id: u.id, rol: u.rol, permisos: u.permisos } })
   } catch (e) {
     if (e instanceof ErrorVenta) return { error: e.message }
     console.error(e)

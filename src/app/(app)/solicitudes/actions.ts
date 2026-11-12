@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { db } from '@/lib/db'
-import { requerirUsuario } from '@/lib/dal'
+import { requerirPermiso, requerirUsuario } from '@/lib/dal'
 
 export async function crearSolicitud(formData: FormData) {
   const u = await requerirUsuario()
@@ -18,7 +18,7 @@ export async function crearSolicitud(formData: FormData) {
 }
 
 export async function actualizarSolicitud(formData: FormData) {
-  await requerirUsuario().then((u) => { if (u.rol !== 'admin') throw new Error('Solo administración puede gestionar solicitudes.') })
+  await requerirPermiso('solicitudes')
   const d = z.object({
     id: z.coerce.number().int().positive(),
     estado: z.enum(['pendiente', 'en_curso', 'resuelta']),

@@ -1,13 +1,13 @@
 import * as XLSX from 'xlsx'
 import { db } from '@/lib/db'
-import { usuarioActual } from '@/lib/dal'
+import { puede, usuarioActual } from '@/lib/dal'
 import { MEDIOS, type MedioPago } from '@/lib/venta-calculo'
 import { fechaValida, hoyAR, inicioDeMes, masVendidos, porDia, porMedio, porSucursal, porVendedora, resumen, sinMovimiento, valorStock } from '@/lib/reportes'
 
 /** Reportes en un Excel con una hoja por tema. */
 export async function GET(req: Request) {
   const u = await usuarioActual()
-  if (!u || u.rol !== 'admin') return new Response('No autorizado', { status: 403 })
+  if (!u || !puede(u, 'reportes')) return new Response('No autorizado', { status: 403 })
   const sp = new URL(req.url).searchParams
   const desde = fechaValida(sp.get('desde')) || inicioDeMes()
   const hasta = fechaValida(sp.get('hasta')) || hoyAR()

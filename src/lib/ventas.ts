@@ -1,10 +1,11 @@
 import type { Sql } from 'postgres'
 import type { TransactionSql } from 'postgres'
 import { aCentavos, aPesos, calcularVenta, descuentoEfectivo, type MedioPago, type MedioVenta } from './venta-calculo'
+import { puedeEn } from './permisos'
 
 export class ErrorVenta extends Error {}
 
-type Quien = { id: number; rol: 'admin' | 'vendedora' | 'deposito' }
+type Quien = { id: number; rol: 'admin' | 'vendedora' | 'deposito'; permisos?: readonly string[] }
 
 // ── Caja ────────────────────────────────────────────────────────────────
 
@@ -142,10 +143,10 @@ async function cargarACuenta(
   if (!c || !c.activo) throw new ErrorVenta('El cliente no existe o está dado de baja.')
   const saldo = await saldoCliente(tx, d.clienteId)
   const nuevo = aCentavos(saldo) + aCentavos(d.monto)
-  if (d.usuario.rol !== 'admin' && nuevo > aCentavos(Number(c.limite_credito)))
+  if (!puedeEn(d.usuario, 'credito') && nuevo > aCentavos(Number(c.limite_credito)))
     throw new ErrorVenta(
       Number(c.limite_credito) > 0
-        ? `${c.nombre} supera su límite de cuenta corriente (${Number(c.limite_credito).toLocaleString('es-AR')}). Lo puede autorizar la administradora.`
+        ? `${c.nombre} supera su límite de cuenta corriente (${Number(c.limite_credito).toLocaleString('es-AR')}). Lo puede autorizar quien maneja los créditos.`
         : `${c.nombre} no tiene saldo a favor suficiente ni cuenta corriente habilitada.`,
     )
   await tx`
@@ -171,7 +172,7 @@ export async function registrarPagoCuenta(sql: Sql, d: { clienteId: number; usua
 
 /** Ajuste manual del saldo (solo administradora): positivo suma deuda, negativo suma a favor. */
 export async function ajustarCuenta(sql: Sql, d: { clienteId: number; usuario: Quien; monto: number; nota: string }) {
-  if (d.usuario.rol !== 'admin') throw new ErrorVenta('Solo la administradora puede ajustar saldos.')
+  if (!puedeEn(d.usuario, 'credito')) throw new ErrorVenta('No tenés permiso para ajustar saldos de clientes.')
   if (!aCentavos(d.monto)) throw new ErrorVenta('Poné un monto distinto de cero.')
   if (!d.nota.trim()) throw new ErrorVenta('Contá el motivo del ajuste.')
   await sql`
@@ -224,7 +225,7 @@ export async function registrarVenta(
     const [dep] = await tx<{ id: number }[]>`select id from depositos where sucursal_id = ${caja.sucursal_id} and es_principal and activo`
     if (!dep) throw new ErrorVenta('La sucursal no tiene depósito principal activo.')
     const [{ descuento_max }] = await tx<{ descuento_max: number }[]>`select descuento_max from usuarios where id = ${d.usuario.id}`
-    const tope = d.usuario.rol === 'admin' ? 100 : Number(descuento_max)
+    const tope = puedeEn(d.usuario, 'descuento_libre') ? 100 : Number(descuento_max)
     if (d.clienteId) {
       const [c] = await tx`select 1 from clientes where id = ${d.clienteId} and activo`
       if (!c) throw new ErrorVenta('El cliente no existe o está dado de baja.')

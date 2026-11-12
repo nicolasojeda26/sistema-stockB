@@ -1,13 +1,13 @@
 import * as XLSX from 'xlsx'
 import { db } from '@/lib/db'
-import { usuarioActual } from '@/lib/dal'
+import { puede, usuarioActual } from '@/lib/dal'
 import { coincide } from '@/lib/busqueda'
 import { hoyAR } from '@/lib/reportes'
 
 /** Productos con su stock por depósito, en Excel (sirve también para hacer un recuento). */
 export async function GET(req: Request) {
   const u = await usuarioActual()
-  if (!u || u.rol !== 'admin') return new Response('No autorizado', { status: 403 })
+  if (!u || !puede(u, 'productos')) return new Response('No autorizado', { status: 403 })
   const sp = new URL(req.url).searchParams
   const q = (sp.get('q') ?? '').trim().slice(0, 100)
   const categoria = Number(sp.get('categoria')) || null

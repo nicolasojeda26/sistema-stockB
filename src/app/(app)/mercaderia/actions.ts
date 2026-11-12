@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { db } from '@/lib/db'
 import { coincide, ordenRelevancia } from '@/lib/busqueda'
-import { requerirUsuario } from '@/lib/dal'
+import { puede, requerirAlguno, requerirUsuario } from '@/lib/dal'
 import { puedeUsarDeposito } from '@/lib/depositos'
 import { mensajeError } from '@/lib/errores'
 import { centavos, parseNumero } from '@/lib/numeros'
@@ -64,7 +64,7 @@ export async function crearProductoRapido(datos: {
   precio: string
   costo: string
 }): Promise<ResultadoAlta> {
-  const u = await requerirUsuario()
+  const u = await requerirAlguno('ingreso', 'productos')
   const codigo = String(datos.codigo ?? '').trim()
   const nombre = String(datos.nombre ?? '').trim().replace(/\s+/g, ' ')
   const precio = parseNumero(datos.precio)
@@ -109,7 +109,10 @@ export async function confirmarOperacion(datos: z.input<typeof Operacion>): Prom
   if (!r.success) return { error: 'Revisá las cantidades de la lista.' }
   const d = r.data
 
-  if (d.tipo === 'ajuste' && u.rol !== 'admin') return { error: 'Los ajustes los hace una administradora.' }
+  const permiso = d.tipo === 'ajuste' ? 'ajustes_stock' : d.tipo === 'transferencia' ? 'transferencias' : 'ingreso'
+  if (!puede(u, permiso)) return { error: 'No tenés permiso para esta operación. Pedíselo a la administración.' }
+  if (d.tipo === 'ajuste' && !(await puedeUsarDeposito(u, d.destinoId)))
+    return { error: 'Solo podés ajustar el stock de los depósitos de tu sucursal.' }
   if (d.tipo === 'ingreso' && !(await puedeUsarDeposito(u, d.destinoId)))
     return { error: 'Solo podés cargar mercadería en los depósitos de tu sucursal.' }
   if (d.tipo === 'transferencia' && !(await puedeUsarDeposito(u, d.origenId ?? 0)))

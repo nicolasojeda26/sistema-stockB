@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { db } from '@/lib/db'
-import { requerirVendedor } from '@/lib/dal'
+import { puede, requerirVendedor } from '@/lib/dal'
 import { cajaAbierta } from '@/lib/ventas'
 import { Encabezado, Tarjeta, TituloTarjeta } from '@/components/ui'
 import { AperturaCaja } from './apertura'
@@ -32,7 +32,7 @@ export default async function VenderPage() {
       usuarioId={u.id}
       sucursal={caja.sucursal}
       abierta={caja.abierta.toISOString()}
-      descuentoMax={u.rol === 'admin' ? 100 : Number(descuento_max)}
+      descuentoMax={puede(u, 'descuento_libre') ? 100 : Number(descuento_max)}
     />
   )
 }

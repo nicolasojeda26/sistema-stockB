@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { db } from '@/lib/db'
-import { requerirAdmin } from '@/lib/dal'
+import { requerirPermiso } from '@/lib/dal'
 import { leerConfig } from '@/lib/arca/facturacion'
 import { leerCertificado } from '@/lib/arca/certificado'
 import { formatoFecha } from '@/lib/formato'
@@ -17,7 +17,7 @@ const MODOS = {
 } as const
 
 export default async function FacturacionPage() {
-  await requerirAdmin()
+  await requerirPermiso('facturacion')
   const [c, sucursales] = await Promise.all([
     leerConfig(db()),
     db()<{ id: number; nombre: string; punto_venta: number | null }[]>`select id, nombre, punto_venta from sucursales where activa order by nombre`,

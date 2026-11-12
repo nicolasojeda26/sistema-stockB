@@ -2,12 +2,12 @@
 
 import { revalidatePath } from 'next/cache'
 import { db } from '@/lib/db'
-import { requerirAdmin } from '@/lib/dal'
+import { requerirPermiso } from '@/lib/dal'
 import { entero, marcado, mensajeError, texto } from '@/lib/errores'
 import type { Resultado } from '@/components/form-accion'
 
 export async function crearCategoria(_: Resultado, f: FormData): Promise<Resultado> {
-  await requerirAdmin()
+  await requerirPermiso('productos')
   const nombre = texto(f, 'nombre')
   if (!nombre) return { error: 'Poné el nombre de la categoría.' }
   try {
@@ -20,7 +20,7 @@ export async function crearCategoria(_: Resultado, f: FormData): Promise<Resulta
 }
 
 export async function editarCategoria(_: Resultado, f: FormData): Promise<Resultado> {
-  await requerirAdmin()
+  await requerirPermiso('productos')
   const id = entero(f, 'id')
   const nombre = texto(f, 'nombre')
   if (!id || !nombre) return { error: 'Poné el nombre de la categoría.' }

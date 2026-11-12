@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { db } from '@/lib/db'
-import { requerirAdmin } from '@/lib/dal'
+import { requerirPermiso } from '@/lib/dal'
 import { leerAjustes } from '@/lib/ajustes'
 import { ordenTalle, parsearCurvas, separarLista } from '@/lib/articulos'
 import { Encabezado } from '@/components/ui'
@@ -9,7 +9,7 @@ import { FormArticulo } from './form-articulo'
 export const metadata: Metadata = { title: 'Nuevo artículo' }
 
 export default async function NuevoArticuloPage() {
-  await requerirAdmin()
+  await requerirPermiso('productos')
   const [categorias, ajustes] = await Promise.all([
     db()<{ id: number; nombre: string }[]>`select id, nombre from categorias where activa order by lower(nombre)`,
     leerAjustes(),

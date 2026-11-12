@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { db } from '@/lib/db'
-import { requerirVendedor } from '@/lib/dal'
+import { puede, requerirAlguno } from '@/lib/dal'
 import { leerAjustes } from '@/lib/ajustes'
 import { separarLista } from '@/lib/articulos'
 import { cajaAbierta } from '@/lib/ventas'
@@ -14,8 +14,8 @@ export const metadata: Metadata = { title: 'Gastos' }
 const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
 
 export default async function GastosPage(props: PageProps<'/gastos'>) {
-  const u = await requerirVendedor()
-  const esAdmin = u.rol === 'admin'
+  const u = await requerirAlguno('vender', 'gastos')
+  const esAdmin = puede(u, 'gastos')
   const sp = await props.searchParams
   const hoy = hoyAR()
   const mes = typeof sp.mes === 'string' && /^\d{4}-\d{2}$/.test(sp.mes) ? sp.mes : hoy.slice(0, 7)

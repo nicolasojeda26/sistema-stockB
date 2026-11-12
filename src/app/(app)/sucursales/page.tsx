@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { db } from '@/lib/db'
-import { requerirAdmin } from '@/lib/dal'
+import { requerirPermiso } from '@/lib/dal'
 import { formatoEntero } from '@/lib/formato'
 import { Encabezado, Etiqueta, Tarjeta, Vacio } from '@/components/ui'
 import { marcarPrincipal } from './actions'
@@ -12,7 +12,7 @@ type Deposito = { id: number; nombre: string; sucursal_id: number | null; es_pri
 type Sucursal = { id: number; nombre: string; direccion: string | null; activa: boolean; tipo: 'local' | 'online' | 'deposito'; usuarios: number }
 
 export default async function SucursalesPage() {
-  await requerirAdmin()
+  await requerirPermiso('configuracion')
   const [sucursales, depositos] = await Promise.all([
     db()<Sucursal[]>`
       select s.*, (select count(*)::int from usuarios u where u.sucursal_id = s.id and u.activo) as usuarios

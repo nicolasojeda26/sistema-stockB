@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
 import { db } from '@/lib/db'
-import { requerirVendedor } from '@/lib/dal'
+import { puede, requerirAlguno, requerirPermiso } from '@/lib/dal'
 import { entero, mensajeError, texto } from '@/lib/errores'
 import { centavos, parseNumero } from '@/lib/numeros'
 import { ajustarCuenta, ErrorVenta, registrarPagoCuenta, saldoCliente } from '@/lib/ventas'
@@ -14,7 +14,7 @@ export type ClienteBuscado = { id: number; nombre: string; telefono: string | nu
 
 /** Para elegir la clienta en la caja: por nombre, teléfono o documento. */
 export async function buscarClientes(q: string): Promise<ClienteBuscado[]> {
-  await requerirVendedor()
+  await requerirAlguno('vender', 'clientes')
   const sql = db()
   const t = String(q ?? '').trim().slice(0, 60)
   if (!t) return []
@@ -39,7 +39,7 @@ export async function buscarClientes(q: string): Promise<ClienteBuscado[]> {
 
 /** Datos al día de una clienta (saldo y límite), para la caja. */
 export async function clienteActual(id: number): Promise<ClienteBuscado | null> {
-  await requerirVendedor()
+  await requerirAlguno('vender', 'clientes')
   if (!Number.isInteger(id)) return null
   const [c] = await db()<ClienteBuscado[]>`
     select c.id, c.nombre, c.telefono, c.doc_nro, c.limite_credito,
@@ -56,7 +56,7 @@ const Rapida = z.object({
 
 /** Alta rápida desde la caja (nombre y, si quiere, teléfono y DNI). */
 export async function crearClienteRapido(datos: z.input<typeof Rapida>): Promise<{ cliente?: ClienteBuscado; error?: string }> {
-  await requerirVendedor()
+  await requerirAlguno('vender', 'clientes')
   const r = Rapida.safeParse(datos)
   if (!r.success) return { error: r.error.issues[0]?.message }
   const doc = r.data.docNro.replace(/\D/g, '') || null
@@ -73,7 +73,7 @@ export async function crearClienteRapido(datos: z.input<typeof Rapida>): Promise
 }
 
 export async function guardarCliente(_: Resultado, f: FormData): Promise<Resultado> {
-  const u = await requerirVendedor()
+  const u = await requerirPermiso('clientes')
   const id = entero(f, 'id')
   const nombre = texto(f, 'nombre').replace(/\s+/g, ' ').slice(0, 120)
   const doc = texto(f, 'doc_nro').replace(/\D/g, '').slice(0, 11) || null
@@ -98,11 +98,11 @@ export async function guardarCliente(_: Resultado, f: FormData): Promise<Resulta
     if (id) {
       await db()`update clientes set ${db()(datos)} where id = ${id}`
       // El límite de cuenta corriente y la baja los maneja solo la administradora.
-      if (u.rol === 'admin')
+      if (puede(u, 'credito'))
         await db()`update clientes set limite_credito = ${centavos(limite!)}, activo = ${f.get('activo') === 'on'} where id = ${id}`
     } else {
       const [c] = await db()<{ id: number }[]>`
-        insert into clientes ${db()({ ...datos, limite_credito: u.rol === 'admin' ? centavos(limite!) : 0 })} returning id`
+        insert into clientes ${db()({ ...datos, limite_credito: puede(u, 'credito') ? centavos(limite!) : 0 })} returning id`
       nuevoId = c.id
     }
   } catch (e) {
@@ -116,7 +116,7 @@ export async function guardarCliente(_: Resultado, f: FormData): Promise<Resulta
 }
 
 export async function pagarCuenta(_: Resultado, f: FormData): Promise<Resultado> {
-  const u = await requerirVendedor()
+  const u = await requerirPermiso('clientes')
   const clienteId = entero(f, 'cliente_id')
   const monto = parseNumero(texto(f, 'monto'))
   const medio = texto(f, 'medio')
@@ -126,7 +126,7 @@ export async function pagarCuenta(_: Resultado, f: FormData): Promise<Resultado>
   try {
     const r = await registrarPagoCuenta(db(), {
       clienteId,
-      usuario: { id: u.id, rol: u.rol },
+      usuario: { id: u.id, rol: u.rol, permisos: u.permisos },
       monto: centavos(monto),
       medio: medio as 'efectivo',
       nota: texto(f, 'nota') || null,
@@ -141,13 +141,13 @@ export async function pagarCuenta(_: Resultado, f: FormData): Promise<Resultado>
 }
 
 export async function ajustarSaldo(_: Resultado, f: FormData): Promise<Resultado> {
-  const u = await requerirVendedor()
+  const u = await requerirPermiso('credito')
   const clienteId = entero(f, 'cliente_id')
   const monto = parseNumero(texto(f, 'monto'))
   const sentido = texto(f, 'sentido') === 'favor' ? -1 : 1
   if (!clienteId || monto === null || monto <= 0) return { error: 'Poné un monto válido.' }
   try {
-    await ajustarCuenta(db(), { clienteId, usuario: { id: u.id, rol: u.rol }, monto: centavos(monto) * sentido, nota: texto(f, 'nota') })
+    await ajustarCuenta(db(), { clienteId, usuario: { id: u.id, rol: u.rol, permisos: u.permisos }, monto: centavos(monto) * sentido, nota: texto(f, 'nota') })
   } catch (e) {
     if (e instanceof ErrorVenta) return { error: e.message }
     throw e

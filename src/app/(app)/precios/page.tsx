@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { db } from '@/lib/db'
-import { requerirAdmin } from '@/lib/dal'
+import { requerirPermiso } from '@/lib/dal'
 import { formatoFecha, formatoPesos } from '@/lib/formato'
 import { Encabezado, Tarjeta, TituloTarjeta, Vacio, tablaCls as t } from '@/components/ui'
 import { FormAumento } from './form'
@@ -8,7 +8,7 @@ import { FormAumento } from './form'
 export const metadata: Metadata = { title: 'Actualizar precios' }
 
 export default async function PreciosPage() {
-  await requerirAdmin()
+  await requerirPermiso('productos')
   const sql = db()
   const [categorias, recientes] = await Promise.all([
     sql<{ id: number; nombre: string }[]>`select id, nombre from categorias where activa order by lower(nombre)`,

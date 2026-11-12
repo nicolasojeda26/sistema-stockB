@@ -1,13 +1,13 @@
 import * as XLSX from 'xlsx'
 import { db } from '@/lib/db'
-import { usuarioActual } from '@/lib/dal'
+import { puede, usuarioActual } from '@/lib/dal'
 import { CONDICIONES_RECEPTOR, DOC_TIPOS, TIPOS_CBTE, numeroComprobante } from '@/lib/arca/comprobantes'
 import { comprobantes, fechaValida, hoyAR, inicioDeMes } from '@/lib/reportes'
 
 /** Libro de ventas para el contador: un comprobante por fila; las notas de crédito en negativo. */
 export async function GET(req: Request) {
   const u = await usuarioActual()
-  if (!u || u.rol !== 'admin') return new Response('No autorizado', { status: 403 })
+  if (!u || !puede(u, 'reportes')) return new Response('No autorizado', { status: 403 })
   const sp = new URL(req.url).searchParams
   const f = {
     desde: fechaValida(sp.get('desde')) || inicioDeMes(),

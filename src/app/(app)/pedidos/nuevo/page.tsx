@@ -1,14 +1,14 @@
 import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { db } from '@/lib/db'
-import { requerirUsuario } from '@/lib/dal'
+import { requerirPermiso } from '@/lib/dal'
 import { Encabezado } from '@/components/ui'
 import { FormPedido } from './form'
 
 export const metadata: Metadata = { title: 'Nuevo pedido' }
 
 export default async function NuevoPedidoPage() {
-  const u = await requerirUsuario()
+  const u = await requerirPermiso('pedidos')
   if (u.rol === 'deposito') redirect('/pedidos')
   const sql = db()
   const [[central], sucursales] = await Promise.all([

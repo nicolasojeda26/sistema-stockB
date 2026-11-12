@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { db } from '@/lib/db'
-import { requerirAdmin } from '@/lib/dal'
+import { requerirPermiso } from '@/lib/dal'
 import { formatoEntero } from '@/lib/formato'
 import { Encabezado, Etiqueta, Tarjeta, TituloTarjeta, Vacio, tablaCls as t } from '@/components/ui'
 import { EditarCategoria, NuevaCategoria } from './formularios'
@@ -9,7 +9,7 @@ import { EditarCategoria, NuevaCategoria } from './formularios'
 export const metadata: Metadata = { title: 'Categorías' }
 
 export default async function CategoriasPage() {
-  await requerirAdmin()
+  await requerirPermiso('productos')
   const categorias = await db()<{ id: number; nombre: string; activa: boolean; productos: number }[]>`
     select c.id, c.nombre, c.activa, (select count(*)::int from productos p where p.categoria_id = c.id and p.activo) as productos
     from categorias c order by c.activa desc, lower(c.nombre)`

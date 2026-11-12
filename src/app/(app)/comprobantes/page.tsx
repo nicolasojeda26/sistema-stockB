@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { db } from '@/lib/db'
-import { requerirAdmin } from '@/lib/dal'
+import { requerirPermiso } from '@/lib/dal'
 import { leerConfig } from '@/lib/arca/facturacion'
 import { DOC_TIPOS, TIPOS_CBTE, numeroComprobante } from '@/lib/arca/comprobantes'
 import { formatoPesos } from '@/lib/formato'
@@ -11,7 +11,7 @@ import { Encabezado, Input, Select, Tarjeta, Vacio, tablaCls as t } from '@/comp
 export const metadata: Metadata = { title: 'Comprobantes' }
 
 export default async function ComprobantesPage(props: PageProps<'/comprobantes'>) {
-  await requerirAdmin()
+  await requerirPermiso('reportes')
   const sp = await props.searchParams
   const config = await leerConfig(db())
   const ambientePorDefecto = config.modo === 'desactivada' ? 'produccion' : config.modo

@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { db } from '@/lib/db'
-import { requerirAdmin } from '@/lib/dal'
+import { requerirPermiso } from '@/lib/dal'
 
 const Aumento = z.object({
   categoriaId: z.number().int().nullable(),
@@ -22,7 +22,7 @@ const filtro = (sql: ReturnType<typeof db>, a: z.output<typeof Aumento>) =>
   sql`p.activo and p.precio > 0 ${a.categoriaId ? sql`and p.categoria_id = ${a.categoriaId}` : sql``}`
 
 export async function previsualizar(datos: DatosAumento) {
-  await requerirAdmin()
+  await requerirPermiso('productos')
   const r = Aumento.safeParse(datos)
   if (!r.success) return { error: 'Revisá el porcentaje.' }
   const sql = db()
@@ -36,7 +36,7 @@ export async function previsualizar(datos: DatosAumento) {
 }
 
 export async function aplicar(datos: DatosAumento): Promise<{ actualizados?: number; error?: string }> {
-  const u = await requerirAdmin()
+  const u = await requerirPermiso('productos')
   const r = Aumento.safeParse(datos)
   if (!r.success) return { error: 'Revisá el porcentaje.' }
   if (r.data.porcentaje === 0 && r.data.redondeo === 0) return { error: 'Con 0 % y sin redondeo no cambia nada.' }

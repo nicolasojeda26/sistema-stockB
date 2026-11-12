@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { db } from '@/lib/db'
-import { requerirVendedor } from '@/lib/dal'
+import { puede, requerirPermiso } from '@/lib/dal'
 import { cajaAbierta } from '@/lib/ventas'
 import { formatoFecha, formatoPesos } from '@/lib/formato'
 import { MEDIOS } from '@/lib/venta-calculo'
@@ -21,7 +21,7 @@ const TIPOS: Record<string, string> = {
 }
 
 export default async function ClientePage(props: PageProps<'/clientes/[id]'>) {
-  const u = await requerirVendedor()
+  const u = await requerirPermiso('clientes')
   const id = Number((await props.params).id)
   if (!Number.isInteger(id)) notFound()
   const sql = db()
@@ -170,7 +170,7 @@ export default async function ClientePage(props: PageProps<'/clientes/[id]'>) {
               </p>
             )}
           </Tarjeta>
-          {u.rol === 'admin' && (
+          {puede(u, 'credito') && (
             <Tarjeta>
               <TituloTarjeta>Ajustar saldo</TituloTarjeta>
               <AjusteSaldo clienteId={id} />
@@ -178,7 +178,7 @@ export default async function ClientePage(props: PageProps<'/clientes/[id]'>) {
           )}
           <Tarjeta>
             <TituloTarjeta>Datos</TituloTarjeta>
-            <FormCliente cliente={{ ...c, limite_credito: Number(c.limite_credito) }} esAdmin={u.rol === 'admin'} />
+            <FormCliente cliente={{ ...c, limite_credito: Number(c.limite_credito) }} esAdmin={puede(u, 'credito')} />
           </Tarjeta>
         </div>
       </div>

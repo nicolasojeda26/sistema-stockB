@@ -1,13 +1,13 @@
 import type { Metadata } from 'next'
 import { db } from '@/lib/db'
-import { requerirAdmin } from '@/lib/dal'
+import { requerirPermiso } from '@/lib/dal'
 import { Encabezado } from '@/components/ui'
 import { Importador } from './importador'
 
 export const metadata: Metadata = { title: 'Importar desde Dux' }
 
 export default async function ImportarPage() {
-  await requerirAdmin()
+  await requerirPermiso('configuracion')
   const depositos = await db()<{ id: number; nombre: string; clave: string; central: boolean }[]>`
     select d.id, coalesce(s.nombre || ' · ', 'Central · ') || d.nombre as nombre,
       coalesce(s.direccion, '') as clave, (s.id is null or s.tipo = 'deposito') as central

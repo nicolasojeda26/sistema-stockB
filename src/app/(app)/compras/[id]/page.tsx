@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { db } from '@/lib/db'
-import { requerirAdmin } from '@/lib/dal'
+import { requerirPermiso } from '@/lib/dal'
 import { formatoDia, formatoFecha, formatoPesos } from '@/lib/formato'
 import { MEDIOS_PROVEEDOR, TIPOS_COMPROBANTE, type MedioProveedor, type TipoComprobante } from '@/lib/compras-tipos'
 import { Aviso, BotonLink, Encabezado, Tarjeta, TituloTarjeta, tablaCls as t } from '@/components/ui'
@@ -11,7 +11,7 @@ import { AnularCompra } from './anular'
 export const metadata: Metadata = { title: 'Compra' }
 
 export default async function CompraPage(props: PageProps<'/compras/[id]'>) {
-  await requerirAdmin()
+  await requerirPermiso('compras')
   const id = Number((await props.params).id)
   if (!Number.isInteger(id)) notFound()
   const sql = db()

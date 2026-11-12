@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { db } from '@/lib/db'
-import { requerirUsuario } from '@/lib/dal'
+import { puede, requerirUsuario } from '@/lib/dal'
 import { formatoFecha } from '@/lib/formato'
 import { Aviso, Campo, Encabezado, Input, Select, Tarjeta, Vacio } from '@/components/ui'
 import { actualizarSolicitud, crearSolicitud } from './actions'
@@ -12,14 +12,14 @@ const ESTADOS = { pendiente: 'Pendiente', en_curso: 'En curso', resuelta: 'Resue
 
 export default async function SolicitudesPage() {
   const u = await requerirUsuario()
-  const filas = u.rol === 'admin'
+  const filas = puede(u, 'solicitudes')
     ? await db()<{ id: number; tipo: keyof typeof TIPOS; asunto: string; detalle: string; estado: keyof typeof ESTADOS; respuesta: string | null; creado: Date; usuario: string; sucursal: string | null }[]>`
         select x.*, u.nombre as usuario, s.nombre as sucursal from solicitudes x join usuarios u on u.id = x.usuario_id left join sucursales s on s.id = x.sucursal_id order by case x.estado when 'pendiente' then 0 when 'en_curso' then 1 else 2 end, x.creado desc limit 300`
     : await db()<{ id: number; tipo: keyof typeof TIPOS; asunto: string; detalle: string; estado: keyof typeof ESTADOS; respuesta: string | null; creado: Date; usuario: string; sucursal: string | null }[]>`
         select x.*, u.nombre as usuario, s.nombre as sucursal from solicitudes x join usuarios u on u.id = x.usuario_id left join sucursales s on s.id = x.sucursal_id where x.usuario_id = ${u.id} order by x.creado desc limit 100`
 
   return <>
-    <Encabezado titulo="Ayuda y solicitudes" detalle={u.rol === 'admin' ? 'Gestioná las consultas, pedidos de informes y mejoras del equipo.' : 'Pedí ayuda o solicitá un informe o mejora para el sistema.'} />
+    <Encabezado titulo="Ayuda y solicitudes" detalle={puede(u, 'solicitudes') ? 'Gestioná las consultas, pedidos de informes y mejoras del equipo.' : 'Pedí ayuda o solicitá un informe o mejora para el sistema.'} />
     <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
       <section className="space-y-3">
         {filas.length === 0 ? <Tarjeta><Vacio>Aún no hay solicitudes.</Vacio></Tarjeta> : filas.map((x) => <Tarjeta key={x.id} className="space-y-3 p-5">
@@ -27,7 +27,7 @@ export default async function SolicitudesPage() {
           <p className="whitespace-pre-wrap text-sm text-tinta-suave">{x.detalle}</p>
           <p className="text-xs text-apagado">{formatoFecha(x.creado)} · {x.usuario}{x.sucursal ? ` · ${x.sucursal}` : ''}</p>
           {x.respuesta && <Aviso tipo="info"><span className="font-semibold">Respuesta:</span> {x.respuesta}</Aviso>}
-          {u.rol === 'admin' && <form action={actualizarSolicitud} className="grid gap-2 border-t border-linea pt-3 sm:grid-cols-[150px_1fr_auto]">
+          {puede(u, 'solicitudes') && <form action={actualizarSolicitud} className="grid gap-2 border-t border-linea pt-3 sm:grid-cols-[150px_1fr_auto]">
             <input type="hidden" name="id" value={x.id} />
             <Select name="estado" defaultValue={x.estado} aria-label="Estado"><option value="pendiente">Pendiente</option><option value="en_curso">En curso</option><option value="resuelta">Resuelta</option></Select>
             <Input name="respuesta" defaultValue={x.respuesta ?? ''} placeholder="Respuesta para el equipo" maxLength={2000} aria-label="Respuesta" />

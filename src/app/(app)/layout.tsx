@@ -1,4 +1,5 @@
-import { puedeVender, requerirUsuario } from '@/lib/dal'
+import { puede, puedeVender, requerirUsuario } from '@/lib/dal'
+import type { Permiso } from '@/lib/permisos'
 import { db } from '@/lib/db'
 import { estiloMarca, leerAjustes, urlLogo } from '@/lib/ajustes'
 import { salir } from '@/app/login/actions'
@@ -10,7 +11,6 @@ export default async function AppLayout({ children }: LayoutProps<'/'>) {
   const ajustes = await leerAjustes()
   const { nombre_negocio } = ajustes
   const estilo = estiloMarca(ajustes.color_marca)
-  const esAdmin = u.rol === 'admin'
   const vende = puedeVender(u)
   // Avisos del menú: pedidos sin atender, envíos por recibir y diferencias sin resolver.
   const [avisos] = await db()<{ pedidos: number; por_recibir: number; diferencias: number }[]>`
@@ -19,7 +19,8 @@ export default async function AppLayout({ children }: LayoutProps<'/'>) {
         ${u.rol === 'vendedora' ? db()`and sucursal_id = ${u.sucursal_id}` : db()``}) as pedidos,
       (select count(*)::int from envios e join depositos d on d.id = e.destino_id
         where e.estado = 'en_camino' ${u.rol === 'admin' ? db()`` : db()`and d.sucursal_id = ${u.sucursal_id}`}) as por_recibir,
-      ${u.rol === 'admin' ? db()`(select count(*)::int from envios where estado = 'con_diferencias' and resuelto_en is null)` : db()`0`} as diferencias`
+      ${puede(u, 'diferencias') ? db()`(select count(*)::int from envios where estado = 'con_diferencias' and resuelto_en is null)` : db()`0`} as diferencias`
+  const p = (x: Permiso) => puede(u, x)
   const items: ItemNav[] = [
     { href: '/', texto: 'Inicio', icono: 'inicio', exacto: true },
     ...(vende
@@ -31,43 +32,38 @@ export default async function AppLayout({ children }: LayoutProps<'/'>) {
         ] as ItemNav[])
       : []),
     { href: '/productos', texto: 'Productos', icono: 'productos' },
-    ...(vende ? [{ href: '/clientes', texto: 'Clientes', icono: 'clientes' } as ItemNav] : []),
-    { href: '/mercaderia/ingreso', texto: 'Ingreso de mercadería', icono: 'ingreso', seccion: 'Mercadería' },
-    {
-      href: '/pedidos',
-      texto: 'Pedidos al depósito',
-      icono: 'pedidos',
-      aviso: u.rol === 'vendedora' ? 0 : avisos.pedidos,
-    },
+    ...(p('clientes') ? [{ href: '/clientes', texto: 'Clientes', icono: 'clientes' } as ItemNav] : []),
+    ...(p('ingreso') ? [{ href: '/mercaderia/ingreso', texto: 'Ingreso de mercadería', icono: 'ingreso' } as ItemNav] : []),
+    ...(p('pedidos') || p('envios')
+      ? [{ href: '/pedidos', texto: p('envios') ? 'Pedidos de sucursales' : 'Pedidos al depósito', icono: 'pedidos', aviso: p('envios') ? avisos.pedidos : 0 } as ItemNav]
+      : []),
     { href: '/envios', texto: 'Envíos', icono: 'envios', aviso: avisos.por_recibir + avisos.diferencias },
-    ...(esAdmin ? [{ href: '/mercaderia/transferencia', texto: 'Transferencias', icono: 'transferencia' } as ItemNav] : []),
-    ...(esAdmin ? [{ href: '/mercaderia/ajuste', texto: 'Ajustes de stock', icono: 'ajuste' } as ItemNav] : []),
+    ...(p('transferencias') ? [{ href: '/mercaderia/transferencia', texto: 'Transferencias', icono: 'transferencia' } as ItemNav] : []),
+    ...(p('ajustes_stock') ? [{ href: '/mercaderia/ajuste', texto: 'Ajustes de stock', icono: 'ajuste' } as ItemNav] : []),
     { href: '/mercaderia', texto: 'Movimientos', icono: 'movimientos', exacto: true },
     { href: '/etiquetas', texto: 'Etiquetas', icono: 'etiquetas' },
-    ...(esAdmin
-      ? ([
-          { href: '/compras', texto: 'Compras', icono: 'compras', seccion: 'Compras y gastos' },
-          { href: '/proveedores', texto: 'Proveedores', icono: 'proveedores' },
-          { href: '/gastos', texto: 'Gastos', icono: 'gastos' },
-        ] as ItemNav[])
-      : vende
-        ? ([{ href: '/gastos', texto: 'Gastos de la caja', icono: 'gastos' }] as ItemNav[])
-        : []),
-    ...(esAdmin
-      ? ([
-          { href: '/reportes', texto: 'Reportes', icono: 'reportes', seccion: 'Administración' },
-          { href: '/comprobantes', texto: 'Comprobantes', icono: 'factura' },
-          { href: '/precios', texto: 'Actualizar precios', icono: 'precios' },
-          { href: '/facturacion', texto: 'Facturación ARCA', icono: 'factura', seccion: 'Configuración' },
-          { href: '/categorias', texto: 'Categorías', icono: 'categorias' },
-          { href: '/sucursales', texto: 'Sucursales y depósitos', icono: 'sucursales' },
-          { href: '/usuarios', texto: 'Personal', icono: 'usuarios' },
-          { href: '/importar', texto: 'Importar desde Dux', icono: 'importar' },
-          { href: '/ajustes', texto: 'Ajustes del negocio', icono: 'ajustes' },
-        ] as ItemNav[])
-      : []),
-    { href: '/solicitudes', texto: 'Ayuda y solicitudes', icono: 'ajustes', seccion: 'Ayuda' },
+    ...(p('compras') ? [{ href: '/compras', texto: 'Compras', icono: 'compras' } as ItemNav, { href: '/proveedores', texto: 'Proveedores', icono: 'proveedores' } as ItemNav] : []),
+    ...(p('gastos') ? [{ href: '/gastos', texto: 'Gastos', icono: 'gastos' } as ItemNav] : vende ? [{ href: '/gastos', texto: 'Gastos de la caja', icono: 'gastos' } as ItemNav] : []),
+    ...(p('reportes') ? [{ href: '/reportes', texto: 'Reportes', icono: 'reportes' } as ItemNav, { href: '/comprobantes', texto: 'Comprobantes', icono: 'factura' } as ItemNav] : []),
+    ...(p('productos') ? [{ href: '/precios', texto: 'Actualizar precios', icono: 'precios' } as ItemNav, { href: '/categorias', texto: 'Categorías', icono: 'categorias' } as ItemNav] : []),
+    ...(p('facturacion') ? [{ href: '/facturacion', texto: 'Facturación ARCA', icono: 'factura' } as ItemNav] : []),
+    ...(p('configuracion') ? [{ href: '/sucursales', texto: 'Sucursales y depósitos', icono: 'sucursales' } as ItemNav] : []),
+    ...(p('personal') ? [{ href: '/usuarios', texto: 'Personal y permisos', icono: 'usuarios' } as ItemNav] : []),
+    ...(p('configuracion') ? [{ href: '/importar', texto: 'Importar desde Dux', icono: 'importar' } as ItemNav, { href: '/ajustes', texto: 'Ajustes del negocio', icono: 'ajustes' } as ItemNav] : []),
+    { href: '/solicitudes', texto: 'Ayuda y solicitudes', icono: 'ajustes' },
   ]
+  // Títulos de sección: se ponen en el primer ítem de cada grupo que la persona ve.
+  const secciones: [string, string[]][] = [
+    ['Mercadería', ['/mercaderia/ingreso', '/pedidos', '/envios']],
+    ['Compras y gastos', ['/compras', '/gastos']],
+    ['Administración', ['/reportes', '/precios']],
+    ['Configuración', ['/facturacion', '/sucursales', '/usuarios', '/importar']],
+    ['Ayuda', ['/solicitudes']],
+  ]
+  for (const [titulo, hrefs] of secciones) {
+    const primero = items.find((i) => hrefs.includes(i.href))
+    if (primero) primero.seccion = titulo
+  }
 
   const pie = (
     <div className="space-y-2 px-3 pb-20 lg:pb-3">
@@ -78,7 +74,7 @@ export default async function AppLayout({ children }: LayoutProps<'/'>) {
         </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-semibold">{u.nombre}</span>
-          <span className="block truncate text-xs text-apagado">{u.rol === 'admin' ? 'Administración' : u.rol === 'deposito' ? `Encargado · ${u.sucursal_nombre}` : u.sucursal_nombre}</span>
+          <span className="block truncate text-xs text-apagado">{u.rol === 'admin' ? u.rol_nombre : `${u.rol_nombre} · ${u.sucursal_nombre}`}</span>
         </span>
         <form action={salir}>
           <button className="nav-logout rounded-lg px-2 py-1.5 text-xs font-medium text-tinta-suave hover:bg-fondo hover:text-tinta">Salir</button>

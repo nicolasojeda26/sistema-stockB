@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { db } from '@/lib/db'
-import { requerirAdmin } from '@/lib/dal'
+import { requerirPermiso } from '@/lib/dal'
 import { formatoDia, formatoPesos } from '@/lib/formato'
 import { TIPOS_COMPROBANTE, type TipoComprobante } from '@/lib/compras-tipos'
 import { BotonLink, Encabezado, Etiqueta, Input, Select, Tarjeta, Vacio, tablaCls as t } from '@/components/ui'
@@ -9,7 +9,7 @@ import { BotonLink, Encabezado, Etiqueta, Input, Select, Tarjeta, Vacio, tablaCl
 export const metadata: Metadata = { title: 'Compras' }
 
 export default async function ComprasPage(props: PageProps<'/compras'>) {
-  await requerirAdmin()
+  await requerirPermiso('compras')
   const sp = await props.searchParams
   const desde = typeof sp.desde === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(sp.desde) ? sp.desde : null
   const hasta = typeof sp.hasta === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(sp.hasta) ? sp.hasta : null

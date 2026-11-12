@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { db } from '@/lib/db'
-import { requerirAdmin } from '@/lib/dal'
+import { requerirPermiso } from '@/lib/dal'
 import { texto } from '@/lib/errores'
 import { parseNumero } from '@/lib/numeros'
 import { cifrar, descifrar, generarClaveYPedido, leerCertificado } from '@/lib/arca/certificado'
@@ -17,7 +17,7 @@ const listo = (ok: string): Resultado => {
 }
 
 export async function guardarDatos(_: Resultado, f: FormData): Promise<Resultado> {
-  await requerirAdmin()
+  await requerirPermiso('facturacion')
   const cuit = texto(f, 'cuit').replace(/\D/g, '')
   const condicion = texto(f, 'condicion_iva')
   const inicio = texto(f, 'inicio_actividades')
@@ -33,7 +33,7 @@ export async function guardarDatos(_: Resultado, f: FormData): Promise<Resultado
 }
 
 export async function guardarModo(_: Resultado, f: FormData): Promise<Resultado> {
-  await requerirAdmin()
+  await requerirPermiso('facturacion')
   const modo = texto(f, 'modo')
   if (!['desactivada', 'simulacion', 'homologacion', 'produccion'].includes(modo)) return { error: 'Modo no válido.' }
   const desde = parseNumero(texto(f, 'identificar_desde'))
@@ -47,7 +47,7 @@ export async function guardarModo(_: Resultado, f: FormData): Promise<Resultado>
 }
 
 export async function guardarPuntos(_: Resultado, f: FormData): Promise<Resultado> {
-  await requerirAdmin()
+  await requerirPermiso('facturacion')
   const sucursales = await db()<{ id: number }[]>`select id from sucursales`
   const valores = sucursales.map((s) => ({ id: s.id, pv: texto(f, `pv_${s.id}`) }))
   for (const v of valores) if (v.pv && !/^\d{1,5}$/.test(v.pv)) return { error: 'Los puntos de venta son números (ej.: 3).' }
@@ -61,7 +61,7 @@ export async function guardarPuntos(_: Resultado, f: FormData): Promise<Resultad
 }
 
 export async function generarPedido(): Promise<{ csr?: string; error?: string }> {
-  await requerirAdmin()
+  await requerirPermiso('facturacion')
   const c = await leerConfig(db())
   if (!c.cuit || !c.razon_social) return { error: 'Primero guardá el CUIT y la razón social.' }
   const { clavePem, csrPem } = generarClaveYPedido({ cuit: c.cuit, razonSocial: c.razon_social, alias: 'sistemastock' })
@@ -73,7 +73,7 @@ export async function generarPedido(): Promise<{ csr?: string; error?: string }>
 }
 
 export async function cargarCertificado(pem: string): Promise<{ ok?: string; error?: string }> {
-  await requerirAdmin()
+  await requerirPermiso('facturacion')
   const c = await leerConfig(db())
   if (!c.clave_privada) return { error: 'Primero generá la clave y el pedido de certificado.' }
   try {
@@ -90,7 +90,7 @@ export async function cargarCertificado(pem: string): Promise<{ ok?: string; err
 }
 
 export async function probarConexion(ambiente: Ambiente): Promise<{ pasos: { texto: string; ok: boolean }[] }> {
-  await requerirAdmin()
+  await requerirPermiso('facturacion')
   const pasos: { texto: string; ok: boolean }[] = []
   try {
     const e = await estadoServidor(ambiente)

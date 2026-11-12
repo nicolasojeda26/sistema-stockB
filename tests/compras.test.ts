@@ -71,7 +71,7 @@ describe.skipIf(!url)('compras, proveedores y gastos', () => {
     expect(await saldoProveedor(sql, prov)).toBe(132890)
     await expect(registrarCompra(sql, base())).rejects.toThrow('ya está cargada')
     await expect(registrarCompra(sql, { ...base(), numero: '9', totalEsperado: 999 })).rejects.toThrow('no coincide')
-    await expect(registrarCompra(sql, { ...base(), usuario: vend })).rejects.toThrow('administradora')
+    await expect(registrarCompra(sql, { ...base(), usuario: vend })).rejects.toThrow('permiso')
     await expect(registrarCompra(sql, { ...base(), numero: '9', tipoComprobante: 'C' })).rejects.toThrow('discrimina IVA')
   })
 
@@ -108,7 +108,7 @@ describe.skipIf(!url)('compras, proveedores y gastos', () => {
       registrarGasto(sql, { usuario: vend, sucursalId: null, fecha: '2026-11-07', categoria: 'Alquiler', monto: 1, medio: 'transferencia', desdeCaja: false }),
     ).rejects.toThrow('salen de tu caja')
     await registrarGasto(sql, { usuario: admin, sucursalId: suc, fecha: '2026-11-01', categoria: 'Alquiler', monto: 450000, medio: 'transferencia', desdeCaja: false })
-    await expect(anularGasto(sql, { gastoId: g.gastoId, usuario: vend })).rejects.toThrow('administradora')
+    await expect(anularGasto(sql, { gastoId: g.gastoId, usuario: vend })).rejects.toThrow('permiso')
     await anularGasto(sql, { gastoId: g.gastoId, usuario: admin })
     expect((await resumenCaja(sql, caja)).efectivoEsperado).toBe(10000)
     expect((await sql`select sum(monto) s from gastos where not anulado`)[0].s).toBe(450000)

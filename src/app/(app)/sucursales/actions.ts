@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { db } from '@/lib/db'
-import { requerirAdmin } from '@/lib/dal'
+import { requerirPermiso } from '@/lib/dal'
 import { entero, marcado, mensajeError, texto } from '@/lib/errores'
 import type { Resultado } from '@/components/form-accion'
 
@@ -17,7 +17,7 @@ const listo = (ok: string): Resultado => {
 }
 
 export async function crearSucursal(_: Resultado, f: FormData): Promise<Resultado> {
-  await requerirAdmin()
+  await requerirPermiso('configuracion')
   const nombre = texto(f, 'nombre')
   const direccion = texto(f, 'direccion') || null
   const tipo = leerTipo(f)
@@ -36,7 +36,7 @@ export async function crearSucursal(_: Resultado, f: FormData): Promise<Resultad
 }
 
 export async function editarSucursal(_: Resultado, f: FormData): Promise<Resultado> {
-  await requerirAdmin()
+  await requerirPermiso('configuracion')
   const id = entero(f, 'id')
   const nombre = texto(f, 'nombre')
   const direccion = texto(f, 'direccion') || null
@@ -61,7 +61,7 @@ export async function editarSucursal(_: Resultado, f: FormData): Promise<Resulta
 }
 
 export async function crearDeposito(_: Resultado, f: FormData): Promise<Resultado> {
-  await requerirAdmin()
+  await requerirPermiso('configuracion')
   const nombre = texto(f, 'nombre')
   const sucursalId = entero(f, 'sucursal_id') // vacío = depósito central
   if (!nombre) return { error: 'Poné el nombre del depósito.' }
@@ -80,7 +80,7 @@ export async function crearDeposito(_: Resultado, f: FormData): Promise<Resultad
 }
 
 export async function editarDeposito(_: Resultado, f: FormData): Promise<Resultado> {
-  await requerirAdmin()
+  await requerirPermiso('configuracion')
   const id = entero(f, 'id')
   const nombre = texto(f, 'nombre')
   const activo = marcado(f, 'activo')
@@ -100,7 +100,7 @@ export async function editarDeposito(_: Resultado, f: FormData): Promise<Resulta
 }
 
 export async function marcarPrincipal(f: FormData) {
-  await requerirAdmin()
+  await requerirPermiso('configuracion')
   const id = entero(f, 'id')
   if (!id) return
   await db().begin(async (tx) => {
