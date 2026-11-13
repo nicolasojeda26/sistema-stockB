@@ -17,6 +17,8 @@ export type Ajustes = {
   /** % que se descuenta del precio de lista al pagar con transferencia o en efectivo. */
   descuento_transferencia: string
   descuento_efectivo: string
+  /** Texto al pie del comprobante de recepción de reparaciones. */
+  condiciones_reparacion: string
 }
 
 const PREDETERMINADOS: Ajustes = {
@@ -32,6 +34,8 @@ const PREDETERMINADOS: Ajustes = {
   color_marca: '',
   descuento_transferencia: '0',
   descuento_efectivo: '0',
+  condiciones_reparacion:
+    'El presupuesto puede cambiar al revisar el equipo; se consulta antes de reparar. Pasados 90 días de avisado que está listo, el equipo se considera abandonado. No nos hacemos responsables por la información guardada en el equipo.',
 }
 
 export async function leerAjustes(): Promise<Ajustes> {

@@ -2,6 +2,7 @@ import type { Sql } from 'postgres'
 import type { TransactionSql } from 'postgres'
 import { aCentavos, aPesos, calcularVenta, descuentoEfectivo, formaPermitida, precioSegunForma, type FormaPrecio, type MedioPago, type MedioVenta } from './venta-calculo'
 import { puedeEn } from './permisos'
+import { lineaReparacion, numeroReparacion } from './reparaciones'
 
 export class ErrorVenta extends Error {}
 
@@ -193,6 +194,8 @@ export type DatosVenta = {
   totalEsperado: number
   /** Con qué precio se vende (lista, transferencia o efectivo). Por defecto, lista. */
   formaPrecio?: FormaPrecio
+  /** Reparaciones que se cobran en esta venta (quedan entregadas). */
+  reparaciones?: number[]
   clienteId?: number | null
   /** Apartado con seña: el producto queda separado hasta que lo retiran. */
   paraRetirar?: boolean
@@ -209,7 +212,8 @@ export async function registrarVenta(
   sql: Sql,
   d: DatosVenta,
 ): Promise<{ ventaId: number; total: number; vuelto: number; devolucionId?: number; aFavor?: number; reintegro?: number }> {
-  if (!d.items.length) throw new ErrorVenta('No hay productos en la venta.')
+  const idsReparacion = [...new Set(d.reparaciones ?? [])]
+  if (!d.items.length && !idsReparacion.length) throw new ErrorVenta('No hay productos en la venta.')
   for (const it of d.items) {
     if (!Number.isInteger(it.cantidad) || it.cantidad <= 0) throw new ErrorVenta('Hay una cantidad no válida.')
     if (!(it.descuentoPct >= 0 && it.descuentoPct <= 100)) throw new ErrorVenta('Hay un descuento no válido.')
@@ -243,14 +247,32 @@ export async function registrarVenta(
     const pct = (clave: string) => Math.min(100, Math.max(0, Number(ajustesPago.find((a) => a.clave === clave)?.valor) || 0))
     const descuentos = { transferencia: pct('descuento_transferencia'), efectivo: pct('descuento_efectivo') }
     const porId = new Map(productos.map((p) => [p.id, p]))
-    const lineas = d.items.map((it) => {
+    const lineas: { productoId: number; cantidad: number; descuentoPct: number; producto: { id: number | null; codigo: string; nombre: string }; precio: number }[] = d.items.map((it) => {
       const p = porId.get(it.productoId)
       if (!p) throw new ErrorVenta('Uno de los productos ya no existe.')
       if (!p.activo) throw new ErrorVenta(`"${p.nombre}" está dado de baja.`)
       if (descuentoEfectivo(it.descuentoPct, d.descuentoGlobalPct) > tope + 0.001)
         throw new ErrorVenta(`El descuento de "${p.nombre}" supera tu máximo permitido (${tope} %).`)
-      return { ...it, producto: p, precio: precioSegunForma(p, forma, descuentos) }
+      return { ...it, producto: p as { id: number | null; codigo: string; nombre: string }, precio: precioSegunForma(p, forma, descuentos) }
     })
+    // Reparaciones: una línea cada una, con su precio (el mismo pague como pague) y sin stock.
+    if (idsReparacion.length) {
+      const reps = await tx<{ id: number; sucursal_id: number; estado: string; precio: number | null; equipo: string; falla: string }[]>`
+        select id, sucursal_id, estado, precio, equipo, falla from reparaciones where id = any(${idsReparacion}::int[]) order by id for update`
+      for (const id of idsReparacion) {
+        const rep = reps.find((x) => x.id === id)
+        if (!rep || rep.sucursal_id !== caja.sucursal_id) throw new ErrorVenta('Una de las reparaciones no es de esta sucursal.')
+        if (!['listo', 'sin_reparacion'].includes(rep.estado) || !(Number(rep.precio) > 0))
+          throw new ErrorVenta(`La reparación ${numeroReparacion(id)} no está lista para cobrar.`)
+        lineas.push({
+          productoId: 0,
+          cantidad: 1,
+          descuentoPct: 0,
+          producto: { id: null, codigo: numeroReparacion(id), nombre: lineaReparacion(rep) },
+          precio: Number(rep.precio),
+        })
+      }
+    }
 
     const calc = calcularVenta(lineas, d.descuentoGlobalPct)
     if (calc.total !== aCentavos(d.totalEsperado)) throw new ErrorVenta('Cambió el precio de algún producto. Revisá el total y cobrá de nuevo.')
@@ -327,9 +349,16 @@ export async function registrarVenta(
       }
     }
 
+    if (idsReparacion.length)
+      await tx`
+        update reparaciones set estado = 'entregado', entregado_en = now(), entregado_por = ${d.usuario.id}, venta_id = ${v.id}, actualizado = now()
+        where id = any(${idsReparacion}::int[])`
+    for (const id of idsReparacion)
+      await tx`insert into reparacion_eventos (reparacion_id, estado, nota, usuario_id) values (${id}, 'entregado', ${`Cobrada en la venta N.º ${v.id}.`}, ${d.usuario.id})`
+
     // Descontar stock del depósito principal (puede quedar en negativo: la prenda está en la mano).
     const porProducto = new Map<number, number>()
-    for (const l of lineas) porProducto.set(l.producto.id, (porProducto.get(l.producto.id) ?? 0) + l.cantidad)
+    for (const l of lineas) if (l.producto.id) porProducto.set(l.producto.id, (porProducto.get(l.producto.id) ?? 0) + l.cantidad)
     const movs = [...porProducto].sort(([a], [b]) => a - b).map(([producto_id, cant]) => ({ producto_id, cantidad: -cant }))
     const json = JSON.stringify(movs)
     const datos = tx`select * from jsonb_to_recordset(${json}::text::jsonb) as x(producto_id int, cantidad int)`
@@ -356,6 +385,9 @@ export async function anularVenta(sql: Sql, d: { ventaId: number; usuarioId: num
     if (dev) throw new ErrorVenta('Esta venta ya tiene devoluciones: devolvé lo que queda en lugar de anularla.')
     const [cambio] = await tx`select 1 from venta_pagos where venta_id = ${d.ventaId} and medio = 'cambio'`
     if (cambio) throw new ErrorVenta('Esta venta es parte de un cambio de producto: hacé una devolución en lugar de anularla.')
+    await tx`
+      update reparaciones set estado = 'listo', entregado_en = null, entregado_por = null, venta_id = null, actualizado = now()
+      where venta_id = ${d.ventaId}`
     await tx`
       update ventas set estado = 'anulada', anulada_en = now(), anulada_por = ${d.usuarioId}, motivo_anulacion = ${d.motivo.trim()}
       where id = ${d.ventaId}`

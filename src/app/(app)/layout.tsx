@@ -13,13 +13,14 @@ export default async function AppLayout({ children }: LayoutProps<'/'>) {
   const estilo = estiloMarca(ajustes.color_marca)
   const vende = puedeVender(u)
   // Avisos del menú: pedidos sin atender, envíos por recibir y diferencias sin resolver.
-  const [avisos] = await db()<{ pedidos: number; por_recibir: number; diferencias: number }[]>`
+  const [avisos] = await db()<{ pedidos: number; por_recibir: number; diferencias: number; reparaciones: number }[]>`
     select
       (select count(*)::int from pedidos where estado in ('pendiente', 'parcial')
         ${u.rol === 'vendedora' ? db()`and sucursal_id = ${u.sucursal_id}` : db()``}) as pedidos,
       (select count(*)::int from envios e join depositos d on d.id = e.destino_id
         where e.estado = 'en_camino' ${u.rol === 'admin' ? db()`` : db()`and d.sucursal_id = ${u.sucursal_id}`}) as por_recibir,
-      ${puede(u, 'diferencias') ? db()`(select count(*)::int from envios where estado = 'con_diferencias' and resuelto_en is null)` : db()`0`} as diferencias`
+      ${puede(u, 'diferencias') ? db()`(select count(*)::int from envios where estado = 'con_diferencias' and resuelto_en is null)` : db()`0`} as diferencias,
+      ${puede(u, 'reparaciones') ? db()`(select count(*)::int from reparaciones where estado in ('listo', 'sin_reparacion') ${u.rol === 'admin' ? db()`` : db()`and sucursal_id = ${u.sucursal_id}`})` : db()`0`} as reparaciones`
   const p = (x: Permiso) => puede(u, x)
   const items: ItemNav[] = [
     { href: '/', texto: 'Inicio', icono: 'inicio', exacto: true },
@@ -31,6 +32,7 @@ export default async function AppLayout({ children }: LayoutProps<'/'>) {
           { href: '/presupuestos', texto: 'Presupuestos', icono: 'factura' },
         ] as ItemNav[])
       : []),
+    ...(p('reparaciones') ? [{ href: '/reparaciones', texto: 'Reparaciones', icono: 'reparaciones', aviso: avisos.reparaciones } as ItemNav] : []),
     ...(!vende && p('anular_ventas') ? [{ href: '/ventas', texto: 'Corregir ventas', icono: 'ventas' } as ItemNav] : []),
     { href: '/productos', texto: 'Productos', icono: 'productos' },
     ...(p('clientes') ? [{ href: '/clientes', texto: 'Clientes', icono: 'clientes' } as ItemNav] : []),

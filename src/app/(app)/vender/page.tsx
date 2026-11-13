@@ -6,10 +6,11 @@ import { descuentosPago, leerAjustes } from '@/lib/ajustes'
 import { Encabezado, Tarjeta, TituloTarjeta } from '@/components/ui'
 import { AperturaCaja } from './apertura'
 import { PuntoDeVenta } from './punto-de-venta'
+import { buscarReparaciones } from './actions'
 
 export const metadata: Metadata = { title: 'Vender' }
 
-export default async function VenderPage() {
+export default async function VenderPage(props: PageProps<'/vender'>) {
   const u = await requerirVendedor()
   const caja = await cajaAbierta(db(), u.id)
 
@@ -27,6 +28,10 @@ export default async function VenderPage() {
     )
   }
 
+  // "Cobrar en la caja" desde una reparación.
+  const idRep = Number((await props.searchParams).reparacion)
+  const reparacionInicial =
+    Number.isInteger(idRep) && idRep > 0 ? ((await buscarReparaciones(String(idRep))).reparaciones.find((r) => r.reparacionId === idRep) ?? null) : null
   const [{ descuento_max }] = await db()<{ descuento_max: number }[]>`select descuento_max from usuarios where id = ${u.id}`
   return (
     <PuntoDeVenta
@@ -35,6 +40,7 @@ export default async function VenderPage() {
       abierta={caja.abierta.toISOString()}
       descuentoMax={puede(u, 'descuento_libre') ? 100 : Number(descuento_max)}
       descuentos={descuentosPago(await leerAjustes())}
+      reparacionInicial={reparacionInicial}
     />
   )
 }

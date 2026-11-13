@@ -16,6 +16,7 @@ export function FormAjustes({
     categorias_gasto: string
     descuento_transferencia: string
     descuento_efectivo: string
+    condiciones_reparacion: string
   }
 }) {
   return (
@@ -57,6 +58,9 @@ export function FormAjustes({
           </Campo>
           <Campo etiqueta="Categorías de gastos" ayuda="Separadas por coma. Aparecen al cargar un gasto.">
             <Textarea name="categorias_gasto" defaultValue={ajustes.categorias_gasto} rows={2} />
+          </Campo>
+          <Campo etiqueta="Condiciones de las reparaciones" ayuda="Van al pie del comprobante que se le da al cliente al dejar el equipo.">
+            <Textarea name="condiciones_reparacion" defaultValue={ajustes.condiciones_reparacion} rows={3} maxLength={1000} />
           </Campo>
           <Boton type="submit" disabled={enviando}>
             Guardar

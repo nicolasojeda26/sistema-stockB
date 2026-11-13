@@ -118,7 +118,8 @@ export function Cobro({
       )
     iniciar(async () => {
       const r = await cobrar({
-        items: lineas.map((l) => ({ productoId: l.id, cantidad: l.cantidad, descuentoPct: l.descuentoPct })),
+        items: lineas.filter((l) => !l.reparacionId).map((l) => ({ productoId: l.id, cantidad: l.cantidad, descuentoPct: l.descuentoPct })),
+        reparaciones: lineas.flatMap((l) => (l.reparacionId ? [l.reparacionId] : [])),
         descuentoGlobalPct,
         pagos: pagos.map((p) => ({ medio: p.medio, monto: aPesos(montoDe(p)), cuotas: p.medio === 'credito' ? p.cuotas : null })),
         efectivoRecibido: efectivo > 0 ? aPesos(recibidoC) : null,

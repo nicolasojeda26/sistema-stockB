@@ -5,13 +5,15 @@ import Link from 'next/link'
 import { Aviso, Boton, Etiqueta } from '@/components/ui'
 import { formatoPesos } from '@/lib/formato'
 import { aPesos, calcularVenta, descuentoEfectivo, FORMAS_PRECIO, precioSegunForma, type DescuentosPago, type FormaPrecio } from '@/lib/venta-calculo'
-import { buscarParaVender, preciosActuales, type ProductoVenta } from './actions'
+import { buscarParaVender, preciosActuales, type ProductoVenta, type ReparacionVenta } from './actions'
+import { ElegirReparacion } from './reparacion'
 import { Cobro } from './cobro'
 import { ClienteCaja } from './cliente-caja'
 import { ElegirCambio, type CambioCarrito } from './cambio'
 import { clienteActual, type ClienteBuscado } from '../clientes/actions'
 
-export type LineaCarrito = ProductoVenta & { cantidad: number; descuentoPct: number }
+/** Las reparaciones van con id negativo y `reparacionId`: precio fijo, una unidad, sin stock. */
+export type LineaCarrito = ProductoVenta & { cantidad: number; descuentoPct: number; reparacionId?: number; cliente?: string }
 type Carrito = { lineas: LineaCarrito[]; descuentoGlobalPct: number; forma?: FormaPrecio; cliente?: ClienteBuscado | null; cambio?: CambioCarrito | null }
 
 const VACIO: Carrito = { lineas: [], descuentoGlobalPct: 0, forma: 'lista', cliente: null, cambio: null }
@@ -39,12 +41,14 @@ export function PuntoDeVenta({
   abierta,
   descuentoMax,
   descuentos,
+  reparacionInicial,
 }: {
   usuarioId: number
   sucursal: string
   abierta: string
   descuentoMax: number
   descuentos: DescuentosPago
+  reparacionInicial?: ReparacionVenta | null
 }) {
   const clave = `carrito-${usuarioId}`
   const [carrito, setCarrito] = useState<Carrito>(VACIO)
@@ -53,6 +57,7 @@ export function PuntoDeVenta({
   const [aviso, setAviso] = useState<{ tipo: 'error' | 'alerta' | 'info'; texto: string } | null>(null)
   const [cobrando, setCobrando] = useState(false)
   const [eligiendoCambio, setEligiendoCambio] = useState(false)
+  const [eligiendoReparacion, setEligiendoReparacion] = useState(false)
   const escaner = useRef<HTMLInputElement>(null)
   const listo = useRef(false)
   const pedido = useRef(0)
@@ -61,9 +66,14 @@ export function PuntoDeVenta({
   /* eslint-disable react-hooks/set-state-in-effect -- el carrito guardado vive en el navegador */
   useEffect(() => {
     const c = leer(clave)
-    if (c?.lineas?.length || c?.cliente || c?.cambio) setCarrito({ ...VACIO, ...c })
+    let base: Carrito = c?.lineas?.length || c?.cliente || c?.cambio ? { ...VACIO, ...c } : VACIO
+    // Llegó desde una reparación ("Cobrar en la caja"): se suma al carrito.
+    if (reparacionInicial && !base.lineas.some((l) => l.id === reparacionInicial.id))
+      base = { ...base, lineas: [{ ...reparacionInicial, cantidad: 1, descuentoPct: 0 }, ...base.lineas] }
+    if (base !== VACIO) setCarrito(base)
+    if (reparacionInicial) window.history.replaceState(null, '', '/vender')
     listo.current = true
-  }, [clave])
+  }, [clave, reparacionInicial])
   /* eslint-enable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (listo.current) guardar(clave, carrito)
@@ -81,6 +91,13 @@ export function PuntoDeVenta({
   const aCobrar = Math.max(calc.total - credito, 0)
 
   const enfocar = () => setTimeout(() => escaner.current?.focus(), 0)
+
+  function agregarReparacion(r: ReparacionVenta) {
+    setEligiendoReparacion(false)
+    setAviso(null)
+    setCarrito((c) => (c.lineas.some((l) => l.id === r.id) ? c : { ...c, lineas: [{ ...r, cantidad: 1, descuentoPct: 0 }, ...c.lineas] }))
+    enfocar()
+  }
 
   function agregar(p: ProductoVenta) {
     setAviso(p.stock <= 0 ? { tipo: 'alerta', texto: `Ojo: "${p.nombre}" figura sin stock en el local. Se vende igual.` } : null)
@@ -116,7 +133,7 @@ export function PuntoDeVenta({
   const abrirCobro = useCallback(async () => {
     if (!carrito.lineas.length) return
     // Antes de cobrar, traer los precios actuales por si alguien los cambió.
-    const precios = await preciosActuales(carrito.lineas.map((l) => l.id))
+    const precios = await preciosActuales(carrito.lineas.filter((l) => !l.reparacionId).map((l) => l.id))
     const distinto = (l: LineaCarrito) => {
       const p = precios[l.id]
       return !!p && (Number(p.precio) !== Number(l.precio) || precioSegunForma(p, forma, descuentos) !== unitario(l))
@@ -166,15 +183,24 @@ export function PuntoDeVenta({
           </p>
         </div>
 
-        <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+        <div className="grid gap-2 sm:grid-cols-[1fr_auto_auto]">
           <ClienteCaja cliente={cliente} setCliente={(c) => setCarrito((x) => ({ ...x, cliente: c }))} />
-          <button
-            type="button"
-            onClick={() => setEligiendoCambio(true)}
-            className="h-11 rounded-xl border border-linea bg-papel px-4 text-sm font-semibold text-tinta-suave hover:border-marca hover:text-marca"
-          >
-            Cambio de producto
-          </button>
+          <div className="grid grid-cols-2 gap-2 sm:contents">
+            <button
+              type="button"
+              onClick={() => setEligiendoReparacion(true)}
+              className="h-11 rounded-xl border border-linea bg-papel px-4 text-sm font-semibold text-tinta-suave hover:border-marca hover:text-marca"
+            >
+              Cobrar reparación
+            </button>
+            <button
+              type="button"
+              onClick={() => setEligiendoCambio(true)}
+              className="h-11 rounded-xl border border-linea bg-papel px-4 text-sm font-semibold text-tinta-suave hover:border-marca hover:text-marca"
+            >
+              Cambio de producto
+            </button>
+          </div>
         </div>
         {cambio && (
           <div className="flex items-center justify-between gap-3 rounded-xl border border-ok/30 bg-ok-claro px-4 py-2.5 text-sm">
@@ -257,7 +283,7 @@ export function PuntoDeVenta({
                       {l.codigo} ·{' '}
                       {forma !== 'lista' && unitario(l) < Number(l.precio) && <span className="text-apagado line-through">{formatoPesos(Number(l.precio))}</span>}{' '}
                       {formatoPesos(unitario(l))} c/u
-                      {l.stock - l.cantidad < 0 && (
+                      {!l.reparacionId && l.stock - l.cantidad < 0 && (
                         <span className="ml-2 font-sans">
                           <Etiqueta tono="error">sin stock</Etiqueta>
                         </span>
@@ -265,6 +291,19 @@ export function PuntoDeVenta({
                     </p>
                   </div>
                   <p className="num text-right font-semibold sm:order-last sm:w-28">{formatoPesos(aPesos(calc.subtotales[i]))}</p>
+                  {l.reparacionId ? (
+                    <div className="col-span-2 flex items-center justify-between gap-2 sm:col-span-2">
+                      <span className="text-xs text-tinta-suave">{l.cliente ? `Retira ${l.cliente}` : 'Reparación'} · precio fijo</span>
+                      <button
+                        aria-label={`Quitar ${l.nombre}`}
+                        onClick={() => setCarrito((c) => ({ ...c, lineas: c.lineas.filter((x) => x.id !== l.id) }))}
+                        className="flex h-9 w-9 items-center justify-center rounded-lg text-apagado hover:bg-error-claro hover:text-error"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ) : (
+                  <>
                   <div className="flex items-center gap-1">
                     <button
                       aria-label={`Restar uno de ${l.nombre}`}
@@ -306,6 +345,8 @@ export function PuntoDeVenta({
                       ✕
                     </button>
                   </div>
+                  </>
+                  )}
                 </li>
               ))}
             </ul>
@@ -431,6 +472,17 @@ export function PuntoDeVenta({
             </Boton>
           </div>
         </>
+      )}
+
+      {eligiendoReparacion && (
+        <ElegirReparacion
+          enCarrito={lineas.filter((l) => l.reparacionId).map((l) => l.id)}
+          alElegir={agregarReparacion}
+          alCerrar={() => {
+            setEligiendoReparacion(false)
+            enfocar()
+          }}
+        />
       )}
 
       {eligiendoCambio && (

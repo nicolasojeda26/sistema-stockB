@@ -13,6 +13,7 @@ export async function guardarAjustes(_: Resultado, f: FormData): Promise<Resulta
   const ancho = texto(f, 'ancho_ticket') === '58' ? '58' : '80'
   const curvas = f.has('curvas_talles') ? texto(f, 'curvas_talles').slice(0, 2000) : null
   const colores = f.has('colores_frecuentes') ? texto(f, 'colores_frecuentes').slice(0, 1000) : null
+  const condiciones = f.has('condiciones_reparacion') ? texto(f, 'condiciones_reparacion').slice(0, 1000) : null
   const gastos = f.has('categorias_gasto') ? texto(f, 'categorias_gasto').slice(0, 1000) : null
   if (!nombre) return { error: 'Poné el nombre del negocio.' }
   const pct = (clave: string) => {
@@ -32,6 +33,7 @@ export async function guardarAjustes(_: Resultado, f: FormData): Promise<Resulta
     ...(gastos !== null ? [{ clave: 'categorias_gasto', valor: gastos }] : []),
     ...(descTransf !== null ? [{ clave: 'descuento_transferencia', valor: descTransf }] : []),
     ...(descEfect !== null ? [{ clave: 'descuento_efectivo', valor: descEfect }] : []),
+    ...(condiciones !== null ? [{ clave: 'condiciones_reparacion', valor: condiciones }] : []),
   ]
   await db()`insert into ajustes ${db()(filas)} on conflict (clave) do update set valor = excluded.valor`
   revalidatePath('/ajustes')

@@ -124,6 +124,7 @@ export default async function InicioPage() {
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {vende && <Atajo icono="vender" href="/vender" titulo="Vender" detalle={caja ? `Tu caja está abierta desde las ${hora(caja.abierta)}` : 'Abrir la caja y cobrar'} />}
+        {puede(u, 'reparaciones') && <Atajo icono="reparaciones" href="/reparaciones/nueva" titulo="Recibir un equipo" detalle="Para reparar: modelo y falla" />}
         {puede(u, 'ingreso') && <Atajo icono="ingreso" href="/mercaderia/ingreso" titulo="Ingresar mercadería" detalle="Llegó un pedido" />}
         {puede(u, 'envios') ? (
           <Atajo icono="pedidos" href="/pedidos" titulo="Pedidos" detalle={pedidosAbiertos ? `${pedidosAbiertos} para preparar` : 'Sin pedidos pendientes'} />

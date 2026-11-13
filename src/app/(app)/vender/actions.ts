@@ -10,6 +10,7 @@ import type { ClienteBuscado } from '../clientes/actions'
 import { parseNumero } from '@/lib/numeros'
 import { CONSUMIDOR_FINAL, facturarVenta, leerConfig } from '@/lib/arca/facturacion'
 import type { Resultado } from '@/components/form-accion'
+import { lineaReparacion, numeroReparacion, reparacionesCobrables } from '@/lib/reparaciones'
 
 export type ProductoVenta = {
   id: number
@@ -19,6 +20,29 @@ export type ProductoVenta = {
   precio_transferencia: number | null
   precio_efectivo: number | null
   stock: number
+}
+
+/** Reparación lista para cobrar, como línea del carrito (id negativo para no chocar con productos). */
+export type ReparacionVenta = ProductoVenta & { reparacionId: number; cliente: string }
+const comoLinea = (r: { id: number; equipo: string; falla: string; cliente_nombre: string; precio: number | null }): ReparacionVenta => ({
+  id: -r.id,
+  reparacionId: r.id,
+  codigo: numeroReparacion(r.id),
+  nombre: lineaReparacion(r),
+  precio: Number(r.precio),
+  precio_transferencia: Number(r.precio),
+  precio_efectivo: Number(r.precio),
+  stock: 1,
+  cliente: r.cliente_nombre,
+})
+
+/** Reparaciones de la sucursal de la caja listas para cobrar (por número, cliente, teléfono o equipo). */
+export async function buscarReparaciones(q: string): Promise<{ reparaciones: ReparacionVenta[]; error?: string }> {
+  const u = await requerirVendedor()
+  const caja = await cajaAbierta(db(), u.id)
+  if (!caja) return { reparaciones: [], error: 'La caja está cerrada.' }
+  const filas = await reparacionesCobrables(db(), caja.sucursal_id, String(q ?? ''))
+  return { reparaciones: filas.map(comoLinea) }
 }
 
 const conStock = (sucursalId: number) => db()`
@@ -58,7 +82,8 @@ export async function preciosActuales(ids: number[]): Promise<PreciosActuales> {
 }
 
 const Cobro = z.object({
-  items: z.array(z.object({ productoId: z.number().int(), cantidad: z.number().int().min(1).max(10000), descuentoPct: z.number().min(0).max(100) })).min(1).max(300),
+  items: z.array(z.object({ productoId: z.number().int(), cantidad: z.number().int().min(1).max(10000), descuentoPct: z.number().min(0).max(100) })).max(300),
+  reparaciones: z.array(z.number().int().positive()).max(20).optional(),
   descuentoGlobalPct: z.number().min(0).max(100),
   pagos: z
     .array(
