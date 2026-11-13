@@ -28,6 +28,9 @@ export async function guardarProducto(_: Resultado, f: FormData): Promise<Result
   }
   const costo = parseNumero(texto(f, 'costo') || '0')
   const precio = parseNumero(texto(f, 'precio'))
+  const especial = (clave: string) => (texto(f, clave) ? parseNumero(texto(f, clave)) : null)
+  const precioTransf = especial('precio_transferencia')
+  const precioEfect = especial('precio_efectivo')
   const stockMinimo = parseNumero(texto(f, 'stock_minimo') || '0')
   const activo = id ? marcado(f, 'activo') : true
 
@@ -37,6 +40,8 @@ export async function guardarProducto(_: Resultado, f: FormData): Promise<Result
   if (!nombre) errores.nombre = 'Poné el nombre del producto.'
   if (costo === null || costo < 0) errores.costo = 'Costo no válido.'
   if (precio === null || precio < 0) errores.precio = 'Poné el precio de venta.'
+  if (texto(f, 'precio_transferencia') && (precioTransf === null || precioTransf < 0)) errores.precio_transferencia = 'Precio no válido.'
+  if (texto(f, 'precio_efectivo') && (precioEfect === null || precioEfect < 0)) errores.precio_efectivo = 'Precio no válido.'
   if (stockMinimo === null || stockMinimo < 0 || !Number.isInteger(stockMinimo)) errores.stock_minimo = 'Tiene que ser un número entero.'
   if (Object.keys(errores).length) return { error: 'Revisá los campos marcados.', errores }
 
@@ -48,14 +53,16 @@ export async function guardarProducto(_: Resultado, f: FormData): Promise<Result
         await tx`
           update productos set codigo = ${codigo}, nombre = ${nombre}, categoria_id = ${categoriaId},
             costo = ${centavos(costo!)}, precio = ${centavos(precio!)}, stock_minimo = ${stockMinimo},
+            precio_transferencia = ${precioTransf === null ? null : centavos(precioTransf)}, precio_efectivo = ${precioEfect === null ? null : centavos(precioEfect)},
             activo = ${activo}, actualizado = now()
             ${art ? tx`, talle = ${talle}, color = ${color}, orden_talle = ${ordenTalle(talle)}` : tx``}
           where id = ${id}`
         return id
       }
       const [p] = await tx<{ id: number }[]>`
-        insert into productos (codigo, nombre, categoria_id, costo, precio, stock_minimo)
-        values (${codigo}, ${nombre}, ${categoriaId}, ${centavos(costo!)}, ${centavos(precio!)}, ${stockMinimo})
+        insert into productos (codigo, nombre, categoria_id, costo, precio, stock_minimo, precio_transferencia, precio_efectivo)
+        values (${codigo}, ${nombre}, ${categoriaId}, ${centavos(costo!)}, ${centavos(precio!)}, ${stockMinimo},
+          ${precioTransf === null ? null : centavos(precioTransf)}, ${precioEfect === null ? null : centavos(precioEfect)})
         returning id`
       return p.id
     })

@@ -14,6 +14,9 @@ export type Ajustes = {
   logo_version: string
   /** Color de marca (#rrggbb). Vacío = el azul de siempre. */
   color_marca: string
+  /** % que se descuenta del precio de lista al pagar con transferencia o en efectivo. */
+  descuento_transferencia: string
+  descuento_efectivo: string
 }
 
 const PREDETERMINADOS: Ajustes = {
@@ -27,6 +30,8 @@ const PREDETERMINADOS: Ajustes = {
   logo: '',
   logo_version: '',
   color_marca: '',
+  descuento_transferencia: '0',
+  descuento_efectivo: '0',
 }
 
 export async function leerAjustes(): Promise<Ajustes> {
@@ -43,4 +48,10 @@ export const urlLogo = (a: Pick<Ajustes, 'logo' | 'logo_version'>) => (a.logo ? 
 export function estiloMarca(color: string): string | null {
   if (!/^#[0-9a-f]{6}$/i.test(color)) return null
   return `:root{--color-marca:${color};--color-marca-oscura:color-mix(in oklab,${color} 78%,black);--color-marca-clara:color-mix(in oklab,${color} 9%,white)}`
+}
+
+/** Descuentos por forma de pago, como números entre 0 y 100. */
+export function descuentosPago(a: Pick<Ajustes, 'descuento_transferencia' | 'descuento_efectivo'>) {
+  const n = (v: string) => Math.min(100, Math.max(0, Number(String(v).replace(',', '.')) || 0))
+  return { transferencia: n(a.descuento_transferencia), efectivo: n(a.descuento_efectivo) }
 }

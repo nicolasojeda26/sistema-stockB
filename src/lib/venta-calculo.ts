@@ -17,6 +17,28 @@ export const MEDIOS_VENTA: Record<MedioVenta, string> = {
   cambio: 'Cambio de producto',
 }
 
+/** Con qué precio se vende: lista (tarjeta), transferencia o efectivo. */
+export type FormaPrecio = 'lista' | 'transferencia' | 'efectivo'
+export const FORMAS_PRECIO: Record<FormaPrecio, string> = { lista: 'Lista', transferencia: 'Transferencia', efectivo: 'Efectivo' }
+export type DescuentosPago = { transferencia: number; efectivo: number }
+export type PreciosProducto = { precio: number | string; precio_transferencia?: number | string | null; precio_efectivo?: number | string | null }
+
+/** Precio unitario según la forma: el precio propio del producto si tiene, si no la lista menos el % (redondeado al peso). */
+export function precioSegunForma(p: PreciosProducto, forma: FormaPrecio, d: DescuentosPago): number {
+  const lista = Number(p.precio)
+  if (forma === 'lista') return lista
+  const propio = forma === 'transferencia' ? p.precio_transferencia : p.precio_efectivo
+  if (propio !== null && propio !== undefined && propio !== '') return Number(propio)
+  return Math.round(lista * (1 - d[forma] / 100))
+}
+
+/** El precio de efectivo es solo si todo se paga en efectivo; el de transferencia, si se paga con transferencia o efectivo. */
+export function formaPermitida(forma: FormaPrecio, medios: readonly string[]): boolean {
+  if (forma === 'efectivo') return medios.every((m) => m === 'efectivo')
+  if (forma === 'transferencia') return medios.every((m) => m === 'efectivo' || m === 'transferencia')
+  return true
+}
+
 export type LineaCalculo = { precio: number; cantidad: number; descuentoPct: number }
 
 export const aCentavos = (n: number) => Math.round(n * 100)

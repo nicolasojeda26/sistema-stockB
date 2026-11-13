@@ -6,6 +6,8 @@ import { puede, requerirUsuario } from '@/lib/dal'
 import { formatoEntero, formatoFecha, formatoPesos } from '@/lib/formato'
 import { Aviso, BotonLink, Encabezado, Etiqueta, Tarjeta, TituloTarjeta, Vacio, tablaCls as t } from '@/components/ui'
 import { FormProducto, type ProductoForm } from '../form-producto'
+import { descuentosPago, leerAjustes } from '@/lib/ajustes'
+import { precioSegunForma } from '@/lib/venta-calculo'
 
 export const metadata: Metadata = { title: 'Producto' }
 
@@ -26,11 +28,12 @@ export default async function ProductoPage(props: PageProps<'/productos/[id]'>) 
   const sql = db()
 
   const [producto] = await sql<(ProductoForm & { categoria: string | null })[]>`
-    select p.id, p.codigo, p.nombre, p.categoria_id, c.nombre as categoria, p.costo, p.precio, p.stock_minimo, p.activo,
+    select p.id, p.codigo, p.nombre, p.categoria_id, c.nombre as categoria, p.costo, p.precio, p.precio_transferencia, p.precio_efectivo, p.stock_minimo, p.activo,
       p.articulo_id, a.nombre as articulo, p.talle, p.color
     from productos p left join categorias c on c.id = p.categoria_id left join articulos a on a.id = p.articulo_id
     where p.id = ${id}`
   if (!producto) notFound()
+  const descuentos = descuentosPago(await leerAjustes())
 
   const [stocks, movimientos, categorias, precios] = await Promise.all([
     sql<{ deposito: string; sucursal: string | null; es_principal: boolean; cantidad: number; mia: boolean }[]>`
@@ -96,12 +99,18 @@ export default async function ProductoPage(props: PageProps<'/productos/[id]'>) 
           {puede(u, 'productos') ? (
             <Tarjeta>
               <TituloTarjeta>Datos del producto</TituloTarjeta>
-              <FormProducto producto={producto} categorias={categorias} />
+              <FormProducto producto={producto} categorias={categorias} descuentos={descuentos} />
             </Tarjeta>
           ) : (
             <Tarjeta className="p-6">
-              <p className="text-sm text-tinta-suave">Precio de venta</p>
+              <p className="text-sm text-tinta-suave">Precio de lista</p>
               <p className="num mt-1 text-4xl font-semibold tracking-tight">{formatoPesos(producto.precio)}</p>
+              {(descuentos.transferencia > 0 || descuentos.efectivo > 0 || producto.precio_efectivo != null) && (
+                <p className="mt-2 text-sm text-tinta-suave">
+                  Transferencia <b className="num text-tinta">{formatoPesos(precioSegunForma(producto, 'transferencia', descuentos))}</b> · Efectivo{' '}
+                  <b className="num text-tinta">{formatoPesos(precioSegunForma(producto, 'efectivo', descuentos))}</b>
+                </p>
+              )}
             </Tarjeta>
           )}
 

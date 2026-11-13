@@ -60,6 +60,41 @@ describe.skipIf(!url)('ventas y caja', () => {
     ).rejects.toThrow('Abrí la caja')
   })
 
+  it('precio según cómo paga: lista, transferencia y efectivo, con precios propios', async () => {
+    await abrirCaja(sql, { usuarioId: vend.id, sucursalId: suc, montoInicial: 0 })
+    // Ajustes de fábrica de la migración: transferencia 20 %, efectivo 30 %. El jean tiene precio fijo de efectivo.
+    await sql`update productos set precio_efectivo = 30000 where id = ${jean}`
+    const items = [
+      { productoId: remera, cantidad: 1, descuentoPct: 0 },
+      { productoId: jean, cantidad: 1, descuentoPct: 0 },
+    ]
+    // Efectivo: 10000 − 30 % = 7000; jean con precio propio 30000 → 37000.
+    const r = await registrarVenta(sql, { usuario: vend, items, descuentoGlobalPct: 0, pagos: [{ medio: 'efectivo', monto: 37000 }], totalEsperado: 37000, formaPrecio: 'efectivo' })
+    const [v] = await sql`select total, forma_precio from ventas where id = ${r.ventaId}`
+    expect(Number(v.total)).toBe(37000)
+    expect(v.forma_precio).toBe('efectivo')
+    const its = await sql`select precio_unitario from venta_items where venta_id = ${r.ventaId} order by id`
+    expect(its.map((i) => Number(i.precio_unitario))).toEqual([7000, 30000])
+    // El precio de efectivo no se puede cobrar con tarjeta.
+    await expect(
+      registrarVenta(sql, { usuario: vend, items: [items[0]], descuentoGlobalPct: 0, pagos: [{ medio: 'debito', monto: 7000 }], totalEsperado: 7000, formaPrecio: 'efectivo' }),
+    ).rejects.toThrow('todo en efectivo')
+    // Transferencia: 10000 − 20 % = 8000; se puede pagar con transferencia y efectivo.
+    await sql`insert into stock (producto_id, deposito_id, cantidad) values (${remera}, ${dep}, 0) on conflict do nothing`
+    const t = await registrarVenta(sql, {
+      usuario: vend,
+      items: [items[0]],
+      descuentoGlobalPct: 0,
+      pagos: [{ medio: 'transferencia', monto: 5000 }, { medio: 'efectivo', monto: 3000 }],
+      totalEsperado: 8000,
+      formaPrecio: 'transferencia',
+    })
+    expect(t.total).toBe(8000)
+    // Sin forma: precio de lista.
+    const l = await registrarVenta(sql, { usuario: vend, items: [items[0]], descuentoGlobalPct: 0, pagos: [{ medio: 'credito', monto: 10000 }], totalEsperado: 10000 })
+    expect(l.total).toBe(10000)
+  })
+
   it('vende con pago combinado, calcula el vuelto y descuenta stock', async () => {
     const caja = await abrirCaja(sql, { usuarioId: vend.id, sucursalId: suc, montoInicial: 5000 })
     const r = await registrarVenta(sql, {

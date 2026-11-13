@@ -15,6 +15,14 @@ export async function guardarAjustes(_: Resultado, f: FormData): Promise<Resulta
   const colores = f.has('colores_frecuentes') ? texto(f, 'colores_frecuentes').slice(0, 1000) : null
   const gastos = f.has('categorias_gasto') ? texto(f, 'categorias_gasto').slice(0, 1000) : null
   if (!nombre) return { error: 'Poné el nombre del negocio.' }
+  const pct = (clave: string) => {
+    if (!f.has(clave)) return null
+    const n = Number(texto(f, clave).replace(',', '.') || '0')
+    return Number.isFinite(n) && n >= 0 && n < 100 ? String(Math.round(n * 100) / 100) : undefined
+  }
+  const descTransf = pct('descuento_transferencia')
+  const descEfect = pct('descuento_efectivo')
+  if (descTransf === undefined || descEfect === undefined) return { error: 'Los descuentos por forma de pago van de 0 a 99 %.' }
   const filas = [
     { clave: 'nombre_negocio', valor: nombre },
     { clave: 'pie_ticket', valor: pie },
@@ -22,9 +30,12 @@ export async function guardarAjustes(_: Resultado, f: FormData): Promise<Resulta
     ...(curvas !== null ? [{ clave: 'curvas_talles', valor: curvas }] : []),
     ...(colores !== null ? [{ clave: 'colores_frecuentes', valor: colores }] : []),
     ...(gastos !== null ? [{ clave: 'categorias_gasto', valor: gastos }] : []),
+    ...(descTransf !== null ? [{ clave: 'descuento_transferencia', valor: descTransf }] : []),
+    ...(descEfect !== null ? [{ clave: 'descuento_efectivo', valor: descEfect }] : []),
   ]
   await db()`insert into ajustes ${db()(filas)} on conflict (clave) do update set valor = excluded.valor`
   revalidatePath('/ajustes')
+  revalidatePath('/vender')
   return { ok: 'Guardado.' }
 }
 

@@ -1,6 +1,6 @@
 import type { Sql } from 'postgres'
 import type { TransactionSql } from 'postgres'
-import { aCentavos, aPesos, calcularVenta, descuentoEfectivo, type MedioPago, type MedioVenta } from './venta-calculo'
+import { aCentavos, aPesos, calcularVenta, descuentoEfectivo, formaPermitida, precioSegunForma, type FormaPrecio, type MedioPago, type MedioVenta } from './venta-calculo'
 import { puedeEn } from './permisos'
 
 export class ErrorVenta extends Error {}
@@ -191,6 +191,8 @@ export type DatosVenta = {
   efectivoRecibido?: number | null
   /** Total que vio la vendedora: si el precio cambió mientras tanto, se avisa. */
   totalEsperado: number
+  /** Con qué precio se vende (lista, transferencia o efectivo). Por defecto, lista. */
+  formaPrecio?: FormaPrecio
   clienteId?: number | null
   /** Apartado con seña: el producto queda separado hasta que lo retiran. */
   paraRetirar?: boolean
@@ -216,6 +218,9 @@ export async function registrarVenta(
   if (!d.pagos.length && !d.cambio) throw new ErrorVenta('Elegí cómo paga el cliente.')
   for (const p of d.pagos) if (!(aCentavos(p.monto) > 0)) throw new ErrorVenta('Hay un pago sin monto.')
   const aCuenta = d.pagos.filter((p) => p.medio === 'cuenta_corriente').reduce((a, p) => a + aCentavos(p.monto), 0)
+  const forma: FormaPrecio = d.formaPrecio ?? 'lista'
+  if (!formaPermitida(forma, d.pagos.map((p) => p.medio)))
+    throw new ErrorVenta(forma === 'efectivo' ? 'El precio de efectivo es para pagar todo en efectivo. Elegí otro precio o cambiá el pago.' : 'El precio de transferencia es para pagar con transferencia o efectivo. Elegí otro precio o cambiá el pago.')
   if ((aCuenta > 0 || d.paraRetirar || d.cambio?.excedente === 'cuenta_corriente') && !d.clienteId)
     throw new ErrorVenta('Elegí el cliente: hace falta para cargar a su cuenta o apartar.')
 
@@ -232,8 +237,11 @@ export async function registrarVenta(
     }
 
     const ids = [...new Set(d.items.map((i) => i.productoId))]
-    const productos = await tx<{ id: number; codigo: string; nombre: string; precio: number; activo: boolean }[]>`
-      select id, codigo, nombre, precio, activo from productos where id = any(${ids}::int[])`
+    const productos = await tx<{ id: number; codigo: string; nombre: string; precio: number; precio_transferencia: number | null; precio_efectivo: number | null; activo: boolean }[]>`
+      select id, codigo, nombre, precio, precio_transferencia, precio_efectivo, activo from productos where id = any(${ids}::int[])`
+    const ajustesPago = await tx<{ clave: string; valor: string }[]>`select clave, valor from ajustes where clave in ('descuento_transferencia', 'descuento_efectivo')`
+    const pct = (clave: string) => Math.min(100, Math.max(0, Number(ajustesPago.find((a) => a.clave === clave)?.valor) || 0))
+    const descuentos = { transferencia: pct('descuento_transferencia'), efectivo: pct('descuento_efectivo') }
     const porId = new Map(productos.map((p) => [p.id, p]))
     const lineas = d.items.map((it) => {
       const p = porId.get(it.productoId)
@@ -241,7 +249,7 @@ export async function registrarVenta(
       if (!p.activo) throw new ErrorVenta(`"${p.nombre}" está dado de baja.`)
       if (descuentoEfectivo(it.descuentoPct, d.descuentoGlobalPct) > tope + 0.001)
         throw new ErrorVenta(`El descuento de "${p.nombre}" supera tu máximo permitido (${tope} %).`)
-      return { ...it, producto: p, precio: Number(p.precio) }
+      return { ...it, producto: p, precio: precioSegunForma(p, forma, descuentos) }
     })
 
     const calc = calcularVenta(lineas, d.descuentoGlobalPct)
@@ -278,9 +286,9 @@ export async function registrarVenta(
 
     const [v] = await tx<{ id: number }[]>`
       insert into ventas (sucursal_id, deposito_id, caja_id, usuario_id, subtotal, descuento, total, descuento_global_pct,
-                          efectivo_recibido, vuelto, cliente_id, para_retirar)
+                          efectivo_recibido, vuelto, cliente_id, para_retirar, forma_precio)
       values (${caja.sucursal_id}, ${dep.id}, ${caja.id}, ${d.usuario.id}, ${aPesos(calc.bruto)}, ${aPesos(calc.descuento)}, ${aPesos(calc.total)},
-              ${d.descuentoGlobalPct}, ${recibido === null ? null : aPesos(recibido)}, ${aPesos(vuelto)}, ${d.clienteId ?? null}, ${!!d.paraRetirar})
+              ${d.descuentoGlobalPct}, ${recibido === null ? null : aPesos(recibido)}, ${aPesos(vuelto)}, ${d.clienteId ?? null}, ${!!d.paraRetirar}, ${forma})
       returning id`
 
     const items = lineas.map((l, i) => ({

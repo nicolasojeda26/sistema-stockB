@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useTransition } from 'react'
 import { Aviso, Boton } from '@/components/ui'
 import { formatoPesos } from '@/lib/formato'
 import { parseNumero } from '@/lib/numeros'
-import { MEDIOS, aCentavos, aPesos, montosSugeridos, type MedioPago } from '@/lib/venta-calculo'
+import { MEDIOS, aCentavos, aPesos, formaPermitida, montosSugeridos, type FormaPrecio, type MedioPago } from '@/lib/venta-calculo'
 import { cobrar, facturarConsumidorFinal } from './actions'
 import type { LineaCarrito } from './punto-de-venta'
 import type { CambioCarrito } from './cambio'
@@ -19,6 +19,7 @@ const montoDe = (p: Pago) => aCentavos(parseNumero(p.monto) ?? 0)
 
 export function Cobro({
   lineas: lineasIniciales,
+  forma = 'lista',
   descuentoGlobalPct,
   totalCentavos,
   creditoCentavos = 0,
@@ -27,8 +28,11 @@ export function Cobro({
   sucursal,
   alCerrar,
   alVender,
+  alCambiarForma,
 }: {
   lineas: LineaCarrito[]
+  /** Con qué precio se armó el total: limita con qué se puede pagar. */
+  forma?: FormaPrecio
   descuentoGlobalPct: number
   totalCentavos: number
   /** Lo que devuelve en un cambio de producto (en centavos). */
@@ -38,6 +42,8 @@ export function Cobro({
   sucursal: string
   alCerrar: () => void
   alVender: () => void
+  /** Volver al carrito con otro precio (ej. paga en efectivo y estaba con precio de lista). */
+  alCambiarForma?: (forma: FormaPrecio) => void
 }) {
   // Foto de la venta: el carrito se vacía apenas se registra.
   const [lineas] = useState(lineasIniciales)
@@ -47,7 +53,7 @@ export function Cobro({
   const sobrante = Math.max(creditoCentavos - totalCentavos, 0)
   const [excedente, setExcedente] = useState<'efectivo' | 'cuenta_corriente'>(cliente ? 'cuenta_corriente' : 'efectivo')
   const [paraRetirar, setParaRetirar] = useState(false)
-  const [pagos, setPagos] = useState<Pago[]>(total > 0 ? [{ medio: 'efectivo', monto: aTexto(total), cuotas: 1 }] : [])
+  const [pagos, setPagos] = useState<Pago[]>(total > 0 ? [{ medio: forma === 'transferencia' ? 'transferencia' : 'efectivo', monto: aTexto(total), cuotas: 1 }] : [])
   const [recibido, setRecibido] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [hecho, setHecho] = useState<{
@@ -104,6 +110,12 @@ export function Cobro({
   function confirmar() {
     if (!valido || guardando) return
     setError(null)
+    if (!formaPermitida(forma, pagos.map((p) => p.medio)))
+      return setError(
+        forma === 'efectivo'
+          ? 'Estás cobrando con precio de efectivo: el pago tiene que ser todo en efectivo. Si paga de otra forma, volvé y cambiá el precio.'
+          : 'Estás cobrando con precio de transferencia: el pago tiene que ser con transferencia o efectivo. Si paga con tarjeta, volvé y cambiá el precio.',
+      )
     iniciar(async () => {
       const r = await cobrar({
         items: lineas.map((l) => ({ productoId: l.id, cantidad: l.cantidad, descuentoPct: l.descuentoPct })),
@@ -111,6 +123,7 @@ export function Cobro({
         pagos: pagos.map((p) => ({ medio: p.medio, monto: aPesos(montoDe(p)), cuotas: p.medio === 'credito' ? p.cuotas : null })),
         efectivoRecibido: efectivo > 0 ? aPesos(recibidoC) : null,
         totalEsperado: aPesos(totalVenta),
+        formaPrecio: forma,
         clienteId: cliente?.id ?? null,
         paraRetirar,
         cambio: cambio
@@ -418,6 +431,24 @@ export function Cobro({
               </div>
             )}
 
+            {(() => {
+              // Sugerencia: paga en efectivo o transferencia y el carrito está con un precio más alto.
+              if (!alCambiarForma || cambio || !pagos.length) return null
+              const mejor: FormaPrecio | null = pagos.every((p) => p.medio === 'efectivo')
+                ? 'efectivo'
+                : pagos.every((p) => p.medio === 'efectivo' || p.medio === 'transferencia')
+                  ? 'transferencia'
+                  : null
+              if (!mejor || mejor === forma || (forma === 'efectivo' && mejor === 'transferencia')) return null
+              return (
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-marca-clara px-4 py-3 text-sm">
+                  <span>Paga {mejor === 'efectivo' ? 'en efectivo' : 'con transferencia'}: le corresponde el precio de {mejor}.</span>
+                  <button type="button" onClick={() => alCambiarForma(mejor)} className="font-semibold text-marca underline">
+                    Usar precio de {mejor}
+                  </button>
+                </div>
+              )
+            })()}
             {error && (
               <div className="mt-4">
                 <Aviso tipo="error">{error}</Aviso>

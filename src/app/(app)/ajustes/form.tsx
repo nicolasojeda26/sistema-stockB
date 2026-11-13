@@ -7,7 +7,16 @@ import { guardarAjustes, guardarMarca } from './actions'
 export function FormAjustes({
   ajustes,
 }: {
-  ajustes: { nombre_negocio: string; pie_ticket: string; ancho_ticket: string; curvas_talles: string; colores_frecuentes: string; categorias_gasto: string }
+  ajustes: {
+    nombre_negocio: string
+    pie_ticket: string
+    ancho_ticket: string
+    curvas_talles: string
+    colores_frecuentes: string
+    categorias_gasto: string
+    descuento_transferencia: string
+    descuento_efectivo: string
+  }
 }) {
   return (
     <FormAccion accion={guardarAjustes} className="space-y-4 p-5">
@@ -25,6 +34,21 @@ export function FormAjustes({
               <option value="58">58 mm</option>
             </Select>
           </Campo>
+          <fieldset className="rounded-lg border border-linea p-4">
+            <legend className="px-1 text-sm font-semibold">Precio según cómo paga</legend>
+            <p className="mb-3 text-xs text-tinta-suave">
+              El precio de cada producto es el de lista (tarjeta). Al vender se elige el precio, y con transferencia o efectivo se descuenta este %. Un producto
+              puede tener precios propios para esas formas (en su ficha). Con 0 no se descuenta nada.
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Campo etiqueta="Transferencia (% menos)">
+                <Input name="descuento_transferencia" inputMode="decimal" defaultValue={ajustes.descuento_transferencia} />
+              </Campo>
+              <Campo etiqueta="Efectivo (% menos)">
+                <Input name="descuento_efectivo" inputMode="decimal" defaultValue={ajustes.descuento_efectivo} />
+              </Campo>
+            </div>
+          </fieldset>
           <Campo etiqueta="Listas de modelos" ayuda="Una por línea: marca, dos puntos y los modelos separados por coma. Aparecen al crear un producto con variantes.">
             <Textarea name="curvas_talles" defaultValue={ajustes.curvas_talles} rows={5} className="font-mono text-xs" />
           </Campo>

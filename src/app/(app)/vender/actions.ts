@@ -11,10 +11,18 @@ import { parseNumero } from '@/lib/numeros'
 import { CONSUMIDOR_FINAL, facturarVenta, leerConfig } from '@/lib/arca/facturacion'
 import type { Resultado } from '@/components/form-accion'
 
-export type ProductoVenta = { id: number; codigo: string; nombre: string; precio: number; stock: number }
+export type ProductoVenta = {
+  id: number
+  codigo: string
+  nombre: string
+  precio: number
+  precio_transferencia: number | null
+  precio_efectivo: number | null
+  stock: number
+}
 
 const conStock = (sucursalId: number) => db()`
-  select p.id, p.codigo, p.nombre, p.precio,
+  select p.id, p.codigo, p.nombre, p.precio, p.precio_transferencia, p.precio_efectivo,
     coalesce((select s.cantidad from stock s join depositos d on d.id = s.deposito_id
               where s.producto_id = p.id and d.sucursal_id = ${sucursalId} and d.es_principal), 0) as stock
   from productos p`
@@ -40,11 +48,13 @@ export async function buscarParaVender(q: string): Promise<{ exacto?: ProductoVe
 }
 
 /** Precios actuales de los productos del carrito (por si alguien los cambió). */
-export async function preciosActuales(ids: number[]): Promise<Record<number, number>> {
+export type PreciosActuales = Record<number, Pick<ProductoVenta, 'precio' | 'precio_transferencia' | 'precio_efectivo'>>
+export async function preciosActuales(ids: number[]): Promise<PreciosActuales> {
   await requerirVendedor()
   const lista = z.array(z.number().int()).max(300).parse(ids)
-  const filas = await db()<{ id: number; precio: number }[]>`select id, precio from productos where id = any(${lista}::int[])`
-  return Object.fromEntries(filas.map((f) => [f.id, f.precio]))
+  const filas = await db()<{ id: number; precio: number; precio_transferencia: number | null; precio_efectivo: number | null }[]>`
+    select id, precio, precio_transferencia, precio_efectivo from productos where id = any(${lista}::int[])`
+  return Object.fromEntries(filas.map(({ id, ...p }) => [id, p]))
 }
 
 const Cobro = z.object({
@@ -61,6 +71,7 @@ const Cobro = z.object({
     .max(6),
   efectivoRecibido: z.number().nonnegative().max(1e10).nullable(),
   totalEsperado: z.number().nonnegative(),
+  formaPrecio: z.enum(['lista', 'transferencia', 'efectivo']).optional(),
   clienteId: z.number().int().nullable().optional(),
   paraRetirar: z.boolean().optional(),
   cambio: z

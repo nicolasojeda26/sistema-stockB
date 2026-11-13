@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { db } from '@/lib/db'
 import { puede, requerirVendedor } from '@/lib/dal'
 import { cajaAbierta } from '@/lib/ventas'
+import { descuentosPago, leerAjustes } from '@/lib/ajustes'
 import { Encabezado, Tarjeta, TituloTarjeta } from '@/components/ui'
 import { AperturaCaja } from './apertura'
 import { PuntoDeVenta } from './punto-de-venta'
@@ -33,6 +34,7 @@ export default async function VenderPage() {
       sucursal={caja.sucursal}
       abierta={caja.abierta.toISOString()}
       descuentoMax={puede(u, 'descuento_libre') ? 100 : Number(descuento_max)}
+      descuentos={descuentosPago(await leerAjustes())}
     />
   )
 }

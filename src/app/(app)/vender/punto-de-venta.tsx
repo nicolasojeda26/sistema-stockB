@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 're
 import Link from 'next/link'
 import { Aviso, Boton, Etiqueta } from '@/components/ui'
 import { formatoPesos } from '@/lib/formato'
-import { aPesos, calcularVenta, descuentoEfectivo } from '@/lib/venta-calculo'
+import { aPesos, calcularVenta, descuentoEfectivo, FORMAS_PRECIO, precioSegunForma, type DescuentosPago, type FormaPrecio } from '@/lib/venta-calculo'
 import { buscarParaVender, preciosActuales, type ProductoVenta } from './actions'
 import { Cobro } from './cobro'
 import { ClienteCaja } from './cliente-caja'
@@ -12,9 +12,9 @@ import { ElegirCambio, type CambioCarrito } from './cambio'
 import { clienteActual, type ClienteBuscado } from '../clientes/actions'
 
 export type LineaCarrito = ProductoVenta & { cantidad: number; descuentoPct: number }
-type Carrito = { lineas: LineaCarrito[]; descuentoGlobalPct: number; cliente?: ClienteBuscado | null; cambio?: CambioCarrito | null }
+type Carrito = { lineas: LineaCarrito[]; descuentoGlobalPct: number; forma?: FormaPrecio; cliente?: ClienteBuscado | null; cambio?: CambioCarrito | null }
 
-const VACIO: Carrito = { lineas: [], descuentoGlobalPct: 0, cliente: null, cambio: null }
+const VACIO: Carrito = { lineas: [], descuentoGlobalPct: 0, forma: 'lista', cliente: null, cambio: null }
 
 function leer(clave: string): Carrito | null {
   try {
@@ -33,7 +33,19 @@ function guardar(clave: string, c: Carrito) {
 
 const hora = (iso: string) => new Date(iso).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'America/Argentina/Buenos_Aires' })
 
-export function PuntoDeVenta({ usuarioId, sucursal, abierta, descuentoMax }: { usuarioId: number; sucursal: string; abierta: string; descuentoMax: number }) {
+export function PuntoDeVenta({
+  usuarioId,
+  sucursal,
+  abierta,
+  descuentoMax,
+  descuentos,
+}: {
+  usuarioId: number
+  sucursal: string
+  abierta: string
+  descuentoMax: number
+  descuentos: DescuentosPago
+}) {
   const clave = `carrito-${usuarioId}`
   const [carrito, setCarrito] = useState<Carrito>(VACIO)
   const [busqueda, setBusqueda] = useState('')
@@ -60,7 +72,10 @@ export function PuntoDeVenta({ usuarioId, sucursal, abierta, descuentoMax }: { u
   const { lineas, descuentoGlobalPct } = carrito
   const cliente = carrito.cliente ?? null
   const cambio = carrito.cambio ?? null
-  const calc = calcularVenta(lineas.map((l) => ({ precio: l.precio, cantidad: l.cantidad, descuentoPct: l.descuentoPct })), descuentoGlobalPct)
+  const forma: FormaPrecio = carrito.forma ?? 'lista'
+  const unitario = (l: ProductoVenta) => precioSegunForma(l, forma, descuentos)
+  const calc = calcularVenta(lineas.map((l) => ({ precio: unitario(l), cantidad: l.cantidad, descuentoPct: l.descuentoPct })), descuentoGlobalPct)
+  const conDescuentoPago = descuentos.transferencia > 0 || descuentos.efectivo > 0
   const unidades = lineas.reduce((a, l) => a + l.cantidad, 0)
   const credito = cambio?.total ?? 0
   const aCobrar = Math.max(calc.total - credito, 0)
@@ -102,9 +117,13 @@ export function PuntoDeVenta({ usuarioId, sucursal, abierta, descuentoMax }: { u
     if (!carrito.lineas.length) return
     // Antes de cobrar, traer los precios actuales por si alguien los cambió.
     const precios = await preciosActuales(carrito.lineas.map((l) => l.id))
-    const cambiados = carrito.lineas.filter((l) => precios[l.id] !== undefined && precios[l.id] !== l.precio)
+    const distinto = (l: LineaCarrito) => {
+      const p = precios[l.id]
+      return !!p && (Number(p.precio) !== Number(l.precio) || precioSegunForma(p, forma, descuentos) !== unitario(l))
+    }
+    const cambiados = carrito.lineas.filter(distinto)
     if (cambiados.length) {
-      setCarrito((c) => ({ ...c, lineas: c.lineas.map((l) => ({ ...l, precio: precios[l.id] ?? l.precio })) }))
+      setCarrito((c) => ({ ...c, lineas: c.lineas.map((l) => ({ ...l, ...(precios[l.id] ?? {}) })) }))
       setAviso({ tipo: 'info', texto: `Se actualizó el precio de ${cambiados.map((l) => l.nombre).join(', ')}. Revisá el total.` })
       return
     }
@@ -212,7 +231,7 @@ export function PuntoDeVenta({ usuarioId, sucursal, abierta, descuentoMax }: { u
                         {p.stock > 0 ? <span>· {p.stock} en stock</span> : <span className="font-semibold text-error">· sin stock</span>}
                       </span>
                     </span>
-                    <span className="num shrink-0 font-semibold">{formatoPesos(p.precio)}</span>
+                    <span className="num shrink-0 font-semibold">{formatoPesos(unitario(p))}</span>
                   </button>
                 </li>
               ))}
@@ -235,7 +254,9 @@ export function PuntoDeVenta({ usuarioId, sucursal, abierta, descuentoMax }: { u
                   <div className="min-w-0">
                     <p className="truncate font-medium">{l.nombre}</p>
                     <p className="font-mono text-xs text-apagado">
-                      {l.codigo} · {formatoPesos(l.precio)} c/u
+                      {l.codigo} ·{' '}
+                      {forma !== 'lista' && unitario(l) < Number(l.precio) && <span className="text-apagado line-through">{formatoPesos(Number(l.precio))}</span>}{' '}
+                      {formatoPesos(unitario(l))} c/u
                       {l.stock - l.cantidad < 0 && (
                         <span className="ml-2 font-sans">
                           <Etiqueta tono="error">sin stock</Etiqueta>
@@ -294,6 +315,28 @@ export function PuntoDeVenta({ usuarioId, sucursal, abierta, descuentoMax }: { u
 
       <aside className="lg:sticky lg:top-6 lg:self-start">
         <div className="rounded-xl border border-linea bg-papel p-5 shadow-sm">
+          {conDescuentoPago && (
+            <fieldset className="mb-4">
+              <legend className="mb-1.5 text-xs font-semibold tracking-wide text-apagado uppercase">Precio</legend>
+              <div className="grid grid-cols-3 gap-1 rounded-lg bg-fondo p-1" role="radiogroup" aria-label="Precio según cómo paga">
+                {(['lista', 'transferencia', 'efectivo'] as const).map((f) => (
+                  <button
+                    key={f}
+                    type="button"
+                    role="radio"
+                    aria-checked={forma === f}
+                    onClick={() => setCarrito((c) => ({ ...c, forma: f }))}
+                    className={`rounded-md px-1 py-2 text-center text-xs font-semibold leading-tight ${forma === f ? 'bg-papel text-marca shadow-sm' : 'text-tinta-suave hover:text-tinta'}`}
+                  >
+                    {FORMAS_PRECIO[f]}
+                    <span className="block text-[11px] font-normal opacity-80">
+                      {f === 'lista' ? 'tarjeta' : `−${descuentos[f]} %`}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+          )}
           <dl className="space-y-2 text-sm">
             <div className="flex justify-between text-tinta-suave">
               <dt>
@@ -408,6 +451,7 @@ export function PuntoDeVenta({ usuarioId, sucursal, abierta, descuentoMax }: { u
       {cobrando && (
         <Cobro
           lineas={lineas}
+          forma={forma}
           descuentoGlobalPct={descuentoGlobalPct}
           totalCentavos={calc.total}
           creditoCentavos={credito}
@@ -417,6 +461,12 @@ export function PuntoDeVenta({ usuarioId, sucursal, abierta, descuentoMax }: { u
           alCerrar={() => {
             setCobrando(false)
             enfocar()
+          }}
+          alCambiarForma={(f) => {
+            // Se cierra el cobro, se cambia el precio y se vuelve a abrir con el total nuevo.
+            setCobrando(false)
+            setCarrito((c) => ({ ...c, forma: f }))
+            setTimeout(() => setCobrando(true), 0)
           }}
           alVender={() => {
             // Se vacía apenas se registra, para que una recarga no la cobre dos veces.

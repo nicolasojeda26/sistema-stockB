@@ -3,7 +3,8 @@
 import { useState, type KeyboardEvent } from 'react'
 import { FormAccion } from '@/components/form-accion'
 import { Boton, BotonLink, Campo, Input, Select } from '@/components/ui'
-import { margen } from '@/lib/formato'
+import { formatoPesos, margen } from '@/lib/formato'
+import { precioSegunForma, type DescuentosPago } from '@/lib/venta-calculo'
 import { parseNumero } from '@/lib/numeros'
 import { guardarProducto } from './actions'
 
@@ -14,6 +15,9 @@ export type ProductoForm = {
   categoria_id: number | null
   costo: number
   precio: number
+  /** Precios propios por forma de pago (vacío = lista menos el % de Ajustes). */
+  precio_transferencia?: number | null
+  precio_efectivo?: number | null
   stock_minimo: number
   activo: boolean
   /** Si es una variante de un artículo. */
@@ -34,9 +38,19 @@ function enterPasaAlSiguiente(e: KeyboardEvent<HTMLInputElement>) {
   campos[campos.indexOf(e.currentTarget) + 1]?.focus()
 }
 
-export function FormProducto({ producto, categorias }: { producto?: ProductoForm; categorias: { id: number; nombre: string }[] }) {
+export function FormProducto({
+  producto,
+  categorias,
+  descuentos = { transferencia: 0, efectivo: 0 },
+}: {
+  producto?: ProductoForm
+  categorias: { id: number; nombre: string }[]
+  descuentos?: DescuentosPago
+}) {
   const [costo, setCosto] = useState(producto ? aTexto(producto.costo) : '')
   const [precio, setPrecio] = useState(producto ? aTexto(producto.precio) : '')
+  const [precioTransf, setPrecioTransf] = useState(producto?.precio_transferencia != null ? aTexto(producto.precio_transferencia) : '')
+  const [precioEfect, setPrecioEfect] = useState(producto?.precio_efectivo != null ? aTexto(producto.precio_efectivo) : '')
   const m = margen(parseNumero(costo) ?? 0, parseNumero(precio) ?? 0)
 
   return (
@@ -105,6 +119,30 @@ export function FormProducto({ producto, categorias }: { producto?: ProductoForm
               <Input name="stock_minimo" inputMode="numeric" defaultValue={producto?.stock_minimo ?? 0} />
             </Campo>
           </div>
+          {(descuentos.transferencia > 0 || descuentos.efectivo > 0) && (
+            <details className="rounded-lg border border-linea px-4 py-3" open={!!(producto?.precio_transferencia || producto?.precio_efectivo)}>
+              <summary className="cursor-pointer text-sm font-medium">
+                Precio con transferencia y en efectivo
+                <span className="ml-2 font-normal text-tinta-suave">
+                  {(['transferencia', 'efectivo'] as const)
+                    .map((f) => `${f === 'transferencia' ? 'Transf.' : 'Efect.'} ${formatoPesos(precioSegunForma({ precio: parseNumero(precio) ?? 0, precio_transferencia: f === 'transferencia' ? parseNumero(precioTransf) : null, precio_efectivo: f === 'efectivo' ? parseNumero(precioEfect) : null }, f, descuentos))}`)
+                    .join(' · ')}
+                </span>
+              </summary>
+              <p className="mt-2 text-xs text-tinta-suave">
+                Vacío = la lista menos {descuentos.transferencia} % (transferencia) o {descuentos.efectivo} % (efectivo). Completalo solo si este producto tiene otro precio, por ejemplo
+                el mismo pague como pague.
+              </p>
+              <div className="mt-3 grid gap-4 sm:grid-cols-2">
+                <Campo etiqueta="Precio con transferencia" error={errores.precio_transferencia}>
+                  <Input name="precio_transferencia" inputMode="decimal" value={precioTransf} onChange={(e) => setPrecioTransf(e.target.value)} placeholder={`Automático: ${formatoPesos(precioSegunForma({ precio: parseNumero(precio) ?? 0 }, 'transferencia', descuentos))}`} />
+                </Campo>
+                <Campo etiqueta="Precio en efectivo" error={errores.precio_efectivo}>
+                  <Input name="precio_efectivo" inputMode="decimal" value={precioEfect} onChange={(e) => setPrecioEfect(e.target.value)} placeholder={`Automático: ${formatoPesos(precioSegunForma({ precio: parseNumero(precio) ?? 0 }, 'efectivo', descuentos))}`} />
+                </Campo>
+              </div>
+            </details>
+          )}
           {producto && (
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" name="activo" defaultChecked={producto.activo} className="h-4 w-4 accent-marca" />
