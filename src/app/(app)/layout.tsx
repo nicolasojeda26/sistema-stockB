@@ -31,6 +31,7 @@ export default async function AppLayout({ children }: LayoutProps<'/'>) {
           { href: '/presupuestos', texto: 'Presupuestos', icono: 'factura' },
         ] as ItemNav[])
       : []),
+    ...(!vende && p('anular_ventas') ? [{ href: '/ventas', texto: 'Corregir ventas', icono: 'ventas' } as ItemNav] : []),
     { href: '/productos', texto: 'Productos', icono: 'productos' },
     ...(p('clientes') ? [{ href: '/clientes', texto: 'Clientes', icono: 'clientes' } as ItemNav] : []),
     ...(p('ingreso') ? [{ href: '/mercaderia/ingreso', texto: 'Ingreso de mercadería', icono: 'ingreso' } as ItemNav] : []),

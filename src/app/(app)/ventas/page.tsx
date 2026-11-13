@@ -1,7 +1,8 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { db } from '@/lib/db'
-import { requerirVendedor } from '@/lib/dal'
+import { redirect } from 'next/navigation'
+import { puedeVender, requerirAlguno } from '@/lib/dal'
 import { formatoEntero, formatoFecha, formatoPesos } from '@/lib/formato'
 import { MEDIOS, MEDIOS_VENTA, type MedioPago, type MedioVenta } from '@/lib/venta-calculo'
 import { BotonLink, Encabezado, Etiqueta, Input, Select, Tarjeta, Vacio, tablaCls as t } from '@/components/ui'
@@ -13,8 +14,24 @@ const hoyAR = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Argent
 const fecha = (v: unknown) => (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : '')
 
 export default async function VentasPage(props: PageProps<'/ventas'>) {
-  const u = await requerirVendedor()
+  const u = await requerirAlguno('vender', 'anular_ventas')
   const sp = await props.searchParams
+  // Quien corrige ventas sin vender (ej. supervisión) no ve el listado ni los totales: busca la venta por número.
+  if (!puedeVender(u)) {
+    const n = Number(String(sp.numero ?? '').replace(/\D/g, ''))
+    if (n) redirect(`/ventas/${n}`)
+    return (
+      <>
+        <Encabezado titulo="Corregir una venta" detalle="Escribí el número de la venta (está en el ticket) para anularla o revisarla." />
+        <Tarjeta className="max-w-md p-5">
+          <form className="flex gap-2">
+            <Input name="numero" inputMode="numeric" placeholder="N.º de venta" aria-label="Número de venta" required autoFocus />
+            <button className="rounded-lg bg-marca px-4 text-sm font-semibold text-white hover:bg-marca-oscura">Buscar</button>
+          </form>
+        </Tarjeta>
+      </>
+    )
+  }
   const desde = fecha(sp.desde) || hoyAR()
   const hasta = fecha(sp.hasta) || desde
   const sucursal = u.rol === 'admin' ? Number(sp.sucursal) || null : u.sucursal_id

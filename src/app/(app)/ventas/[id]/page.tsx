@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { puede, requerirVendedor } from '@/lib/dal'
+import { puede, requerirAlguno } from '@/lib/dal'
 import { leerVenta } from '@/lib/venta-detalle'
 import { formatoFecha, formatoPesos } from '@/lib/formato'
 import { MEDIOS_VENTA as MEDIOS } from '@/lib/venta-calculo'
@@ -17,7 +17,7 @@ import { DevolverVenta, FacturarVenta, MarcarRetirada, ReintentarNC } from './ac
 export const metadata: Metadata = { title: 'Venta' }
 
 export default async function VentaPage(props: PageProps<'/ventas/[id]'>) {
-  const u = await requerirVendedor()
+  const u = await requerirAlguno('vender', 'anular_ventas')
   const id = Number((await props.params).id)
   if (!Number.isInteger(id)) notFound()
   const v = await leerVenta(id, u)

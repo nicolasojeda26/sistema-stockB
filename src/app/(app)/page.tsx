@@ -207,7 +207,7 @@ export default async function InicioPage() {
         </Tarjeta>
       </div>
 
-      {esAdmin && abiertas.length > 0 && (
+      {esAdmin && vende && abiertas.length > 0 && (
         <Tarjeta className="mt-5">
           <TituloTarjeta>Cajas abiertas</TituloTarjeta>
           <ul className="divide-y divide-linea">
