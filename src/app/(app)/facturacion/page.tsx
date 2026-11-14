@@ -20,7 +20,7 @@ export default async function FacturacionPage() {
   await requerirPermiso('facturacion')
   const [c, sucursales] = await Promise.all([
     leerConfig(db()),
-    db()<{ id: number; nombre: string; punto_venta: number | null }[]>`select id, nombre, punto_venta from sucursales where activa order by nombre`,
+    db()<{ id: number; nombre: string; punto_venta: number | null }[]>`select id, nombre, punto_venta from sucursales where activa and tipo <> 'deposito' order by nombre`,
   ])
   let cert: { sujeto: string; emisor: string; hasta: string } | null = null
   if (c.certificado) {

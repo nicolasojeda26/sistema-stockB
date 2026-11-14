@@ -10,7 +10,7 @@ export async function GET() {
       'content-type': m[1],
       'cache-control': 'public, max-age=86400',
       // Un SVG subido no puede ejecutar nada.
-      'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'",
+      'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'",
       'x-content-type-options': 'nosniff',
     },
   })

@@ -14,13 +14,15 @@ export default async function ImportarPage() {
     from depositos d left join sucursales s on s.id = d.sucursal_id
     where d.activo and not d.es_transito and (s.id is null or s.activa)
     order by s.nombre nulls last, d.es_principal desc, d.nombre`
+  // Si ya hubo ventas o movimientos, volver a importar stock pisa lo que pasó desde entonces.
+  const [{ n: movimientos }] = await db()<{ n: number }[]>`select count(*)::int as n from movimientos_stock where tipo <> 'carga_inicial'`
   return (
     <>
       <Encabezado
         titulo="Importar desde Dux"
         detalle="Subí el Excel de Dux: la consulta de stock por depósito, la lista de precios o cualquier planilla con código y nombre. Primero ves una vista previa; nada se guarda hasta que confirmás."
       />
-      <Importador depositos={depositos} />
+      <Importador depositos={depositos} movimientos={movimientos} />
     </>
   )
 }

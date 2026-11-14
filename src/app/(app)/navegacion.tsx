@@ -210,7 +210,7 @@ export function Navegacion({ items, pie, negocio, logo }: { items: ItemNav[]; pi
             <span className="mt-1.5 block text-[10px] font-semibold tracking-[.16em] text-white/50">GESTIÓN COMERCIAL</span>
           </span>
         </Link>
-        <nav className="flex-1 overflow-y-auto px-3 pb-3" aria-label="Principal">
+        <nav className="min-h-0 flex-1 overflow-y-auto px-3 pb-3" aria-label="Principal">
           {grupos.map((g, i) =>
             g.seccion === 'Configuración' ? (
               <div key={i} className="mt-3">

@@ -8,7 +8,15 @@ export async function proxy(req: NextRequest) {
   const enLogin = req.nextUrl.pathname === '/login'
   const publica = enLogin || ['/activar', '/logo'].includes(req.nextUrl.pathname)
   if (!sesion && !publica) return NextResponse.redirect(new URL('/login', req.url))
-  if (sesion && enLogin) return NextResponse.redirect(new URL('/', req.url))
+  if (sesion && enLogin) {
+    // Sesión vencida del lado del servidor: se borra la cookie y se muestra el login.
+    if (req.nextUrl.searchParams.has('salir')) {
+      const r = NextResponse.next()
+      r.cookies.delete(COOKIE_SESION)
+      return r
+    }
+    return NextResponse.redirect(new URL('/', req.url))
+  }
   return NextResponse.next()
 }
 

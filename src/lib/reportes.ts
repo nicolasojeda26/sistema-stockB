@@ -59,12 +59,15 @@ export function porMedio(sql: Sql, f: Filtro) {
 /** Más vendidos: unidades netas de devoluciones. */
 export function masVendidos(sql: Sql, f: Filtro, limite = 20) {
   return sql<{ producto_id: number | null; codigo: string; nombre: string; unidades: number; total: number }[]>`
-    select i.producto_id, max(i.codigo) as codigo, max(i.nombre) as nombre,
+    select i.producto_id,
+      case when i.producto_id is null then 'R-' else max(i.codigo) end as codigo,
+      case when i.producto_id is null then 'Reparaciones (servicio técnico)' else max(i.nombre) end as nombre,
       (sum(i.cantidad) - coalesce(sum((select sum(di.cantidad) from devolucion_items di where di.venta_item_id = i.id)), 0))::int as unidades,
       sum(i.subtotal) - coalesce(sum((select sum(di.subtotal) from devolucion_items di where di.venta_item_id = i.id)), 0) as total
     from venta_items i join ventas v on v.id = i.venta_id
     where v.estado = 'completada' and ${rango(sql, f, 'v.creado')} ${deSucursal(sql, f, 'v.sucursal_id')}
     group by i.producto_id
+    having sum(i.cantidad) - coalesce(sum((select sum(di.cantidad) from devolucion_items di where di.venta_item_id = i.id)), 0) > 0
     order by unidades desc, total desc
     limit ${limite}`
 }

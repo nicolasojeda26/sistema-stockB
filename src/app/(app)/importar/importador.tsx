@@ -12,7 +12,8 @@ const TAM_LOTE = 400
 type Hoja = { nombre: string; filas: unknown[][] }
 type Total = { creados: number; actualizados: number; omitidos: number; stock: number; categorias: number; articulos: number }
 
-export function Importador({ depositos }: { depositos: { id: number; nombre: string; clave: string; central: boolean }[] }) {
+export function Importador({ depositos, movimientos = 0 }: { depositos: { id: number; nombre: string; clave: string; central: boolean }[]; movimientos?: number }) {
+  const [pisarStock, setPisarStock] = useState(false)
   const [archivo, setArchivo] = useState<string | null>(null)
   const [hojas, setHojas] = useState<Hoja[]>([])
   const [hojaSel, setHojaSel] = useState(0)
@@ -32,6 +33,7 @@ export function Importador({ depositos }: { depositos: { id: number; nombre: str
   const destinoDe = (h: string) => destinos[h] ?? String(sugerirDeposito(h, depositos) ?? '')
   const lectura = useMemo(() => leerPlanilla(filas, encabezado, mapeo, columnasStock), [filas, encabezado, mapeo, columnasStock])
   const variantes = lectura.validas.filter((f) => f.codigo_origen).length
+  const cargaStock = columnasStock.length > 0 ? columnasStock.some((c) => destinoDe(c.encabezado) !== '') : mapeo.stock !== undefined && depositoId !== ''
 
   function elegirHoja(h: Hoja[], i: number) {
     const enc = encontrarEncabezado(h[i].filas)
@@ -55,11 +57,22 @@ export function Importador({ depositos }: { depositos: { id: number; nombre: str
       const inicio = new TextDecoder().decode(datos.slice(0, 512)).trimStart().toLowerCase()
       const esTexto = inicio.startsWith('<') || inicio.startsWith('\ufeff<')
       if (/\.xlsx?$/i.test(file.name) && !esXlsx && !esXls && !esTexto) throw new Error('no es Excel')
-      const libro = XLSX.read(datos, { type: 'array', cellDates: false })
+      // Un CSV puede venir en UTF-8 o en Windows-1252 (Excel en castellano): se decodifica a mano
+      // para que "Código" no quede como "CÃ³digo".
+      const esCsv = !esXlsx && !esXls && !esTexto
+      let texto: string | null = null
+      if (esCsv) {
+        try {
+          texto = new TextDecoder('utf-8', { fatal: true }).decode(datos)
+        } catch {
+          texto = new TextDecoder('windows-1252').decode(datos)
+        }
+      }
+      const libro = texto !== null ? XLSX.read(texto.replace(/^\ufeff/, ''), { type: 'string', cellDates: false }) : XLSX.read(datos, { type: 'array', cellDates: false })
       const h = libro.SheetNames.map((nombre) => ({
         nombre,
         filas: XLSX.utils.sheet_to_json<unknown[]>(libro.Sheets[nombre], { header: 1, raw: true, defval: null, blankrows: true }),
-      })).filter((x) => x.filas.length > 0)
+      })).filter((x) => x.filas.some((f) => Array.isArray(f) && f.some((c) => c !== null && String(c).trim() !== '')))
       if (!h.length) throw new Error('vacío')
       setArchivo(file.name)
       setHojas(h)
@@ -344,10 +357,28 @@ export function Importador({ depositos }: { depositos: { id: number; nombre: str
                   <span className="block text-xs text-apagado">Si lo desmarcás, solo se agregan los nuevos.</span>
                 </span>
               </label>
+              {cargaStock && movimientos > 0 && (
+                <div className="rounded-lg border border-alerta/40 bg-alerta-claro p-3 text-sm">
+                  <p className="font-semibold text-alerta">Ojo: esto reemplaza el stock actual.</p>
+                  <p className="mt-1 text-tinta-suave">
+                    El sistema ya tiene {formatoEntero(movimientos)} movimientos (ventas, envíos, ajustes). El stock de los depósitos elegidos va a quedar igual al de la
+                    planilla, y lo que pasó después de sacarla de Dux se pierde. Si solo querés actualizar nombres o precios, poné «No cargar» en las columnas de stock.
+                  </p>
+                  <label className="mt-2 flex items-center gap-2 font-medium">
+                    <input type="checkbox" checked={pisarStock} onChange={(e) => setPisarStock(e.target.checked)} className="h-4 w-4 accent-marca" />
+                    Entiendo, reemplazar el stock
+                  </label>
+                </div>
+              )}
               {resultado?.error && <Aviso tipo="error">{resultado.error}</Aviso>}
               <Boton
                 onClick={importar}
-                disabled={!!progreso || lectura.validas.length === 0 || (mapeo.codigo === undefined && mapeo.codigo_alt === undefined)}
+                disabled={
+                  !!progreso ||
+                  lectura.validas.length === 0 ||
+                  (mapeo.codigo === undefined && mapeo.codigo_alt === undefined) ||
+                  (cargaStock && movimientos > 0 && !pisarStock)
+                }
               >
                 {progreso
                   ? `Importando… ${formatoEntero(progreso.hecho)} de ${formatoEntero(progreso.total)}`

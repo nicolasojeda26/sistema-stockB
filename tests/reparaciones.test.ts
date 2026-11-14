@@ -1,8 +1,10 @@
 import postgres from 'postgres'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { migrar } from '../scripts/migrate'
 import { cambiarEstadoReparacion, ingresarReparacion, linkWhatsApp, reparacionesCobrables } from '../src/lib/reparaciones'
 import { abrirCaja, anularVenta, registrarVenta } from '../src/lib/ventas'
+vi.mock('server-only', () => ({}))
+import { masVendidos } from '../src/lib/reportes'
 
 describe('link de WhatsApp', () => {
   it('arma el número argentino', () => {
@@ -73,6 +75,10 @@ describe.skipIf(!url)('reparaciones', () => {
     const its = await sql`select producto_id, codigo, nombre, precio_unitario from venta_items where venta_id = ${r.ventaId} order by id`
     expect(its.map((i) => [i.producto_id === null, i.codigo, Number(i.precio_unitario)])).toEqual([[false, 'F1', 7000], [true, 'R-' + String(id).padStart(5, '0'), 48000]])
     expect(its[1].nombre).toContain('Samsung A15')
+    // En "Más vendidos" las reparaciones van juntas, con un nombre claro.
+    const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' })
+    const top = await masVendidos(sql, { desde: hoy, hasta: hoy, sucursalId: null })
+    expect(top.find((t) => t.producto_id === null)?.nombre).toBe('Reparaciones (servicio técnico)')
     const [rep] = await sql`select estado, venta_id from reparaciones where id = ${id}`
     expect(rep).toMatchObject({ estado: 'entregado', venta_id: r.ventaId })
     // La reparación no mueve stock.

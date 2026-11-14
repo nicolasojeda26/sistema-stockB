@@ -33,7 +33,7 @@ export async function GET(req: Request) {
       IVA: s(c.cbte_tipo) * Number(c.iva),
       Total: s(c.cbte_tipo) * Number(c.total),
       CAE: c.cae,
-    })),
+    })).concat(filas.length ? [] : [{ Fecha: 'Sin comprobantes en el período' } as never]),
   )
   const libro = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(libro, hoja, 'Comprobantes')

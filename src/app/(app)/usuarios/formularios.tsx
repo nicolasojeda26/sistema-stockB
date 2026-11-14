@@ -193,15 +193,15 @@ export function FilaUsuario({
         {modo === 'ver' && (
           <div className="flex flex-wrap gap-1">
             {usuario.activo && usuario.rol !== 'admin' && (
-              <button onClick={() => { setMovido(null); setModo('mover') }} className="rounded-md px-2 py-1 text-xs font-medium text-marca hover:bg-marca-clara">
+              <button onClick={() => { setMovido(null); setModo('mover') }} className="rounded-md px-2.5 py-2 text-sm font-medium sm:py-1 sm:text-xs text-marca hover:bg-marca-clara">
                 Mover
               </button>
             )}
-            <button onClick={() => setModo('editar')} className="rounded-md px-2 py-1 text-xs font-medium text-tinta-suave hover:bg-fondo">
+            <button onClick={() => setModo('editar')} className="rounded-md px-2.5 py-2 text-sm font-medium sm:py-1 sm:text-xs text-tinta-suave hover:bg-fondo">
               Editar
             </button>
             {esYo ? (
-              <button onClick={() => setModo('clave')} className="rounded-md px-2 py-1 text-xs font-medium text-tinta-suave hover:bg-fondo">
+              <button onClick={() => setModo('clave')} className="rounded-md px-2.5 py-2 text-sm font-medium sm:py-1 sm:text-xs text-tinta-suave hover:bg-fondo">
                 Cambiar contraseña
               </button>
             ) : (
@@ -212,7 +212,7 @@ export function FilaUsuario({
                     if (!usuario.sin_clave && !confirm(`¿Generar un código nuevo para ${usuario.nombre}? Su contraseña actual deja de servir.`)) return
                     iniciar(async () => setCodigo(await codigoAcceso(usuario.id)))
                   }}
-                  className="rounded-md px-2 py-1 text-xs font-medium text-tinta-suave hover:bg-fondo"
+                  className="rounded-md px-2.5 py-2 text-sm font-medium sm:py-1 sm:text-xs text-tinta-suave hover:bg-fondo"
                 >
                   {usuario.sin_clave ? 'Código de acceso' : 'Olvidó la contraseña'}
                 </button>

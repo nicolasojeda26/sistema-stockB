@@ -24,7 +24,7 @@ export default async function InicioPage() {
     sql<{ id: number; nombre: string; ventas: number; total: number }[]>`
       select s.id, s.nombre, count(v.id)::int as ventas, coalesce(sum(v.total), 0) as total
       from sucursales s left join ventas v on v.sucursal_id = s.id and v.estado = 'completada' and ${hoy}
-      where s.activa ${deSucursal}
+      where s.activa and s.tipo <> 'deposito' ${deSucursal}
       group by s.id order by total desc, s.nombre`,
     // Lo que quedó en el mínimo o menos en el local de cada sucursal.
     sql<{ id: number; nombre: string; sucursal: string; cantidad: number; stock_minimo: number }[]>`

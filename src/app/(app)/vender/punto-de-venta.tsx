@@ -251,7 +251,7 @@ export function PuntoDeVenta({
                     className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-marca-clara"
                   >
                     <span className="min-w-0">
-                      <span className="block truncate font-medium">{p.nombre}</span>
+                      <span className="line-clamp-2 font-medium">{p.nombre}</span>
                       <span className="block text-xs text-apagado">
                         <span className="font-mono">{p.codigo}</span>{' '}
                         {p.stock > 0 ? <span>· {p.stock} en stock</span> : <span className="font-semibold text-error">· sin stock</span>}
@@ -278,7 +278,7 @@ export function PuntoDeVenta({
               {lineas.map((l, i) => (
                 <li key={l.id} className={`grid grid-cols-[1fr_auto] gap-x-4 gap-y-2 px-4 py-3 sm:grid-cols-[1fr_auto_auto_auto] sm:items-center ${i === 0 ? 'bg-marca-clara/40' : ''}`}>
                   <div className="min-w-0">
-                    <p className="truncate font-medium">{l.nombre}</p>
+                    <p className="line-clamp-2 font-medium" title={l.nombre}>{l.nombre}</p>
                     <p className="font-mono text-xs text-apagado">
                       {l.codigo} ·{' '}
                       {forma !== 'lista' && unitario(l) < Number(l.precio) && <span className="text-apagado line-through">{formatoPesos(Number(l.precio))}</span>}{' '}

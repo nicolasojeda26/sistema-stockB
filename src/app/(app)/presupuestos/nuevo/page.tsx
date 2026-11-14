@@ -1,13 +1,13 @@
 import type { Metadata } from 'next'
 import { db } from '@/lib/db'
-import { requerirUsuario } from '@/lib/dal'
+import { requerirVendedor } from '@/lib/dal'
 import { Encabezado } from '@/components/ui'
 import { FormPresupuesto } from '../form-presupuesto'
 
 export const metadata: Metadata = { title: 'Nuevo presupuesto' }
 
 export default async function NuevoPresupuestoPage() {
-  const u = await requerirUsuario()
+  const u = await requerirVendedor()
   const [sucursales, clientes] = await Promise.all([
     u.rol === 'admin'
       ? db()<{ id: number; nombre: string }[]>`select id, nombre from sucursales where activa order by nombre`

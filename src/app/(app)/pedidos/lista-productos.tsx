@@ -29,6 +29,8 @@ export function ListaProductos({
   const demora = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   function agregar(p: ProductoLinea) {
+    if (demora.current) clearTimeout(demora.current)
+    pedido.current++
     setSugerencias([])
     setBusqueda('')
     setNoHay(null)
@@ -44,19 +46,21 @@ export function ListaProductos({
     escaner.current?.focus()
   }
   async function buscar(texto: string, enter: boolean) {
+    if (demora.current) clearTimeout(demora.current)
     const n = ++pedido.current
     if (!texto.trim()) return setSugerencias([])
     const r = await buscarProducto(texto, depositoId)
     if (n !== pedido.current) return
     if (r.exacto) return enter ? agregar(r.exacto) : setSugerencias([r.exacto])
+    if (enter && r.sugerencias.length === 1 && !/^\d{6,}$/.test(texto.trim())) return agregar(r.sugerencias[0])
     setSugerencias(r.sugerencias)
     if (enter && !r.sugerencias.length) setNoHay(texto.trim())
   }
   function tecla(e: KeyboardEvent<HTMLInputElement>) {
     if (e.key === 'Enter') {
       e.preventDefault()
-      if (sugerencias.length === 1 && busqueda.trim() && !/^\d{6,}$/.test(busqueda.trim())) agregar(sugerencias[0])
-      else void buscar(busqueda, true)
+      // Siempre se busca lo que está escrito ahora: una sugerencia vieja podría ser de otro código.
+      void buscar(busqueda, true)
     } else if (e.key === 'Escape') setSugerencias([])
   }
 

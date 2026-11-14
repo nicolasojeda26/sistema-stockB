@@ -97,6 +97,8 @@ export function OperacionStock({
   const resta = tipo === 'ajuste' && (motivo === 'Rotura' || motivo === 'Pérdida o robo')
 
   function agregar(p: ProductoLinea) {
+    if (demora.current) clearTimeout(demora.current)
+    pedido.current++
     setError(null)
     setNoEncontrado(null)
     setSugerencias([])
@@ -149,6 +151,8 @@ export function OperacionStock({
     if (r.exacto) {
       if (enter) agregar(r.exacto)
       else setSugerencias([r.exacto])
+    } else if (enter && r.sugerencias.length === 1 && !/^\d{6,}$/.test(texto.trim())) {
+      agregar(r.sugerencias[0])
     } else {
       setSugerencias(r.sugerencias)
       if (enter && r.sugerencias.length === 0) setNoEncontrado(texto.trim())
@@ -158,8 +162,8 @@ export function OperacionStock({
   function teclaEscaner(e: KeyboardEvent<HTMLInputElement>) {
     if (e.key === 'Enter') {
       e.preventDefault()
-      if (sugerencias.length === 1 && busqueda.trim() && !/^\d{6,}$/.test(busqueda.trim())) agregar(sugerencias[0])
-      else void buscar(busqueda, true)
+      // Siempre se busca lo que está escrito ahora: una sugerencia vieja podría ser de otro código.
+      void buscar(busqueda, true)
     } else if (e.key === 'Escape') {
       setSugerencias([])
     }

@@ -1,7 +1,7 @@
 import * as XLSX from 'xlsx'
 import { db } from '@/lib/db'
 import { puede, usuarioActual } from '@/lib/dal'
-import { MEDIOS, type MedioPago } from '@/lib/venta-calculo'
+import { MEDIOS_VENTA, type MedioVenta } from '@/lib/venta-calculo'
 import { fechaValida, hoyAR, inicioDeMes, masVendidos, porDia, porMedio, porSucursal, porVendedora, resumen, sinMovimiento, valorStock } from '@/lib/reportes'
 
 /** Reportes en un Excel con una hoja por tema. */
@@ -41,7 +41,7 @@ export async function GET(req: Request) {
   hoja('Por día', dias.map((d) => ({ Fecha: d.dia, Ventas: d.ventas, Total: n(d.total) })))
   hoja('Por sucursal', sucs.map((s) => ({ Sucursal: s.nombre, Ventas: s.ventas, Total: n(s.total) })))
   hoja('Por vendedor', vends.map((s) => ({ Vendedor: s.nombre, Ventas: s.ventas, Total: n(s.total) })))
-  hoja('Por medio de pago', medios.map((m) => ({ Medio: MEDIOS[m.medio as MedioPago], Pagos: m.pagos, Total: n(m.total) })))
+  hoja('Por medio de pago', medios.map((m) => ({ Medio: MEDIOS_VENTA[m.medio as MedioVenta] ?? m.medio, Pagos: m.pagos, Total: n(m.total) })))
   hoja('Más vendidos', top.map((p) => ({ Código: p.codigo, Producto: p.nombre, Unidades: p.unidades, Total: n(p.total) })))
   hoja(
     'Sin ventas 60 días',

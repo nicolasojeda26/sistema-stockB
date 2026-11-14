@@ -44,7 +44,7 @@ export function EditorRol({ rol, etiquetaBase }: { rol: RolOpcion | null; etique
             </div>
             {!bloqueado && (
               <div className="flex gap-1">
-                <button type="button" onClick={() => setAbierto(true)} className="rounded-md px-2 py-1 text-xs font-medium text-tinta-suave hover:bg-fondo">
+                <button type="button" onClick={() => setAbierto(true)} className="rounded-md px-2.5 py-2 text-sm font-medium sm:py-1 sm:text-xs text-tinta-suave hover:bg-fondo">
                   Editar permisos
                 </button>
                 {!rol.sistema && (
@@ -55,7 +55,7 @@ export function EditorRol({ rol, etiquetaBase }: { rol: RolOpcion | null; etique
                       if (!confirm(`¿Borrar el rol "${rol.nombre}"?`)) return
                       iniciar(async () => setError((await borrarRol(rol.id)).error ?? null))
                     }}
-                    className="rounded-md px-2 py-1 text-xs font-medium text-error hover:bg-error-claro"
+                    className="rounded-md px-2.5 py-2 text-sm font-medium sm:py-1 sm:text-xs text-error hover:bg-error-claro"
                   >
                     Borrar
                   </button>

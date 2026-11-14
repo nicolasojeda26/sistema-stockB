@@ -65,7 +65,9 @@ export const usuarioActual = cache(async (): Promise<Usuario | null> => {
 
 export async function requerirUsuario(): Promise<Usuario> {
   const u = await usuarioActual()
-  if (!u) redirect('/login')
+  // La cookie puede seguir firmada aunque la sesión ya no valga (persona desactivada,
+  // movida de sucursal o con otra contraseña): el login la borra, si no quedaría en un bucle.
+  if (!u) redirect('/login?salir=1')
   return u
 }
 
