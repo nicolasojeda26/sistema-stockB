@@ -56,6 +56,7 @@ alter table reparaciones
   add column token text;
 update reparaciones set token = md5(random()::text || id::text || clock_timestamp()::text) where token is null;
 alter table reparaciones alter column token set not null;
+alter table reparaciones alter column token set default md5(random()::text || clock_timestamp()::text);
 create unique index reparaciones_token on reparaciones (token);
 create index reparaciones_garantia_de on reparaciones (garantia_de);
 update reparaciones r set etapa_id = (
