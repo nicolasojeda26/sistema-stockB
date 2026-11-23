@@ -36,7 +36,9 @@ export async function buscarProducto(q: string, depositoId: number | null): Prom
   const sugerencias = await db()<ProductoLinea[]>`
     ${lineas(depositoId)}
     where p.activo and ${coincide(db(), texto)}
-    order by ${ordenRelevancia(db(), texto)} limit 8`
+    order by ${ordenRelevancia(db(), texto)} limit 25`
+  // Con depósito de referencia, primero lo que hay (la lista es desplegable).
+  if (depositoId) sugerencias.sort((a, b) => Number(b.stock > 0) - Number(a.stock > 0))
   return { sugerencias }
 }
 

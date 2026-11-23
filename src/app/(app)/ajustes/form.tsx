@@ -1,5 +1,7 @@
 'use client'
 
+import Link from 'next/link'
+
 import { FormAccion } from '@/components/form-accion'
 import { Boton, Campo, Input, Select, Textarea } from '@/components/ui'
 import { guardarAjustes, guardarMarca } from './actions'
@@ -59,9 +61,13 @@ export function FormAjustes({
           <Campo etiqueta="Categorías de gastos" ayuda="Separadas por coma. Aparecen al cargar un gasto.">
             <Textarea name="categorias_gasto" defaultValue={ajustes.categorias_gasto} rows={2} />
           </Campo>
-          <Campo etiqueta="Condiciones de las reparaciones" ayuda="Van al pie del comprobante que se le da al cliente al dejar el equipo.">
-            <Textarea name="condiciones_reparacion" defaultValue={ajustes.condiciones_reparacion} rows={3} maxLength={1000} />
-          </Campo>
+          <p className="text-sm text-tinta-suave">
+            Las cláusulas de los comprobantes de reparación, los estados del taller y los técnicos se editan en{' '}
+            <Link href="/reparaciones/configuracion" className="font-medium text-marca hover:underline">
+              Reparaciones → Configuración
+            </Link>
+            .
+          </p>
           <Boton type="submit" disabled={enviando}>
             Guardar
           </Boton>

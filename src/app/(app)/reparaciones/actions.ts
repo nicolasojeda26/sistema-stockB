@@ -30,6 +30,9 @@ export async function nuevaReparacion(_: Resultado, f: FormData): Promise<Result
       estadoEquipo: String(f.get('estado_equipo') ?? ''),
       presupuesto: presupuesto === null ? null : Math.round(presupuesto * 100) / 100,
       prometido: /^\d{4}-\d{2}-\d{2}$/.test(prometido) ? prometido : null,
+      clienteDni: texto(f, 'cliente_dni'),
+      tipoReparacion: texto(f, 'tipo_reparacion'),
+      garantiaDe: entero(f, 'garantia_de'),
     })
   } catch (e) {
     if (e instanceof ErrorReparacion) return { error: e.message }

@@ -19,6 +19,12 @@ export type Ajustes = {
   descuento_efectivo: string
   /** Texto al pie del comprobante de recepción de reparaciones. */
   condiciones_reparacion: string
+  /** Garantía de las reparaciones, en días (se puede cambiar en cada una). */
+  garantia_dias: string
+  /** Cláusulas de los comprobantes del área técnica (una por renglón). */
+  clausulas_ingreso: string
+  clausulas_garantia: string
+  clausulas_entrega: string
 }
 
 const PREDETERMINADOS: Ajustes = {
@@ -36,6 +42,10 @@ const PREDETERMINADOS: Ajustes = {
   descuento_efectivo: '0',
   condiciones_reparacion:
     'El presupuesto puede cambiar al revisar el equipo; se consulta antes de reparar. Pasados 90 días de avisado que está listo, el equipo se considera abandonado. No nos hacemos responsables por la información guardada en el equipo.',
+  garantia_dias: '30',
+  clausulas_ingreso: "CLÁUSULA 1: El presupuesto puede cambiar al revisar el equipo; se consulta al cliente antes de reparar.\nCLÁUSULA 2: El equipo que experimente daños causados por mal uso, uso negligente, instalación incorrecta o accidentes provocados por manipulación incorrecta no es causal de exigencia de la garantía.\nCLÁUSULA 3: La empresa no se hace responsable por fallas ajenas no declaradas por el cliente al momento de entregar el equipo.\nCLÁUSULA 4: El período de reparación podrá ser de hasta 30 días hábiles, debido a que el dispositivo será sometido a diversas pruebas para lograr su máxima operatividad.\nCLÁUSULA 5: Pasados 90 días de avisado que el equipo está listo, se considera abandonado.\nCLÁUSULA 6: MegaCel+ no se hace responsable por la información guardada en el equipo.",
+  clausulas_garantia: "CLÁUSULA 1: El extravío, pérdida o destrucción de este documento emitido por la empresa (MEGA-CEL+), por parte del interesado, será causal de eximir del cumplimiento de la garantía de reparación del equipo o dispositivo electrónico.\nCLÁUSULA 2: La garantía puede llegar a cubrir total o parcialmente el funcionamiento de los repuestos colocados (módulo, táctil, puertos de carga, parlantes, micrófono, alto parlante, puerto ficha de auricular, reemplazo de componentes, botones de power, volumen (+ -), lectoras de chip (SIM) o cualquier otro tipo de reparaciones) detalladas y descriptas en este documento.\nCLÁUSULA 3: El equipo que experimente daños causados por mal uso, uso negligente, instalación incorrecta o accidentales provocados por manipulación incorrecta no es causal de exigencia de la garantía.\nCLÁUSULA 4: La garantía no cubre fallas ajenas no declaradas con anterioridad por el cliente al momento de entrega del producto a la empresa.\nCLÁUSULA 5: El período de reparación podrá ser de hasta 30 días hábiles debido a que el dispositivo será sometido a diversas pruebas para lograr su máxima operatividad.\nCLÁUSULA 6: Si al momento de ejecutar la garantía los repuestos y/o elementos instalados sufren variación de los costos debido a la situación económica, se informará al usuario la diferencia a abonar, mientras que el servicio técnico y la mano de obra se mantendrán a cargo de la empresa.",
+  clausulas_entrega: "CLÁUSULA 1: El presente comprobante hace constar que la empresa (MEGA-CEL+) hace entrega del equipo (celular, tablet o cualquier dispositivo electrónico) descripto en el comprobante de número de orden ingresado.\nCLÁUSULA 2: Dejando en conocimiento del retiro en los siguientes casos: A) De no poder localizar la falla. B) De no poder conseguir repuestos en tiempo y forma.\nCLÁUSULA 3: Una vez retirado el dispositivo por el titular, la empresa (MEGA-CEL+) no es responsable ante cualquier tipo de reclamo en general (directa o indirectamente).",
 }
 
 export async function leerAjustes(): Promise<Ajustes> {

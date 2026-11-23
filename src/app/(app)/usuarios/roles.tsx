@@ -40,12 +40,17 @@ export function EditorRol({ rol, etiquetaBase }: { rol: RolOpcion | null; etique
               <p className="mt-0.5 text-sm text-tinta-suave">
                 {etiquetaBase} · {rol.personas} persona{rol.personas === 1 ? '' : 's'}
               </p>
+              {!bloqueado && permisos.includes('vender') && !permisos.includes('descuento_libre') && (
+                <p className="mt-0.5 text-xs text-tinta-suave">
+                  Descuento hasta {rol.descuento_max} % en productos y {rol.descuento_max_reparacion} % en reparaciones
+                </p>
+              )}
               {rol.descripcion && <p className="mt-1 text-sm">{rol.descripcion}</p>}
             </div>
             {!bloqueado && (
               <div className="flex gap-1">
                 <button type="button" onClick={() => setAbierto(true)} className="rounded-md px-2.5 py-2 text-sm font-medium sm:py-1 sm:text-xs text-tinta-suave hover:bg-fondo">
-                  Editar permisos
+                  Editar rol
                 </button>
                 {!rol.sistema && (
                   <button
@@ -109,6 +114,14 @@ function FormRol({ rol, cerrar }: { rol: RolOpcion | null; cerrar: () => void })
           <Campo etiqueta="Descripción" ayuda="Opcional, para acordarte para qué es.">
             <Input name="descripcion" defaultValue={rol?.descripcion ?? ''} maxLength={200} />
           </Campo>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Campo etiqueta="Descuento máximo en productos (%)" ayuda="Para todos los que tienen este rol, salvo que alguien tenga uno propio.">
+              <Input name="descuento_max" inputMode="decimal" defaultValue={rol?.descuento_max ?? 10} required />
+            </Campo>
+            <Campo etiqueta="Descuento máximo en reparaciones (%)" ayuda="Al cobrar una reparación en la caja.">
+              <Input name="descuento_max_reparacion" inputMode="decimal" defaultValue={rol?.descuento_max_reparacion ?? 10} required />
+            </Campo>
+          </div>
           <div className="space-y-4">
             {GRUPOS.map((g) => (
               <fieldset key={g}>

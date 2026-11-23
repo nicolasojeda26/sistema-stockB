@@ -125,6 +125,12 @@ export default async function VentaPage(props: PageProps<'/ventas/[id]'>) {
                       {i.codigo}
                       {i.descuento_pct > 0 && <span className="font-sans text-ok"> · −{i.descuento_pct} %</span>}
                     </span>
+                    {i.entrega && (
+                      <span className="mt-0.5 block text-xs text-alerta">
+                        Sale de {i.origen} · {i.entrega === 'envio' ? 'lo mandan' : 'retira allá'} ·{' '}
+                        {i.entrega_estado === 'entregado' ? 'entregado' : i.entrega_estado === 'enviado' ? 'en camino' : 'pendiente'}
+                      </span>
+                    )}
                   </td>
                   <td className={`${t.td} num text-right`}>{i.cantidad}</td>
                   <td className={`${t.td} num hidden text-right sm:table-cell`}>{formatoPesos(i.precio_unitario)}</td>

@@ -96,7 +96,7 @@ describe.skipIf(!url)('reparaciones', () => {
   it('sin reparación y sin cargo se entrega sin pasar por la caja', async () => {
     const id = await ingresarReparacion(sql, { usuario: vend, sucursalId: suc, clienteNombre: 'Leo', equipo: 'Moto G54', falla: 'No carga' })
     await expect(cambiarEstadoReparacion(sql, { usuario: vend, id, cambio: { accion: 'entregar_sin_cobro' } })).rejects.toThrow('Primero')
-    await cambiarEstadoReparacion(sql, { usuario: vend, id, cambio: { accion: 'sin_reparacion', diagnostico: 'Placa dañada' } })
+    await cambiarEstadoReparacion(sql, { usuario: vend, id, cambio: { accion: 'sin_reparacion', motivo: 'sin_solucion', diagnostico: 'Placa dañada' } })
     await cambiarEstadoReparacion(sql, { usuario: vend, id, cambio: { accion: 'entregar_sin_cobro' } })
     expect((await sql`select estado from reparaciones where id = ${id}`)[0].estado).toBe('entregado')
     await expect(cambiarEstadoReparacion(sql, { usuario: vend, id, cambio: { accion: 'empezar' } })).rejects.toThrow('cerrada')

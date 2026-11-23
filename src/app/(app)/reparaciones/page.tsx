@@ -1,9 +1,9 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { db } from '@/lib/db'
-import { requerirPermiso } from '@/lib/dal'
+import { puede, requerirPermiso } from '@/lib/dal'
 import { formatoPesos } from '@/lib/formato'
-import { ESTADOS_REPARACION, numeroReparacion, type EstadoReparacion } from '@/lib/reparaciones'
+import { ESTADOS_REPARACION, estadoVisible, numeroReparacion, type EstadoReparacion, type MotivoCierre } from '@/lib/reparaciones'
 import { BotonLink, Encabezado, Etiqueta, Input, Select, Tarjeta, Vacio, tablaCls as t } from '@/components/ui'
 
 export const metadata: Metadata = { title: 'Reparaciones' }
@@ -34,10 +34,27 @@ export default async function ReparacionesPage(props: PageProps<'/reparaciones'>
     : sql``
 
   const [filas, [cuentas], sucursales] = await Promise.all([
-    sql<{ id: number; creado: Date; cliente_nombre: string; cliente_telefono: string | null; equipo: string; falla: string; estado: EstadoReparacion; precio: number | null; presupuesto: number | null; sucursal: string; prometido: string | null }[]>`
-      select r.id, r.creado, r.cliente_nombre, r.cliente_telefono, r.equipo, r.falla, r.estado, r.precio, r.presupuesto, s.nombre as sucursal,
-        to_char(r.prometido, 'DD/MM') as prometido
+    sql<{
+      id: number
+      creado: Date
+      cliente_nombre: string
+      cliente_telefono: string | null
+      equipo: string
+      falla: string
+      estado: EstadoReparacion
+      etapa: string | null
+      motivo_cierre: MotivoCierre | null
+      tecnico: string | null
+      garantia_de: number | null
+      precio: number | null
+      presupuesto: number | null
+      sucursal: string
+      prometido: string | null
+    }[]>`
+      select r.id, r.creado, r.cliente_nombre, r.cliente_telefono, r.equipo, r.falla, r.estado, e.nombre as etapa, r.motivo_cierre, t.nombre as tecnico,
+        r.garantia_de, r.precio, r.presupuesto, s.nombre as sucursal, to_char(r.prometido, 'DD/MM') as prometido
       from reparaciones r join sucursales s on s.id = r.sucursal_id
+      left join reparacion_etapas e on e.id = r.etapa_id left join tecnicos t on t.id = r.tecnico_id
       where r.estado = any(${vista.estados as unknown as string[]}::text[]) ${deSucursal} ${busqueda}
       order by case r.estado when 'listo' then 0 when 'sin_reparacion' then 1 when 'en_reparacion' then 2 when 'ingresado' then 3 else 4 end,
         ${vista.clave === 'entregadas' || vista.clave === 'todas' ? sql`r.creado desc` : sql`r.creado`}
@@ -66,7 +83,19 @@ export default async function ReparacionesPage(props: PageProps<'/reparaciones'>
       <Encabezado
         titulo="Reparaciones"
         detalle={u.rol === 'admin' ? 'Equipos que entraron al servicio técnico en todas las sucursales.' : `Equipos que entraron al servicio técnico en ${u.sucursal_nombre}.`}
-        acciones={<BotonLink href="/reparaciones/nueva">Recibir un equipo</BotonLink>}
+        acciones={
+          <div className="flex flex-wrap gap-2">
+            <BotonLink href="/reparaciones/reporte" variante="secundario">
+              Reporte
+            </BotonLink>
+            {puede(u, 'reparaciones_config') && (
+              <BotonLink href="/reparaciones/configuracion" variante="secundario">
+                Configuración
+              </BotonLink>
+            )}
+            <BotonLink href="/reparaciones/nueva">Recibir un equipo</BotonLink>
+          </div>
+        }
       />
 
       <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -152,7 +181,9 @@ export default async function ReparacionesPage(props: PageProps<'/reparaciones'>
                         {r.cliente_telefono && <span className="text-xs text-apagado">{r.cliente_telefono}</span>}
                       </td>
                       <td className={t.td}>
-                        <Etiqueta tono={e.tono}>{e.texto}</Etiqueta>
+                        <Etiqueta tono={e.tono}>{estadoVisible(r)}</Etiqueta>
+                        {r.tecnico && <span className="mt-1 block text-xs text-apagado">Técnico: {r.tecnico}</span>}
+                        {r.garantia_de && <span className="mt-1 block text-xs font-medium text-alerta">Garantía de {numeroReparacion(r.garantia_de)}</span>}
                         {r.prometido && ['ingresado', 'en_reparacion'].includes(r.estado) && <span className="mt-1 block text-xs text-apagado">Prometido {r.prometido}</span>}
                       </td>
                       <td className={`${t.td} num text-right whitespace-nowrap`}>

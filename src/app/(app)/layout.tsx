@@ -13,14 +13,21 @@ export default async function AppLayout({ children }: LayoutProps<'/'>) {
   const estilo = estiloMarca(ajustes.color_marca)
   const vende = puedeVender(u)
   // Avisos del menú: pedidos sin atender, envíos por recibir y diferencias sin resolver.
-  const [avisos] = await db()<{ pedidos: number; por_recibir: number; diferencias: number; reparaciones: number }[]>`
+  const [avisos] = await db()<{ pedidos: number; por_recibir: number; diferencias: number; reparaciones: number; entregas: number }[]>`
     select
       (select count(*)::int from pedidos where estado in ('pendiente', 'parcial')
         ${u.rol === 'vendedora' ? db()`and sucursal_id = ${u.sucursal_id}` : db()``}) as pedidos,
       (select count(*)::int from envios e join depositos d on d.id = e.destino_id
         where e.estado = 'en_camino' ${u.rol === 'admin' ? db()`` : db()`and d.sucursal_id = ${u.sucursal_id}`}) as por_recibir,
       ${puede(u, 'diferencias') ? db()`(select count(*)::int from envios where estado = 'con_diferencias' and resuelto_en is null)` : db()`0`} as diferencias,
-      ${puede(u, 'reparaciones') ? db()`(select count(*)::int from reparaciones where estado in ('listo', 'sin_reparacion') ${u.rol === 'admin' ? db()`` : db()`and sucursal_id = ${u.sucursal_id}`})` : db()`0`} as reparaciones`
+      ${puede(u, 'reparaciones') ? db()`(select count(*)::int from reparaciones where estado in ('listo', 'sin_reparacion') ${u.rol === 'admin' ? db()`` : db()`and sucursal_id = ${u.sucursal_id}`})` : db()`0`} as reparaciones,
+      ${vende || puede(u, 'envios') ? db()`(select count(*)::int from venta_items i join ventas v on v.id = i.venta_id and v.estado <> 'anulada'
+          join depositos dd on dd.id = i.deposito_id
+          where i.entrega is not null and ${
+            u.rol === 'admin'
+              ? db()`i.entrega_estado in ('pendiente', 'enviado')`
+              : db()`((i.entrega_estado = 'pendiente' and dd.sucursal_id = ${u.sucursal_id}) or (i.entrega_estado = 'enviado' and v.sucursal_id = ${u.sucursal_id}))`
+          })` : db()`0`} as entregas`
   const p = (x: Permiso) => puede(u, x)
   const items: ItemNav[] = [
     { href: '/', texto: 'Inicio', icono: 'inicio', exacto: true },
@@ -41,6 +48,7 @@ export default async function AppLayout({ children }: LayoutProps<'/'>) {
       ? [{ href: '/pedidos', texto: p('envios') ? 'Pedidos de sucursales' : 'Pedidos al depósito', icono: 'pedidos', aviso: p('envios') ? avisos.pedidos : 0 } as ItemNav]
       : []),
     { href: '/envios', texto: 'Envíos', icono: 'envios', aviso: avisos.por_recibir + avisos.diferencias },
+    ...(vende || p('envios') ? [{ href: '/entregas', texto: 'Entregas de ventas', icono: 'envios', aviso: avisos.entregas } as ItemNav] : []),
     ...(p('transferencias') ? [{ href: '/mercaderia/transferencia', texto: 'Transferencias', icono: 'transferencia' } as ItemNav] : []),
     ...(p('ajustes_stock') ? [{ href: '/mercaderia/ajuste', texto: 'Ajustes de stock', icono: 'ajuste' } as ItemNav] : []),
     { href: '/mercaderia', texto: 'Movimientos', icono: 'movimientos', exacto: true },

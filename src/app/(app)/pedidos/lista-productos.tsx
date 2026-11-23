@@ -84,12 +84,12 @@ export function ListaProductos({
           className="h-12 w-full rounded-xl border border-linea bg-fondo px-4 font-mono placeholder:font-sans placeholder:text-apagado focus:border-marca focus:bg-papel focus:outline-none focus:ring-4 focus:ring-marca/10"
         />
         {sugerencias.length > 0 && busqueda && (
-          <ul className="absolute inset-x-5 z-10 mt-1 overflow-hidden rounded-xl border border-linea bg-papel shadow-lg" role="listbox">
+          <ul className="absolute inset-x-5 z-20 mt-1 max-h-80 overflow-y-auto rounded-xl border border-linea bg-papel shadow-lg" role="listbox">
             {sugerencias.map((p) => (
               <li key={p.id}>
                 <button type="button" onClick={() => agregar(p)} className="flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left text-sm hover:bg-marca-clara">
                   <span className="min-w-0">
-                    <span className="block truncate font-medium">{p.nombre}</span>
+                    <span className="line-clamp-2 font-medium">{p.nombre}</span>
                     <span className="block font-mono text-xs text-apagado">{p.codigo}</span>
                   </span>
                   <span className="num shrink-0 text-xs text-tinta-suave">

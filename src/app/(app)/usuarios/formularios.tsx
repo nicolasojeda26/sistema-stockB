@@ -4,22 +4,26 @@ import { useState, useTransition, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { FormAccion } from '@/components/form-accion'
 import { Aviso, Boton, Campo, Input, Select } from '@/components/ui'
-import { NOMBRE_BASE, permisosDeRol } from '@/lib/permisos'
+import { NOMBRE_BASE, PERMISOS, permisosDeRol, permitidoEnBase } from '@/lib/permisos'
 import { cambiarPassword, codigoAcceso, crearUsuario, editarUsuario, moverUsuario } from './actions'
 import type { RolOpcion, SucursalOpcion, UsuarioFila } from './page'
 
 function CamposRol({
   rolInicial,
   sucursalInicial,
-  descuentoInicial = 10,
+  descuentoInicial = null,
   sucursales,
   roles,
+  propios,
 }: {
   rolInicial: number | null
   sucursalInicial?: number | null
-  descuentoInicial?: number
+  /** Tope propio de la persona (null = el del rol). */
+  descuentoInicial?: number | null
   sucursales: SucursalOpcion[]
   roles: RolOpcion[]
+  /** Al editar: los permisos que la persona tiene de más o de menos que su rol. */
+  propios?: { extra: string[]; quitados: string[] }
 }) {
   const [rolId, setRolId] = useState<number | null>(rolInicial)
   const rol = roles.find((r) => r.id === rolId)
@@ -63,13 +67,76 @@ function CamposRol({
       )}
       {base === 'admin' && <p className="text-xs text-tinta-suave">Este rol trabaja en todas las sucursales: no se ubica en una.</p>}
       {vende ? (
-        <Campo etiqueta="Descuento máximo" ayuda="Lo máximo que puede descontar en una venta (%).">
-          <Input name="descuento_max" inputMode="decimal" defaultValue={descuentoInicial} />
+        <Campo
+          etiqueta="Descuento máximo propio (%)"
+          ayuda={`Vacío = el del rol (${rol?.descuento_max ?? 0} % en productos, ${rol?.descuento_max_reparacion ?? 0} % en reparaciones).`}
+        >
+          <Input name="descuento_max" inputMode="decimal" defaultValue={descuentoInicial ?? ''} placeholder={`${rol?.descuento_max ?? ''} (del rol)`} />
         </Campo>
       ) : (
-        <input type="hidden" name="descuento_max" value={descuentoInicial} />
+        <input type="hidden" name="descuento_max" value={descuentoInicial ?? ''} />
       )}
+      {propios && rol && <PermisosPersona key={rol.id} rol={rol} propios={rol.id === rolInicial ? propios : { extra: [], quitados: [] }} />}
     </>
+  )
+}
+
+/** Tildar o destildar permisos para una persona sin cambiarle el rol (por ejemplo, supervisor que además maneja el depósito). */
+function PermisosPersona({ rol, propios }: { rol: RolOpcion; propios: { extra: string[]; quitados: string[] } }) {
+  const delRol = new Set<string>(permisosDeRol(rol))
+  const [marcados, setMarcados] = useState<Set<string>>(
+    () => new Set([...[...delRol].filter((p) => !propios.quitados.includes(p)), ...propios.extra.filter((p) => permitidoEnBase(p, rol.base))]),
+  )
+  const [abierto, setAbierto] = useState(propios.extra.length + propios.quitados.length > 0)
+  if (rol.sistema && rol.base === 'admin') return null
+  const cambios = PERMISOS.filter((p) => permitidoEnBase(p.clave, rol.base) && delRol.has(p.clave) !== marcados.has(p.clave)).length
+  return (
+    <div className="sm:col-span-2">
+      <input type="hidden" name="permisos_persona" value="1" />
+      {[...marcados].map((p) => (
+        <input key={p} type="hidden" name="permiso_persona" value={p} />
+      ))}
+      <button type="button" onClick={() => setAbierto((a) => !a)} className="text-sm font-medium text-marca hover:underline">
+        {abierto ? '▾' : '▸'} Permisos de esta persona{cambios ? ` (${cambios} distinto${cambios === 1 ? '' : 's'} del rol)` : ''}
+      </button>
+      {abierto && (
+        <div className="mt-2 rounded-lg border border-linea bg-papel p-3">
+          <p className="mb-2 text-xs text-tinta-suave">
+            Arranca con los del rol «{rol.nombre}». Tildá lo que le quieras sumar y destildá lo que le quieras sacar solo a esta persona.
+          </p>
+          <div className="grid gap-1 sm:grid-cols-2">
+            {PERMISOS.filter((p) => permitidoEnBase(p.clave, rol.base)).map((p) => {
+              const tiene = marcados.has(p.clave)
+              const distinto = delRol.has(p.clave) !== tiene
+              return (
+                <label key={p.clave} className="flex items-start gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-fondo">
+                  <input
+                    type="checkbox"
+                    checked={tiene}
+                    onChange={(e) =>
+                      setMarcados((m) => {
+                        const n = new Set(m)
+                        if (e.target.checked) n.add(p.clave)
+                        else n.delete(p.clave)
+                        return n
+                      })
+                    }
+                    className="mt-0.5 h-4 w-4 shrink-0 accent-marca"
+                  />
+                  <span>
+                    {p.texto}
+                    {distinto && <span className="ml-1 text-xs font-semibold text-alerta">{tiene ? '(agregado)' : '(quitado)'}</span>}
+                  </span>
+                </label>
+              )
+            })}
+          </div>
+          {rol.base !== 'admin' && (
+            <p className="mt-2 text-xs text-apagado">Los permisos de «todas las sucursales» (reportes, compras, transferencias…) solo van con un rol que trabaja en todas.</p>
+          )}
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -291,7 +358,14 @@ export function FilaUsuario({
               <Campo etiqueta="Nombre">
                 <Input name="nombre" defaultValue={usuario.nombre} required />
               </Campo>
-              <CamposRol rolInicial={usuario.rol_id} sucursalInicial={usuario.sucursal_id} descuentoInicial={Number(usuario.descuento_max)} sucursales={sucursales} roles={roles} />
+              <CamposRol
+                rolInicial={usuario.rol_id}
+                sucursalInicial={usuario.sucursal_id}
+                descuentoInicial={usuario.descuento_max}
+                sucursales={sucursales}
+                roles={roles}
+                propios={{ extra: usuario.permisos_extra, quitados: usuario.permisos_quitados }}
+              />
               <label className="flex items-center gap-2 text-sm sm:col-span-2">
                 <input type="checkbox" name="activo" defaultChecked={usuario.activo} disabled={esYo} className="h-4 w-4 accent-marca" />
                 {esYo && <input type="hidden" name="activo" value="on" />}

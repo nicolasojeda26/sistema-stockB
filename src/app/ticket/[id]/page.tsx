@@ -64,6 +64,7 @@ export default async function TicketPage(props: PageProps<'/ticket/[id]'>) {
         {v.items.map((i) => (
           <div key={i.id} className="mb-1">
             <p>{i.nombre}</p>
+            {i.entrega && <p>{i.entrega === 'envio' ? `(lo envía ${i.origen})` : `(retirar en ${i.origen})`}</p>}
             <p className="flex justify-between">
               <span>
                 {i.cantidad} x {formatoPesosExacto(i.precio_unitario)}

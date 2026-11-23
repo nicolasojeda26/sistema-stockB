@@ -185,7 +185,13 @@ export async function ajustarCuenta(sql: Sql, d: { clienteId: number; usuario: Q
 
 export type DatosVenta = {
   usuario: Quien
-  items: { productoId: number; cantidad: number; descuentoPct: number }[]
+  items: {
+    productoId: number
+    cantidad: number
+    descuentoPct: number
+    /** Producto de otra sucursal: sale de su stock y la otra sucursal lo manda o el cliente lo retira allá. */
+    origen?: { sucursalId: number; entrega: 'envio' | 'retira' } | null
+  }[]
   descuentoGlobalPct: number
   /** Lo que paga la clienta (sin contar lo que devuelve en un cambio). */
   pagos: { medio: MedioPago | 'cuenta_corriente'; monto: number; cuotas?: number | null }[]
@@ -194,8 +200,8 @@ export type DatosVenta = {
   totalEsperado: number
   /** Con qué precio se vende (lista, transferencia o efectivo). Por defecto, lista. */
   formaPrecio?: FormaPrecio
-  /** Reparaciones que se cobran en esta venta (quedan entregadas). */
-  reparaciones?: number[]
+  /** Reparaciones que se cobran en esta venta (quedan entregadas), con su descuento. */
+  reparaciones?: (number | { id: number; descuentoPct: number })[]
   clienteId?: number | null
   /** Apartado con seña: el producto queda separado hasta que lo retiran. */
   paraRetirar?: boolean
@@ -212,7 +218,14 @@ export async function registrarVenta(
   sql: Sql,
   d: DatosVenta,
 ): Promise<{ ventaId: number; total: number; vuelto: number; devolucionId?: number; aFavor?: number; reintegro?: number }> {
-  const idsReparacion = [...new Set(d.reparaciones ?? [])]
+  const descReparacion = new Map<number, number>()
+  for (const r of d.reparaciones ?? []) {
+    const id = typeof r === 'number' ? r : r.id
+    const pct = typeof r === 'number' ? 0 : r.descuentoPct
+    if (!(pct >= 0 && pct <= 100)) throw new ErrorVenta('Hay un descuento no válido.')
+    descReparacion.set(id, pct)
+  }
+  const idsReparacion = [...descReparacion.keys()]
   if (!d.items.length && !idsReparacion.length) throw new ErrorVenta('No hay productos en la venta.')
   for (const it of d.items) {
     if (!Number.isInteger(it.cantidad) || it.cantidad <= 0) throw new ErrorVenta('Hay una cantidad no válida.')
@@ -233,8 +246,13 @@ export async function registrarVenta(
     if (!caja) throw new ErrorVenta('Abrí la caja antes de vender.')
     const [dep] = await tx<{ id: number }[]>`select id from depositos where sucursal_id = ${caja.sucursal_id} and es_principal and activo`
     if (!dep) throw new ErrorVenta('La sucursal no tiene depósito principal activo.')
-    const [{ descuento_max }] = await tx<{ descuento_max: number }[]>`select descuento_max from usuarios where id = ${d.usuario.id}`
-    const tope = puedeEn(d.usuario, 'descuento_libre') ? 100 : Number(descuento_max)
+    // Tope de descuento: el de la persona si tiene uno propio, si no el de su rol (y aparte, el de reparaciones).
+    const [topes] = await tx<{ productos: number; reparaciones: number }[]>`
+      select coalesce(u.descuento_max, r.descuento_max)::float as productos, r.descuento_max_reparacion::float as reparaciones
+      from usuarios u join roles r on r.id = u.rol_id where u.id = ${d.usuario.id}`
+    const libre = puedeEn(d.usuario, 'descuento_libre')
+    const tope = libre ? 100 : Number(topes?.productos ?? 0)
+    const topeReparacion = libre ? 100 : Number(topes?.reparaciones ?? 0)
     if (d.clienteId) {
       const [c] = await tx`select 1 from clientes where id = ${d.clienteId} and activo`
       if (!c) throw new ErrorVenta('El cliente no existe o está dado de baja.')
@@ -247,13 +265,42 @@ export async function registrarVenta(
     const pct = (clave: string) => Math.min(100, Math.max(0, Number(ajustesPago.find((a) => a.clave === clave)?.valor) || 0))
     const descuentos = { transferencia: pct('descuento_transferencia'), efectivo: pct('descuento_efectivo') }
     const porId = new Map(productos.map((p) => [p.id, p]))
-    const lineas: { productoId: number; cantidad: number; descuentoPct: number; producto: { id: number | null; codigo: string; nombre: string }; precio: number }[] = d.items.map((it) => {
+    // Depósito principal de cada sucursal de la que se vende algo.
+    const otras = [...new Set(d.items.flatMap((it) => (it.origen && it.origen.sucursalId !== caja.sucursal_id ? [it.origen.sucursalId] : [])))]
+    const depOtras = new Map<number, number>()
+    if (otras.length) {
+      const ds = await tx<{ sucursal_id: number; id: number }[]>`
+        select d.sucursal_id, d.id from depositos d join sucursales s on s.id = d.sucursal_id
+        where d.sucursal_id = any(${otras}::int[]) and d.es_principal and d.activo and s.activa`
+      for (const x of ds) depOtras.set(x.sucursal_id, x.id)
+      for (const sid of otras) if (!depOtras.has(sid)) throw new ErrorVenta('Una de las sucursales de origen no tiene depósito activo.')
+    }
+    type Linea = {
+      productoId: number
+      cantidad: number
+      descuentoPct: number
+      producto: { id: number | null; codigo: string; nombre: string }
+      precio: number
+      depositoId?: number | null
+      entrega?: 'envio' | 'retira' | null
+    }
+    const lineas: Linea[] = d.items.map((it) => {
       const p = porId.get(it.productoId)
       if (!p) throw new ErrorVenta('Uno de los productos ya no existe.')
       if (!p.activo) throw new ErrorVenta(`"${p.nombre}" está dado de baja.`)
       if (descuentoEfectivo(it.descuentoPct, d.descuentoGlobalPct) > tope + 0.001)
         throw new ErrorVenta(`El descuento de "${p.nombre}" supera tu máximo permitido (${tope} %).`)
-      return { ...it, producto: p as { id: number | null; codigo: string; nombre: string }, precio: precioSegunForma(p, forma, descuentos) }
+      const deOtra = it.origen && it.origen.sucursalId !== caja.sucursal_id ? it.origen : null
+      if (deOtra && !['envio', 'retira'].includes(deOtra.entrega)) throw new ErrorVenta('Elegí si lo mandan o si lo retira en la otra sucursal.')
+      return {
+        productoId: it.productoId,
+        cantidad: it.cantidad,
+        descuentoPct: it.descuentoPct,
+        producto: p as { id: number | null; codigo: string; nombre: string },
+        precio: precioSegunForma(p, forma, descuentos),
+        depositoId: deOtra ? depOtras.get(deOtra.sucursalId)! : null,
+        entrega: deOtra?.entrega ?? null,
+      }
     })
     // Reparaciones: una línea cada una, con su precio (el mismo pague como pague) y sin stock.
     if (idsReparacion.length) {
@@ -264,10 +311,13 @@ export async function registrarVenta(
         if (!rep || rep.sucursal_id !== caja.sucursal_id) throw new ErrorVenta('Una de las reparaciones no es de esta sucursal.')
         if (!['listo', 'sin_reparacion'].includes(rep.estado) || !(Number(rep.precio) > 0))
           throw new ErrorVenta(`La reparación ${numeroReparacion(id)} no está lista para cobrar.`)
+        const pct = descReparacion.get(id) ?? 0
+        if (descuentoEfectivo(pct, d.descuentoGlobalPct) > topeReparacion + 0.001)
+          throw new ErrorVenta(`El descuento de la reparación ${numeroReparacion(id)} supera tu máximo permitido (${topeReparacion} %).`)
         lineas.push({
           productoId: 0,
           cantidad: 1,
-          descuentoPct: 0,
+          descuentoPct: pct,
           producto: { id: null, codigo: numeroReparacion(id), nombre: lineaReparacion(rep) },
           precio: Number(rep.precio),
         })
@@ -322,6 +372,9 @@ export async function registrarVenta(
       precio_unitario: l.precio,
       descuento_pct: l.descuentoPct,
       subtotal: aPesos(calc.subtotales[i]),
+      deposito_id: l.depositoId ?? null,
+      entrega: l.entrega ?? null,
+      entrega_estado: l.entrega ? 'pendiente' : null,
     }))
     await tx`insert into venta_items ${tx(items)}`
     const pagos = [
@@ -356,19 +409,27 @@ export async function registrarVenta(
     for (const id of idsReparacion)
       await tx`insert into reparacion_eventos (reparacion_id, estado, nota, usuario_id) values (${id}, 'entregado', ${`Cobrada en la venta N.º ${v.id}.`}, ${d.usuario.id})`
 
-    // Descontar stock del depósito principal (puede quedar en negativo: la prenda está en la mano).
-    const porProducto = new Map<number, number>()
-    for (const l of lineas) if (l.producto.id) porProducto.set(l.producto.id, (porProducto.get(l.producto.id) ?? 0) + l.cantidad)
-    const movs = [...porProducto].sort(([a], [b]) => a - b).map(([producto_id, cant]) => ({ producto_id, cantidad: -cant }))
+    // Descontar stock del depósito de donde sale cada producto (el del local, o el de la otra sucursal).
+    // Puede quedar en negativo: el producto está en la mano.
+    const porProducto = new Map<string, { producto_id: number; deposito_id: number; cantidad: number }>()
+    for (const l of lineas) {
+      if (!l.producto.id) continue
+      const depo = l.depositoId ?? dep.id
+      const k = `${l.producto.id}-${depo}`
+      const x = porProducto.get(k) ?? { producto_id: l.producto.id, deposito_id: depo, cantidad: 0 }
+      x.cantidad -= l.cantidad
+      porProducto.set(k, x)
+    }
+    const movs = [...porProducto.values()].sort((a, b) => a.producto_id - b.producto_id || a.deposito_id - b.deposito_id)
     const json = JSON.stringify(movs)
-    const datos = tx`select * from jsonb_to_recordset(${json}::text::jsonb) as x(producto_id int, cantidad int)`
+    const datos = tx`select * from jsonb_to_recordset(${json}::text::jsonb) as x(producto_id int, deposito_id int, cantidad int)`
     await tx`
       insert into stock (producto_id, deposito_id, cantidad)
-      select producto_id, ${dep.id}, cantidad from (${datos}) d
+      select producto_id, deposito_id, cantidad from (${datos}) d
       on conflict (producto_id, deposito_id) do update set cantidad = stock.cantidad + excluded.cantidad`
     await tx`
       insert into movimientos_stock (producto_id, deposito_id, cantidad, tipo, usuario_id, venta_id)
-      select producto_id, ${dep.id}, cantidad, 'venta', ${d.usuario.id}, ${v.id} from (${datos}) d`
+      select producto_id, deposito_id, cantidad, 'venta', ${d.usuario.id}, ${v.id} from (${datos}) d`
 
     return { ventaId: v.id, total: aPesos(calc.total), vuelto: aPesos(vuelto), devolucionId, aFavor: aPesos(aFavor), reintegro: aPesos(reintegro) }
   })
@@ -396,17 +457,78 @@ export async function anularVenta(sql: Sql, d: { ventaId: number; usuarioId: num
       insert into cuenta_movimientos (cliente_id, tipo, monto, venta_id, usuario_id, nota)
       select cliente_id, 'ajuste', -sum(monto), ${d.ventaId}, ${d.usuarioId}, 'Anulación de la venta'
       from cuenta_movimientos where venta_id = ${d.ventaId} and tipo = 'venta' group by cliente_id having sum(monto) <> 0`
-    const items = await tx<{ producto_id: number; cantidad: number }[]>`
-      select producto_id, sum(cantidad)::int as cantidad from venta_items
-      where venta_id = ${d.ventaId} and producto_id is not null group by producto_id order by producto_id`
+    // Cada producto vuelve al depósito del que salió (el del local o el de la otra sucursal).
+    const items = await tx<{ producto_id: number; deposito_id: number; cantidad: number }[]>`
+      select producto_id, coalesce(deposito_id, ${v.deposito_id}) as deposito_id, sum(cantidad)::int as cantidad from venta_items
+      where venta_id = ${d.ventaId} and producto_id is not null group by 1, 2 order by 1, 2`
     for (const it of items) {
       await tx`
-        insert into stock (producto_id, deposito_id, cantidad) values (${it.producto_id}, ${v.deposito_id}, ${it.cantidad})
+        insert into stock (producto_id, deposito_id, cantidad) values (${it.producto_id}, ${it.deposito_id}, ${it.cantidad})
         on conflict (producto_id, deposito_id) do update set cantidad = stock.cantidad + excluded.cantidad`
       await tx`
         insert into movimientos_stock (producto_id, deposito_id, cantidad, tipo, motivo, usuario_id, venta_id)
-        values (${it.producto_id}, ${v.deposito_id}, ${it.cantidad}, 'devolucion', ${'Anulación de venta: ' + d.motivo.trim()}, ${d.usuarioId}, ${d.ventaId})`
+        values (${it.producto_id}, ${it.deposito_id}, ${it.cantidad}, 'devolucion', ${'Anulación de venta: ' + d.motivo.trim()}, ${d.usuarioId}, ${d.ventaId})`
     }
+  })
+}
+
+// ── Productos vendidos desde otra sucursal ──────────────────────────────
+
+export type EntregaPendiente = {
+  id: number
+  venta_id: number
+  creado: Date
+  codigo: string
+  nombre: string
+  cantidad: number
+  entrega: 'envio' | 'retira'
+  entrega_estado: 'pendiente' | 'enviado'
+  /** Sucursal que vendió (adonde va el envío). */
+  vende: string
+  vende_id: number
+  /** Sucursal de donde sale. */
+  origen: string
+  origen_id: number
+  cliente: string | null
+}
+
+/** Lo que una sucursal tiene que mandar o entregar (y lo que tiene que recibir de otra). */
+export async function entregasPendientes(sql: Sql, sucursalId: number | null): Promise<EntregaPendiente[]> {
+  return sql<EntregaPendiente[]>`
+    select i.id, i.venta_id, v.creado, i.codigo, i.nombre, i.cantidad, i.entrega, i.entrega_estado,
+      sv.nombre as vende, sv.id as vende_id, so.nombre as origen, so.id as origen_id, c.nombre as cliente
+    from venta_items i
+    join ventas v on v.id = i.venta_id and v.estado <> 'anulada'
+    join sucursales sv on sv.id = v.sucursal_id
+    join depositos d on d.id = i.deposito_id
+    join sucursales so on so.id = d.sucursal_id
+    left join clientes c on c.id = v.cliente_id
+    where i.entrega is not null and i.entrega_estado in ('pendiente', 'enviado')
+      ${sucursalId ? sql`and (so.id = ${sucursalId} or sv.id = ${sucursalId})` : sql``}
+    order by v.creado, i.id`
+}
+
+/**
+ * Avanza una entrega: la sucursal de origen marca "enviado" (o "entregado" si lo retira allá);
+ * la que vendió marca "entregado" cuando el envío llega y se lo da al cliente.
+ */
+export async function avanzarEntrega(sql: Sql, d: { itemId: number; usuario: Quien; sucursalId: number | null }) {
+  await sql.begin(async (tx) => {
+    const [i] = await tx<{ entrega: 'envio' | 'retira'; entrega_estado: string; origen_id: number; vende_id: number }[]>`
+      select i.entrega, i.entrega_estado, dd.sucursal_id as origen_id, v.sucursal_id as vende_id
+      from venta_items i join ventas v on v.id = i.venta_id and v.estado <> 'anulada' join depositos dd on dd.id = i.deposito_id
+      where i.id = ${d.itemId} and i.entrega is not null for update of i`
+    if (!i) throw new ErrorVenta('No encontramos esa entrega.')
+    const todas = d.usuario.rol === 'admin'
+    let nuevo: 'enviado' | 'entregado'
+    if (i.entrega_estado === 'pendiente') {
+      if (!todas && d.sucursalId !== i.origen_id) throw new ErrorVenta('Esto lo marca la sucursal de donde sale el producto.')
+      nuevo = i.entrega === 'retira' ? 'entregado' : 'enviado'
+    } else if (i.entrega_estado === 'enviado') {
+      if (!todas && d.sucursalId !== i.vende_id) throw new ErrorVenta('Esto lo marca la sucursal que vendió, cuando le llega.')
+      nuevo = 'entregado'
+    } else throw new ErrorVenta('Esa entrega ya está hecha.')
+    await tx`update venta_items set entrega_estado = ${nuevo}, entrega_en = now(), entrega_por = ${d.usuario.id} where id = ${d.itemId}`
   })
 }
 

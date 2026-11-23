@@ -7,13 +7,14 @@ import { formatoPesos } from '@/lib/formato'
 import { aPesos, calcularVenta, descuentoEfectivo, FORMAS_PRECIO, precioSegunForma, type DescuentosPago, type FormaPrecio } from '@/lib/venta-calculo'
 import { buscarParaVender, preciosActuales, type ProductoVenta, type ReparacionVenta } from './actions'
 import { ElegirReparacion } from './reparacion'
+import { ElegirOrigen, StockOtras, type Origen } from './origen'
 import { Cobro } from './cobro'
 import { ClienteCaja } from './cliente-caja'
 import { ElegirCambio, type CambioCarrito } from './cambio'
 import { clienteActual, type ClienteBuscado } from '../clientes/actions'
 
 /** Las reparaciones van con id negativo y `reparacionId`: precio fijo, una unidad, sin stock. */
-export type LineaCarrito = ProductoVenta & { cantidad: number; descuentoPct: number; reparacionId?: number; cliente?: string }
+export type LineaCarrito = ProductoVenta & { cantidad: number; descuentoPct: number; reparacionId?: number; cliente?: string; origen?: Origen | null }
 type Carrito = { lineas: LineaCarrito[]; descuentoGlobalPct: number; forma?: FormaPrecio; cliente?: ClienteBuscado | null; cambio?: CambioCarrito | null }
 
 const VACIO: Carrito = { lineas: [], descuentoGlobalPct: 0, forma: 'lista', cliente: null, cambio: null }
@@ -40,6 +41,7 @@ export function PuntoDeVenta({
   sucursal,
   abierta,
   descuentoMax,
+  descuentoMaxReparacion,
   descuentos,
   reparacionInicial,
 }: {
@@ -47,6 +49,7 @@ export function PuntoDeVenta({
   sucursal: string
   abierta: string
   descuentoMax: number
+  descuentoMaxReparacion: number
   descuentos: DescuentosPago
   reparacionInicial?: ReparacionVenta | null
 }) {
@@ -100,7 +103,16 @@ export function PuntoDeVenta({
   }
 
   function agregar(p: ProductoVenta) {
-    setAviso(p.stock <= 0 ? { tipo: 'alerta', texto: `Ojo: "${p.nombre}" figura sin stock en el local. Se vende igual.` } : null)
+    setAviso(
+      p.stock <= 0
+        ? {
+            tipo: 'alerta',
+            texto: p.otras?.length
+              ? `"${p.nombre}" no tiene stock en el local, pero hay en ${p.otras.map((o) => `${o.sucursal} (${o.stock})`).join(', ')}. Podés venderlo desde otra sucursal.`
+              : `Ojo: "${p.nombre}" figura sin stock en el local. Se vende igual.`,
+          }
+        : null,
+    )
     setSugerencias([])
     setBusqueda('')
     setCarrito((c) => {
@@ -167,7 +179,8 @@ export function PuntoDeVenta({
     return () => window.removeEventListener('keydown', tecla)
   }, [abrirCobro, cobrando])
 
-  const excedido = (l: LineaCarrito) => descuentoEfectivo(l.descuentoPct, descuentoGlobalPct) > descuentoMax
+  const topeDe = (l: LineaCarrito) => (l.reparacionId ? descuentoMaxReparacion : descuentoMax)
+  const excedido = (l: LineaCarrito) => descuentoEfectivo(l.descuentoPct, descuentoGlobalPct) > topeDe(l)
   const hayExceso = lineas.some(excedido)
 
   return (
@@ -255,6 +268,11 @@ export function PuntoDeVenta({
                       <span className="block text-xs text-apagado">
                         <span className="font-mono">{p.codigo}</span>{' '}
                         {p.stock > 0 ? <span>· {p.stock} en stock</span> : <span className="font-semibold text-error">· sin stock</span>}
+                        {p.otras?.length ? (
+                          <span className="block">
+                            <StockOtras otras={p.otras} />
+                          </span>
+                        ) : null}
                       </span>
                     </span>
                     <span className="num shrink-0 font-semibold">{formatoPesos(unitario(p))}</span>
@@ -283,17 +301,43 @@ export function PuntoDeVenta({
                       {l.codigo} ·{' '}
                       {forma !== 'lista' && unitario(l) < Number(l.precio) && <span className="text-apagado line-through">{formatoPesos(Number(l.precio))}</span>}{' '}
                       {formatoPesos(unitario(l))} c/u
-                      {!l.reparacionId && l.stock - l.cantidad < 0 && (
+                      {!l.reparacionId && !l.origen && l.stock - l.cantidad < 0 && (
                         <span className="ml-2 font-sans">
                           <Etiqueta tono="error">sin stock</Etiqueta>
                         </span>
                       )}
                     </p>
+                    {!l.reparacionId && (l.otras?.length || l.origen) ? (
+                      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                        {!l.origen && <StockOtras otras={l.otras} />}
+                        <ElegirOrigen
+                          nombre={l.nombre}
+                          otras={l.otras ?? []}
+                          origen={l.origen}
+                          alCambiar={(o) => cambiar(l.id, { origen: o })}
+                        />
+                      </div>
+                    ) : null}
                   </div>
                   <p className="num text-right font-semibold sm:order-last sm:w-28">{formatoPesos(aPesos(calc.subtotales[i]))}</p>
                   {l.reparacionId ? (
                     <div className="col-span-2 flex items-center justify-between gap-2 sm:col-span-2">
-                      <span className="text-xs text-tinta-suave">{l.cliente ? `Retira ${l.cliente}` : 'Reparación'} · precio fijo</span>
+                      <span className="text-xs text-tinta-suave">{l.cliente ? `Retira ${l.cliente}` : 'Reparación'}</span>
+                      <label className="ml-auto flex items-center gap-1 text-xs text-apagado">
+                        Desc.
+                        <input
+                          value={l.descuentoPct || ''}
+                          inputMode="decimal"
+                          placeholder="0"
+                          aria-label={`Descuento de ${l.nombre}`}
+                          onChange={(e) => {
+                            const n = Number(e.target.value.replace(',', '.'))
+                            if (!Number.isNaN(n) && n >= 0 && n <= 100) cambiar(l.id, { descuentoPct: n })
+                          }}
+                          className={`num h-9 w-12 rounded-lg border text-center text-sm text-tinta ${excedido(l) ? 'border-error ring-2 ring-error/15' : 'border-linea'}`}
+                        />
+                        %
+                      </label>
                       <button
                         aria-label={`Quitar ${l.nombre}`}
                         onClick={() => setCarrito((c) => ({ ...c, lineas: c.lineas.filter((x) => x.id !== l.id) }))}
@@ -433,7 +477,10 @@ export function PuntoDeVenta({
           </div>
           {hayExceso && (
             <div className="mt-3">
-              <Aviso tipo="error">Tu descuento máximo es {descuentoMax} %. Bajá el descuento marcado.</Aviso>
+              <Aviso tipo="error">
+                Tu descuento máximo es {descuentoMax} % en productos
+                {descuentoMaxReparacion !== descuentoMax ? ` y ${descuentoMaxReparacion} % en reparaciones` : ''}. Bajá el descuento marcado.
+              </Aviso>
             </div>
           )}
           <Boton onClick={() => void abrirCobro()} disabled={!lineas.length || hayExceso} className={`mt-4 h-14 w-full text-lg ${lineas.length ? 'max-lg:hidden!' : ''}`}>

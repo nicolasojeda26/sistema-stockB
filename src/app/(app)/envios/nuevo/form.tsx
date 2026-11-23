@@ -67,7 +67,7 @@ export function FormEnvio({
 
   return (
     <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,320px)]">
-      <Tarjeta className="min-w-0 overflow-hidden">
+      <Tarjeta className="min-w-0">
         <TituloTarjeta>{pedido ? `Lo que pidió ${pedido.sucursal}` : 'Qué mandás'}</TituloTarjeta>
         {pedido && <p className="px-5 pt-3 text-sm text-tinta-suave">Ajustá las cantidades a lo que realmente mandás. Si de algo no hay, poné 0.</p>}
         <ListaProductos lineas={lineas} setLineas={setLineas} depositoId={Number(origenId) || null} etiquetaStock="Hay" avisarSinStock />

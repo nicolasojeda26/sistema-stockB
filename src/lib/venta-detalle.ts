@@ -26,7 +26,20 @@ export type VentaDetalle = {
   cliente_telefono: string | null
   para_retirar: boolean
   retirada_en: Date | null
-  items: { id: number; producto_id: number | null; codigo: string; nombre: string; cantidad: number; precio_unitario: number; descuento_pct: number; subtotal: number }[]
+  items: {
+    id: number
+    producto_id: number | null
+    codigo: string
+    nombre: string
+    cantidad: number
+    precio_unitario: number
+    descuento_pct: number
+    subtotal: number
+    /** Producto de otra sucursal: de dónde sale y cómo llega. */
+    origen: string | null
+    entrega: 'envio' | 'retira' | null
+    entrega_estado: 'pendiente' | 'enviado' | 'entregado' | null
+  }[]
   pagos: { medio: MedioVenta; monto: number; cuotas: number | null }[]
 }
 
@@ -45,7 +58,10 @@ export async function leerVenta(id: number, u: Usuario): Promise<VentaDetalle | 
   if (!v) return null
   if (u.rol !== 'admin' && v.sucursal_id !== u.sucursal_id) return null
   const [items, pagos] = await Promise.all([
-    sql<VentaDetalle['items']>`select id, producto_id, codigo, nombre, cantidad, precio_unitario, descuento_pct, subtotal from venta_items where venta_id = ${id} order by id`,
+    sql<VentaDetalle['items']>`select i.id, i.producto_id, i.codigo, i.nombre, i.cantidad, i.precio_unitario, i.descuento_pct, i.subtotal,
+        so.nombre as origen, i.entrega, i.entrega_estado
+      from venta_items i left join depositos d on d.id = i.deposito_id left join sucursales so on so.id = d.sucursal_id
+      where i.venta_id = ${id} order by i.id`,
     sql<VentaDetalle['pagos']>`select medio, monto, cuotas from venta_pagos where venta_id = ${id} order by id`,
   ])
   return { ...v, items, pagos }

@@ -9,6 +9,7 @@ export const PERMISOS = [
   { clave: 'credito', grupo: 'Ventas', texto: 'Límites de crédito y saldos', detalle: 'Poner el límite de crédito de un cliente, ajustar saldos y pasar el límite al vender.' },
   { clave: 'anular_ventas', grupo: 'Ventas', texto: 'Anular ventas', detalle: 'Anular una venta completa.' },
   { clave: 'reparaciones', grupo: 'Ventas', texto: 'Reparaciones', detalle: 'Recibir equipos para reparar, actualizar su estado y avisar al cliente.' },
+  { clave: 'reparaciones_config', grupo: 'Ventas', texto: 'Configurar el área técnica', detalle: 'Estados del taller, técnicos, lista de precios de reparación y cláusulas de los comprobantes.', soloTodas: true },
   { clave: 'descuento_libre', grupo: 'Ventas', texto: 'Descuentos sin tope', detalle: 'Hacer cualquier descuento, sin el tope de cada persona.' },
 
   { clave: 'productos', grupo: 'Mercadería', texto: 'Productos, precios y categorías', detalle: 'Crear y editar productos, cambiar precios y manejar categorías.' },
@@ -55,6 +56,22 @@ export function normalizarPermisos(lista: readonly string[], base: Base): Permis
 export function permisosDeRol(r: { base: Base; sistema: boolean; permisos: readonly string[] }): Permiso[] {
   if (r.sistema && r.base === 'admin') return [...TODOS]
   return normalizarPermisos(r.permisos, r.base)
+}
+
+/**
+ * Permisos de una persona: los de su rol, más los que se le dieron aparte, menos los que se le quitaron.
+ * Los extra respetan dónde trabaja (los de "todas las sucursales" solo con base admin).
+ */
+export function permisosDePersona(
+  r: { base: Base; sistema: boolean; permisos: readonly string[] },
+  extra: readonly string[] = [],
+  quitados: readonly string[] = [],
+): Permiso[] {
+  const delRol = new Set<string>(permisosDeRol(r))
+  for (const p of normalizarPermisos(extra, r.base)) delRol.add(p)
+  // A Administración del sistema no se le quita nada: siempre queda alguien con todo.
+  if (!(r.sistema && r.base === 'admin')) for (const p of quitados) delRol.delete(p)
+  return TODOS.filter((p) => delRol.has(p))
 }
 
 export const tienePermiso = (u: { permisos: readonly string[] }, p: Permiso) => u.permisos.includes(p)

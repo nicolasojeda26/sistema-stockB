@@ -20,6 +20,8 @@ export type ProductoVenta = {
   precio_transferencia: number | null
   precio_efectivo: number | null
   stock: number
+  /** Stock en las otras sucursales (solo las que tienen). */
+  otras?: { sucursal_id: number; sucursal: string; stock: number }[]
 }
 
 /** Reparación lista para cobrar, como línea del carrito (id negativo para no chocar con productos). */
@@ -48,7 +50,12 @@ export async function buscarReparaciones(q: string): Promise<{ reparaciones: Rep
 const conStock = (sucursalId: number) => db()`
   select p.id, p.codigo, p.nombre, p.precio, p.precio_transferencia, p.precio_efectivo,
     coalesce((select s.cantidad from stock s join depositos d on d.id = s.deposito_id
-              where s.producto_id = p.id and d.sucursal_id = ${sucursalId} and d.es_principal), 0) as stock
+              where s.producto_id = p.id and d.sucursal_id = ${sucursalId} and d.es_principal), 0) as stock,
+    coalesce((
+      select json_agg(json_build_object('sucursal_id', su.id, 'sucursal', su.nombre, 'stock', s.cantidad) order by s.cantidad desc, su.nombre)
+      from stock s join depositos d on d.id = s.deposito_id and d.es_principal and d.activo
+      join sucursales su on su.id = d.sucursal_id and su.activa
+      where s.producto_id = p.id and su.id <> ${sucursalId} and s.cantidad > 0), '[]'::json) as otras
   from productos p`
 
 /** Escaneo en la caja: código exacto o sugerencias por nombre, con el stock del local. */
@@ -82,8 +89,20 @@ export async function preciosActuales(ids: number[]): Promise<PreciosActuales> {
 }
 
 const Cobro = z.object({
-  items: z.array(z.object({ productoId: z.number().int(), cantidad: z.number().int().min(1).max(10000), descuentoPct: z.number().min(0).max(100) })).max(300),
-  reparaciones: z.array(z.number().int().positive()).max(20).optional(),
+  items: z
+    .array(
+      z.object({
+        productoId: z.number().int(),
+        cantidad: z.number().int().min(1).max(10000),
+        descuentoPct: z.number().min(0).max(100),
+        origen: z.object({ sucursalId: z.number().int().positive(), entrega: z.enum(['envio', 'retira']) }).nullable().optional(),
+      }),
+    )
+    .max(300),
+  reparaciones: z
+    .array(z.union([z.number().int().positive(), z.object({ id: z.number().int().positive(), descuentoPct: z.number().min(0).max(100) })]))
+    .max(20)
+    .optional(),
   descuentoGlobalPct: z.number().min(0).max(100),
   pagos: z
     .array(

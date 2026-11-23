@@ -4,7 +4,7 @@ import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { db } from './db'
 import { COOKIE_SESION, leerSesion } from './sesion'
-import { permisosDeRol, tienePermiso, type Base, type Permiso } from './permisos'
+import { permisosDePersona, tienePermiso, type Base, type Permiso } from './permisos'
 
 export type Usuario = {
   id: number
@@ -19,6 +19,10 @@ export type Usuario = {
   sucursal_nombre: string | null
   /** Tipo de punto donde trabaja (local, online o depósito). */
   sucursal_tipo: 'local' | 'online' | 'deposito' | null
+  /** Tope de descuento en productos (el de su rol, o el suyo si tiene uno propio). */
+  descuento_max: number
+  /** Tope de descuento al cobrar reparaciones (el de su rol). */
+  descuento_max_reparacion: number
 }
 
 /** Usuario logueado, verificado contra la base en cada pedido (así un cambio de permisos rige al instante). */
@@ -40,10 +44,16 @@ export const usuarioActual = cache(async (): Promise<Usuario | null> => {
       sucursal_tipo: Usuario['sucursal_tipo']
       activo: boolean
       version_sesion: number
+      permisos_extra: string[]
+      permisos_quitados: string[]
+      descuento_max: number
+      descuento_max_reparacion: number
     }[]
   >`
     select u.id, u.usuario, u.nombre, r.base as rol, r.id as rol_id, r.nombre as rol_nombre, r.sistema as rol_sistema,
-      r.permisos as rol_permisos, u.sucursal_id, s.nombre as sucursal_nombre, s.tipo as sucursal_tipo, u.activo, u.version_sesion
+      r.permisos as rol_permisos, u.sucursal_id, s.nombre as sucursal_nombre, s.tipo as sucursal_tipo, u.activo, u.version_sesion,
+      u.permisos_extra, u.permisos_quitados, coalesce(u.descuento_max, r.descuento_max)::float as descuento_max,
+      r.descuento_max_reparacion::float as descuento_max_reparacion
     from usuarios u
     join roles r on r.id = u.rol_id
     left join sucursales s on s.id = u.sucursal_id
@@ -56,7 +66,9 @@ export const usuarioActual = cache(async (): Promise<Usuario | null> => {
     rol: u.rol,
     rol_id: u.rol_id,
     rol_nombre: u.rol_nombre,
-    permisos: permisosDeRol({ base: u.rol, sistema: u.rol_sistema, permisos: u.rol_permisos }),
+    permisos: permisosDePersona({ base: u.rol, sistema: u.rol_sistema, permisos: u.rol_permisos }, u.permisos_extra, u.permisos_quitados),
+    descuento_max: u.descuento_max,
+    descuento_max_reparacion: u.descuento_max_reparacion,
     sucursal_id: u.sucursal_id,
     sucursal_nombre: u.sucursal_nombre,
     sucursal_tipo: u.sucursal_tipo,

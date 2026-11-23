@@ -19,12 +19,25 @@ export type UsuarioFila = {
   sucursal_id: number | null
   sucursal: string | null
   activo: boolean
-  descuento_max: number
+  /** Tope propio; null = el del rol. */
+  descuento_max: number | null
+  permisos_extra: string[]
+  permisos_quitados: string[]
   sin_clave: boolean
   codigo_pendiente: boolean
 }
 export type SucursalOpcion = { id: number; nombre: string; tipo: 'local' | 'online' | 'deposito' }
-export type RolOpcion = { id: number; nombre: string; descripcion: string | null; base: Base; sistema: boolean; permisos: string[]; personas: number }
+export type RolOpcion = {
+  id: number
+  nombre: string
+  descripcion: string | null
+  base: Base
+  sistema: boolean
+  permisos: string[]
+  personas: number
+  descuento_max: number
+  descuento_max_reparacion: number
+}
 
 const PESTANAS = [
   { clave: 'personal', texto: 'Personal' },
@@ -42,13 +55,14 @@ export default async function UsuariosPage(props: PageProps<'/usuarios'>) {
   const sql = db()
   const [usuarios, sucursales, roles] = await Promise.all([
     sql<UsuarioFila[]>`
-      select u.id, u.usuario, u.nombre, r.base as rol, u.rol_id, r.nombre as rol_nombre, u.sucursal_id, s.nombre as sucursal, u.activo, u.descuento_max,
-        u.password_hash is null as sin_clave, (u.codigo_acceso is not null and u.codigo_vence > now()) as codigo_pendiente
+      select u.id, u.usuario, u.nombre, r.base as rol, u.rol_id, r.nombre as rol_nombre, u.sucursal_id, s.nombre as sucursal, u.activo, u.descuento_max::float as descuento_max,
+        u.permisos_extra, u.permisos_quitados, u.password_hash is null as sin_clave, (u.codigo_acceso is not null and u.codigo_vence > now()) as codigo_pendiente
       from usuarios u join roles r on r.id = u.rol_id left join sucursales s on s.id = u.sucursal_id
       order by u.activo desc, lower(u.nombre)`,
     sql<SucursalOpcion[]>`select id, nombre, tipo from sucursales where activa order by case tipo when 'deposito' then 0 when 'local' then 1 else 2 end, nombre`,
     sql<RolOpcion[]>`
-      select r.id, r.nombre, r.descripcion, r.base, r.sistema, r.permisos, (select count(*)::int from usuarios u where u.rol_id = r.id and u.activo) as personas
+      select r.id, r.nombre, r.descripcion, r.base, r.sistema, r.permisos, r.descuento_max::float as descuento_max,
+        r.descuento_max_reparacion::float as descuento_max_reparacion, (select count(*)::int from usuarios u where u.rol_id = r.id and u.activo) as personas
       from roles r order by r.sistema desc, case r.base when 'admin' then 0 when 'vendedora' then 1 else 2 end, lower(r.nombre)`,
   ])
 
@@ -137,7 +151,11 @@ function Personal({ usuarios, sucursales, roles, yoId }: { usuarios: UsuarioFila
                         </div>
                         <p className="mt-0.5 text-sm text-tinta-suave">
                           @{u.usuario}
-                          {u.rol !== 'admin' && vende.has(u.rol_id) ? ` · descuento hasta ${Number(u.descuento_max)} %` : ''}
+                          {u.rol !== 'admin' && vende.has(u.rol_id)
+                            ? ` · descuento hasta ${u.descuento_max ?? roles.find((r) => r.id === u.rol_id)?.descuento_max ?? 0} %${u.descuento_max != null ? ' (propio)' : ''}`
+                            : ''}
+                          {u.permisos_extra.length + u.permisos_quitados.length > 0 &&
+                            ` · ${[u.permisos_extra.length && `+${u.permisos_extra.length}`, u.permisos_quitados.length && `−${u.permisos_quitados.length}`].filter(Boolean).join(' ')} permisos propios`}
                           {!u.activo && u.sucursal ? ` · era de ${u.sucursal}` : ''}
                         </p>
                       </div>

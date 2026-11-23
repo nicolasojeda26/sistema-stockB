@@ -41,7 +41,7 @@ export function FormPedido({ centralId, sucursales, usuarioId }: { centralId: nu
 
   return (
     <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,320px)]">
-      <Tarjeta className="min-w-0 overflow-hidden">
+      <Tarjeta className="min-w-0">
         <TituloTarjeta>Productos que necesitás</TituloTarjeta>
         <ListaProductos lineas={lineas} setLineas={setLineas} depositoId={centralId} etiquetaStock="En depósito" />
       </Tarjeta>

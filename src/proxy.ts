@@ -6,7 +6,8 @@ import { COOKIE_SESION, leerSesion } from '@/lib/sesion'
 export async function proxy(req: NextRequest) {
   const sesion = await leerSesion(req.cookies.get(COOKIE_SESION)?.value)
   const enLogin = req.nextUrl.pathname === '/login'
-  const publica = enLogin || ['/activar', '/logo'].includes(req.nextUrl.pathname)
+  // El seguimiento de reparaciones es público: el cliente entra con su enlace (no se puede adivinar).
+  const publica = enLogin || ['/activar', '/logo'].includes(req.nextUrl.pathname) || req.nextUrl.pathname.startsWith('/seguimiento/')
   if (!sesion && !publica) return NextResponse.redirect(new URL('/login', req.url))
   if (sesion && enLogin) {
     // Sesión vencida del lado del servidor: se borra la cookie y se muestra el login.

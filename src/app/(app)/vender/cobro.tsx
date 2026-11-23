@@ -66,6 +66,7 @@ export function Cobro({
     puedeFacturar?: boolean
     clienta?: string
     apartada?: boolean
+    reparaciones?: { id: number; codigo: string }[]
   } | null>(null)
   const [facturando, iniciarFactura] = useTransition()
   const [telefono, setTelefono] = useState(cliente?.telefono ?? '')
@@ -118,8 +119,15 @@ export function Cobro({
       )
     iniciar(async () => {
       const r = await cobrar({
-        items: lineas.filter((l) => !l.reparacionId).map((l) => ({ productoId: l.id, cantidad: l.cantidad, descuentoPct: l.descuentoPct })),
-        reparaciones: lineas.flatMap((l) => (l.reparacionId ? [l.reparacionId] : [])),
+        items: lineas
+          .filter((l) => !l.reparacionId)
+          .map((l) => ({
+            productoId: l.id,
+            cantidad: l.cantidad,
+            descuentoPct: l.descuentoPct,
+            origen: l.origen ? { sucursalId: l.origen.sucursalId, entrega: l.origen.entrega } : null,
+          })),
+        reparaciones: lineas.flatMap((l) => (l.reparacionId ? [{ id: l.reparacionId, descuentoPct: l.descuentoPct }] : [])),
         descuentoGlobalPct,
         pagos: pagos.map((p) => ({ medio: p.medio, monto: aPesos(montoDe(p)), cuotas: p.medio === 'credito' ? p.cuotas : null })),
         efectivoRecibido: efectivo > 0 ? aPesos(recibidoC) : null,
@@ -142,6 +150,7 @@ export function Cobro({
         puedeFacturar: r.puedeFacturar,
         clienta: cliente?.nombre,
         apartada: paraRetirar,
+        reparaciones: lineas.flatMap((l) => (l.reparacionId ? [{ id: l.reparacionId, codigo: l.codigo }] : [])),
       })
       alVender()
     })
@@ -188,6 +197,18 @@ export function Cobro({
             )}
             {hecho.apartada && (
               <p className="mt-4 rounded-xl bg-marca-clara p-3 text-sm text-marca-oscura">Quedó apartada para {hecho.clienta}. Se marca como retirada desde la venta.</p>
+            )}
+            {!!hecho.reparaciones?.length && (
+              <div className="mt-4 rounded-xl bg-marca-clara p-3 text-sm text-marca-oscura">
+                <p>Reparación entregada: imprimí el comprobante de salida para que lo firme el cliente.</p>
+                <div className="mt-2 flex flex-wrap justify-center gap-2">
+                  {hecho.reparaciones.map((r) => (
+                    <a key={r.id} href={`/reparacion/${r.id}?c=salida&auto=1`} target="_blank" rel="noopener noreferrer" className="rounded-lg bg-marca px-3 py-2 font-semibold text-white">
+                      Comprobante {r.codigo}
+                    </a>
+                  ))}
+                </div>
+              </div>
             )}
             {hecho.comprobante && (
               <p className="mt-4 text-sm text-ok">

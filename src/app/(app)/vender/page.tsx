@@ -32,13 +32,13 @@ export default async function VenderPage(props: PageProps<'/vender'>) {
   const idRep = Number((await props.searchParams).reparacion)
   const reparacionInicial =
     Number.isInteger(idRep) && idRep > 0 ? ((await buscarReparaciones(String(idRep))).reparaciones.find((r) => r.reparacionId === idRep) ?? null) : null
-  const [{ descuento_max }] = await db()<{ descuento_max: number }[]>`select descuento_max from usuarios where id = ${u.id}`
   return (
     <PuntoDeVenta
       usuarioId={u.id}
       sucursal={caja.sucursal}
       abierta={caja.abierta.toISOString()}
-      descuentoMax={puede(u, 'descuento_libre') ? 100 : Number(descuento_max)}
+      descuentoMax={puede(u, 'descuento_libre') ? 100 : u.descuento_max}
+      descuentoMaxReparacion={puede(u, 'descuento_libre') ? 100 : u.descuento_max_reparacion}
       descuentos={descuentosPago(await leerAjustes())}
       reparacionInicial={reparacionInicial}
     />
