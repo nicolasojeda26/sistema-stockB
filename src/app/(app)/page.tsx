@@ -73,6 +73,7 @@ export default async function InicioPage() {
         <div className="mt-5 flex flex-wrap gap-2">
           <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-medium text-white/90"><span className="h-1.5 w-1.5 rounded-full bg-acento" />{formatoEntero(r.productos)} productos activos</span>
           <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-medium text-white/90">{formatoEntero(esAdmin ? r.sucursales : 1)} {esAdmin ? 'sucursales' : 'sucursal'}</span>
+          <Link href="/guia" className="inline-flex items-center gap-1.5 rounded-full border border-acento/40 bg-acento/15 px-3 py-1.5 text-xs font-semibold text-acento hover:bg-acento/25">¿Cómo se usa? Guía del sistema →</Link>
         </div>
       </section>
 

@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import { estiloMarca, leerAjustes, urlLogo } from '@/lib/ajustes'
 import { salir } from '@/app/login/actions'
 import { SelectorTema } from '@/components/selector-tema'
+import { AyudaPantalla } from '@/components/ayuda-pantalla'
 import { Navegacion, type ItemNav } from './navegacion'
 
 export default async function AppLayout({ children }: LayoutProps<'/'>) {
@@ -61,6 +62,7 @@ export default async function AppLayout({ children }: LayoutProps<'/'>) {
     ...(p('configuracion') ? [{ href: '/sucursales', texto: 'Sucursales y depósitos', icono: 'sucursales' } as ItemNav] : []),
     ...(p('personal') ? [{ href: '/usuarios', texto: 'Personal y permisos', icono: 'usuarios' } as ItemNav] : []),
     ...(p('configuracion') ? [{ href: '/importar', texto: 'Importar desde Dux', icono: 'importar' } as ItemNav, { href: '/ajustes', texto: 'Ajustes del negocio', icono: 'ajustes' } as ItemNav] : []),
+    { href: '/guia', texto: 'Guía del sistema', icono: 'guia' },
     { href: '/solicitudes', texto: 'Ayuda y solicitudes', icono: 'ajustes' },
   ]
   // Títulos de sección: se ponen en el primer ítem de cada grupo que la persona ve.
@@ -69,7 +71,7 @@ export default async function AppLayout({ children }: LayoutProps<'/'>) {
     ['Compras y gastos', ['/compras', '/gastos']],
     ['Administración', ['/reportes', '/precios']],
     ['Configuración', ['/facturacion', '/sucursales', '/usuarios', '/importar']],
-    ['Ayuda', ['/solicitudes']],
+    ['Ayuda', ['/guia', '/solicitudes']],
   ]
   for (const [titulo, hrefs] of secciones) {
     const primero = items.find((i) => hrefs.includes(i.href))
@@ -99,7 +101,10 @@ export default async function AppLayout({ children }: LayoutProps<'/'>) {
       {estilo && <style>{estilo}</style>}
       <Navegacion items={items} pie={pie} negocio={nombre_negocio} logo={urlLogo(ajustes)} />
       <main className="min-w-0 flex-1 px-4 pt-6 pb-24 sm:px-8 lg:px-10 lg:py-9 print:p-0">
-        <div className="mx-auto max-w-7xl">{children}</div>
+        <div className="mx-auto max-w-7xl">
+          <AyudaPantalla />
+          {children}
+        </div>
       </main>
     </div>
   )
