@@ -51,6 +51,10 @@ export function AccionesReparacion({
   tecnicos,
   puedeCobrar,
   puedeReingresar,
+  puedeInformar,
+  puedeEntregar,
+  tecnicoPropio,
+  abrir,
 }: {
   id: number
   estado: EstadoReparacion
@@ -64,9 +68,18 @@ export function AccionesReparacion({
   tecnicos: Opcion[]
   puedeCobrar: boolean
   puedeReingresar: boolean
+  /** Área técnica: informar estados, marcarla lista o sin reparación. */
+  puedeInformar: boolean
+  /** Sucursal: entregar sin cobro y cancelar. */
+  puedeEntregar: boolean
+  /** Si quien la mira es un técnico de la lista: queda elegido. */
+  tecnicoPropio: number | null
+  /** Abre directo un formulario (desde la pantalla del área técnica). */
+  abrir: 'estado' | 'listo' | 'sin_reparacion' | null
 }) {
   const router = useRouter()
-  const [modo, setModo] = useState<'estado' | 'listo' | 'sin_reparacion' | 'nota' | null>(null)
+  const cerradaAlEntrar = estado === 'entregado' || estado === 'cancelado'
+  const [modo, setModo] = useState<'estado' | 'listo' | 'sin_reparacion' | 'nota' | null>(puedeInformar && !cerradaAlEntrar ? abrir : null)
   const [error, setError] = useState<string | null>(null)
   const [guardando, iniciar] = useTransition()
   const cerrada = estado === 'entregado' || estado === 'cancelado'
@@ -84,6 +97,7 @@ export function AccionesReparacion({
 
   const tecnicoDe = (f: FormData) => Number(f.get('tecnico_id')) || null
   const pasos = etapas.filter((e) => e.id !== etapaId)
+  const tecnicoElegido = tecnicoId ?? tecnicoPropio
 
   return (
     <Tarjeta>
@@ -91,12 +105,12 @@ export function AccionesReparacion({
       <div className="space-y-3 p-5">
         {!cerrada && !modo && (
           <div className="grid gap-2">
-            {pasos.length > 0 && (
+            {puedeInformar && pasos.length > 0 && (
               <Boton onClick={() => setModo('estado')} variante={estado === 'ingresado' ? 'primario' : 'secundario'}>
                 Informar estado
               </Boton>
             )}
-            {['ingresado', 'en_reparacion', 'sin_reparacion'].includes(estado) && (
+            {puedeInformar && ['ingresado', 'en_reparacion', 'sin_reparacion'].includes(estado) && (
               <Boton onClick={() => setModo('listo')} variante={estado === 'en_reparacion' ? 'primario' : 'secundario'}>
                 Está lista (reparada)
               </Boton>
@@ -109,24 +123,26 @@ export function AccionesReparacion({
                   Cobrar y entregar en la caja
                 </BotonLink>
               ) : (
-                <p className="text-sm text-tinta-suave">Se cobra en la caja: quien vende la busca con el número.</p>
+                <p className="text-sm text-tinta-suave">
+                  {puedeEntregar ? 'Se cobra en la caja: quien vende la busca con el número.' : 'La sucursal avisa al cliente, la cobra y la entrega.'}
+                </p>
               ))}
-            {estado === 'listo' && (
+            {puedeInformar && estado === 'listo' && (
               <Boton variante="secundario" onClick={() => setModo('listo')}>
                 Cambiar importe o técnico
               </Boton>
             )}
-            {(estado === 'sin_reparacion' || estado === 'listo') && !(precio && precio > 0) && (
+            {puedeEntregar && (estado === 'sin_reparacion' || estado === 'listo') && !(precio && precio > 0) && (
               <Boton onClick={() => hacer({ accion: 'entregar_sin_cobro' }, '¿Entregar el equipo sin cobrar?', `/reparaciones/${id}?entregada=1`)} disabled={guardando}>
                 Entregar sin cobrar
               </Boton>
             )}
-            {['ingresado', 'en_reparacion', 'listo'].includes(estado) && (
+            {puedeInformar && ['ingresado', 'en_reparacion', 'listo'].includes(estado) && (
               <Boton variante="secundario" onClick={() => setModo('sin_reparacion')}>
                 No se repara (sin solución, no aceptó…)
               </Boton>
             )}
-            {['ingresado', 'en_reparacion'].includes(estado) && (
+            {puedeEntregar && ['ingresado', 'en_reparacion'].includes(estado) && (
               <button
                 type="button"
                 onClick={() => hacer({ accion: 'cancelar', nota: 'Cancelada' }, '¿Cancelar la reparación? (por ejemplo, se cargó por error)')}
@@ -163,7 +179,7 @@ export function AccionesReparacion({
                 ))}
               </Select>
             </Campo>
-            <SelectTecnico tecnicos={tecnicos} tecnicoId={tecnicoId} />
+            <SelectTecnico tecnicos={tecnicos} tecnicoId={tecnicoElegido} />
             <Campo etiqueta="Detalle (opcional)" ayuda="Queda en el historial interno; el cliente ve solo el estado.">
               <Textarea name="nota" rows={2} maxLength={500} />
             </Campo>
@@ -193,7 +209,7 @@ export function AccionesReparacion({
             <Campo etiqueta="Cuánto se cobra">
               <Input name="precio" defaultValue={aTexto(precio ?? presupuesto)} inputMode="decimal" placeholder="0" required autoFocus />
             </Campo>
-            <SelectTecnico tecnicos={tecnicos} tecnicoId={tecnicoId} requerido />
+            <SelectTecnico tecnicos={tecnicos} tecnicoId={tecnicoElegido} requerido />
             <div className="grid grid-cols-2 gap-3">
               <Campo etiqueta="Tipo de reparación">
                 <Input name="tipo_reparacion" defaultValue={tipoReparacion ?? ''} maxLength={120} />
@@ -240,7 +256,7 @@ export function AccionesReparacion({
             <Campo etiqueta="Cargo por revisión (opcional)" ayuda="Vacío = se entrega sin costo.">
               <Input name="precio" inputMode="decimal" placeholder="0" />
             </Campo>
-            <SelectTecnico tecnicos={tecnicos} tecnicoId={tecnicoId} />
+            <SelectTecnico tecnicos={tecnicos} tecnicoId={tecnicoElegido} />
             <Campo etiqueta="Detalle" ayuda="Queda en el historial.">
               <Textarea name="diagnostico" rows={2} maxLength={1000} />
             </Campo>

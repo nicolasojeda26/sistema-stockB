@@ -3,13 +3,13 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { db } from '@/lib/db'
-import { requerirPermiso } from '@/lib/dal'
+import { requerirAlguno, requerirPermiso, type Usuario } from '@/lib/dal'
 import { entero, texto } from '@/lib/errores'
 import { parseNumero } from '@/lib/numeros'
 import { cambiarEstadoReparacion, ErrorReparacion, ingresarReparacion, type CambioEstado } from '@/lib/reparaciones'
 import type { Resultado } from '@/components/form-accion'
 
-const quien = (u: { id: number; rol: 'admin' | 'vendedora' | 'deposito'; sucursal_id: number | null }) => ({ id: u.id, rol: u.rol, sucursal_id: u.sucursal_id })
+const quien = (u: Usuario) => ({ id: u.id, rol: u.rol, sucursal_id: u.sucursal_id, permisos: u.permisos, tecnico_id: u.tecnico_id })
 
 export async function nuevaReparacion(_: Resultado, f: FormData): Promise<Resultado> {
   const u = await requerirPermiso('reparaciones')
@@ -43,7 +43,7 @@ export async function nuevaReparacion(_: Resultado, f: FormData): Promise<Result
 }
 
 export async function cambiarEstado(id: number, cambio: CambioEstado): Promise<{ error?: string }> {
-  const u = await requerirPermiso('reparaciones')
+  const u = await requerirAlguno('reparaciones', 'reparaciones_estado')
   try {
     await cambiarEstadoReparacion(db(), { usuario: quien(u), id, cambio })
   } catch (e) {
@@ -52,6 +52,7 @@ export async function cambiarEstado(id: number, cambio: CambioEstado): Promise<{
     return { error: 'No se pudo guardar. Probá de nuevo.' }
   }
   revalidatePath('/reparaciones')
+  revalidatePath('/taller')
   revalidatePath(`/reparaciones/${id}`)
   return {}
 }

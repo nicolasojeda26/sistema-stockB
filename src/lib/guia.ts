@@ -254,19 +254,47 @@ export const SECCIONES: SeccionGuia[] = [
     titulo: 'Reparaciones: el día a día',
     rutas: ['/reparaciones'],
     acceso: ['reparaciones'],
-    quien: 'Vendedores y personal del área técnica de cada local.',
+    quien: 'Vendedores de cada sucursal.',
     resumen:
-      'Todos los equipos recibidos para reparar, con su estado, técnico y presupuesto. Cada local repara lo suyo. El número del menú son los equipos listos o sin reparar que esperan que el cliente los retire.',
+      'Los equipos que recibió tu sucursal, con su estado, técnico y presupuesto. El estado lo informa el área técnica desde su usuario y acá se ve al instante. El número del menú son los equipos listos o sin reparar que esperan que el cliente los retire.',
     pasos: [
       'Para recibir un equipo tocá «Recibir un equipo».',
       'Filtrá por estado o buscá por número, cliente, teléfono, equipo o IMEI.',
-      'Abrí la reparación para informar estados, marcarla lista, avisar por WhatsApp o imprimir comprobantes.',
+      'Abrí la reparación para ver el historial, avisar por WhatsApp, imprimir comprobantes o entregarla.',
     ],
     consejos: [
-      'Debajo de la fecha aparece «hace N días» en los que llevan 3 días o más sin terminar: revisalos.',
+      'Debajo del estado dice cuándo se actualizó y quién. En verde con ● son los cambios del área técnica de las últimas 24 h: avisale al cliente si hace falta.',
+      'Debajo de la fecha aparece «hace N días» en los que llevan 3 días o más sin terminar: consultá al área técnica.',
       '«Reporte» y «Configuración» (estados, precios, técnicos y cláusulas) están arriba.',
     ],
-    ver: ['recibir-equipo', 'ficha-reparacion', 'cobrar-reparacion'],
+    ver: ['recibir-equipo', 'ficha-reparacion', 'cobrar-reparacion', 'taller'],
+  },
+  {
+    id: 'taller',
+    grupo: 'Área técnica',
+    titulo: 'Área técnica: informar estados',
+    rutas: ['/taller'],
+    acceso: ['reparaciones_estado'],
+    quien: 'Técnicos (perfil «Área técnica», con su propio usuario) y Administración.',
+    resumen:
+      'La pantalla de los técnicos: todos los equipos que recibieron las sucursales. Desde acá informan en qué estado está cada uno, y la sucursal y el cliente (en su enlace de seguimiento) lo ven al instante. Los técnicos solo ven esta parte del sistema.',
+    pasos: [
+      '«Por reparar» muestra primero los nuevos (recién ingresados, resaltados) y después los que están en reparación.',
+      'Elegí la sucursal o buscá por número, cliente, equipo o IMEI. «Los que tengo yo» muestra solo los tuyos.',
+      'Para cambiar el estado: elegilo en «Pasar a…» (por ejemplo «En revisión» o «Falta confirmar nuevo presupuesto») y tocá «Guardar». Quedás vos como técnico.',
+      'Terminado: «✓ Está lista» abre la ficha para poner cuánto se cobra, el tipo de reparación y los días de garantía.',
+      'Si no tiene arreglo o el cliente no aceptó: «No se repara» y elegí el motivo.',
+    ],
+    consejos: [
+      'El número del menú son los equipos nuevos sin revisar.',
+      'Los detalles para el equipo (lo que encontraste, repuestos) van como nota interna en la ficha: el cliente no la ve.',
+      'Cobrar, avisar al cliente y entregar lo hace la sucursal.',
+    ],
+    problemas: [
+      ['No aparece el estado que necesito', 'Los estados se editan en Reparaciones → Configuración (Administración).'],
+      ['Me equivoqué de estado', 'Elegí el correcto y guardá de nuevo: queda todo en el historial.'],
+    ],
+    ver: ['ficha-reparacion', 'config-taller'],
   },
   {
     id: 'recibir-equipo',
@@ -295,8 +323,8 @@ export const SECCIONES: SeccionGuia[] = [
     grupo: 'Área técnica',
     titulo: 'Seguir una reparación',
     rutas: ['/reparaciones/*'],
-    acceso: ['reparaciones'],
-    quien: 'Vendedores y personal del área técnica.',
+    acceso: ['reparaciones', 'reparaciones_estado'],
+    quien: 'Sucursal (avisa, imprime y entrega) y área técnica (informa el estado).',
     resumen:
       'La ficha del equipo: estado actual, historial, técnico, garantía y comprobantes. Desde acá se informa cada paso y se avisa al cliente.',
     pasos: [
@@ -354,7 +382,7 @@ export const SECCIONES: SeccionGuia[] = [
     grupo: 'Área técnica',
     titulo: 'Reporte del área técnica',
     rutas: ['/reparaciones/reporte'],
-    acceso: ['reparaciones'],
+    acceso: ['reparaciones', 'reparaciones_estado'],
     quien: 'Personal del área técnica; los importes cobrados solo con permiso de reportes.',
     resumen: 'Cuántos equipos entraron, cuántos se repararon, sin solución, no aceptados, devoluciones y reingresos por garantía, por técnico, por tipo y por sucursal.',
     pasos: ['Elegí las fechas y la sucursal.', 'Mirá «Por técnico» para ver quién reparó qué y cuántos volvieron por garantía.'],
@@ -607,6 +635,8 @@ export const SECCIONES: SeccionGuia[] = [
     consejos: [
       'Ejemplo: Lisandro es Supervisor y además maneja el depósito → rol Supervisor y, en sus permisos, tildar «Atender pedidos y mandar envíos».',
       'Los permisos marcados «todas las sucursales» (reportes, compras, configuración) solo se pueden dar a roles que trabajan en todas las sucursales.',
+      'Técnicos: rol «Área técnica». Ven solo los equipos de todas las sucursales e informan su estado. En «Técnico de la lista» elegí cuál es (o se suma con su nombre).',
+      'Si querés que solo el área técnica cambie los estados, en el rol Vendedor/a destildá «Informar el estado de las reparaciones».',
     ],
   },
   {
@@ -725,8 +755,8 @@ export const CASOS: CasoDeUso[] = [
       'Reparaciones → Recibir un equipo. Cargá cliente, DNI, teléfono, modelo, «Cambio de módulo» y cómo se recibe.',
       'Guardá, imprimí el ingreso (2 hojas, original y copia) y hacelo firmar.',
       'Mandale el enlace de seguimiento por WhatsApp.',
-      'Cuando el técnico lo toma: Informar estado → «En proceso de reparación», técnico Matías.',
-      'Terminado: «Está lista», precio, técnico y garantía (30 días). Avisale por WhatsApp.',
+      'El técnico lo ve en Área técnica (como «Nuevo») y lo pasa a «En proceso de reparación».',
+      'Terminado, el técnico toca «Está lista» con el precio y la garantía (30 días). La sucursal lo ve al instante: avisale por WhatsApp.',
       'Cuando viene: Vender → Cobrar reparación → cobrá → imprimí la garantía (amarilla) y hacela firmar.',
     ],
   },
@@ -799,6 +829,30 @@ export const CASOS: CasoDeUso[] = [
       'Si necesita algo más (por ejemplo, clientes), tildalo en «Permisos de esta persona».',
     ],
   },
+  {
+    id: 'tecnico-nuevo',
+    titulo: 'Darle usuario a un técnico',
+    situacion: 'Matías repara para todas las sucursales y tiene que ir informando el estado de los equipos.',
+    acceso: ['personal'],
+    pasos: [
+      'Personal y permisos → «Sumar a alguien»: nombre Matías, usuario matias, rol «Área técnica».',
+      'En «Técnico de la lista» elegí Matías (o dejá «Sumarlo a la lista con su nombre»).',
+      'Pasale el usuario y el código de acceso: crea su contraseña y entra directo a Área técnica.',
+      'Desde ahí va pasando cada equipo de estado. Las sucursales lo ven al instante.',
+    ],
+  },
+  {
+    id: 'tecnico-dia',
+    titulo: 'El técnico actualiza los equipos',
+    situacion: 'Entró un Samsung A54 en San Lorenzo 960 y el técnico lo revisa.',
+    acceso: ['reparaciones_estado'],
+    pasos: [
+      'Área técnica → «Por reparar»: el A54 aparece como «Nuevo».',
+      '«Pasar a…» → «En revisión» → Guardar. La sucursal ya ve «En revisión» y el cliente también en su enlace.',
+      'Si el repuesto sale más: «Falta confirmar nuevo presupuesto» y una nota interna con el precio.',
+      'Arreglado: «✓ Está lista», importe y garantía. La sucursal avisa al cliente y la cobra.',
+    ],
+  },
 ]
 
 export const PREGUNTAS: { p: string; r: string; acceso?: Acceso }[] = [
@@ -809,6 +863,8 @@ export const PREGUNTAS: { p: string; r: string; acceso?: Acceso }[] = [
   { p: 'Me equivoqué en una venta, ¿qué hago?', r: 'Si el cliente sigue ahí, devolvé lo que corresponda desde la venta. Si está toda mal, pedí que la anulen (Supervisión o Administración).', acceso: ['vender'] },
   { p: '¿El cliente ve las notas internas de la reparación?', r: 'No. En el enlace de seguimiento solo ve el estado. Las notas quedan para el equipo.', acceso: ['reparaciones'] },
   { p: '¿Cómo le aviso al cliente que el equipo está listo?', r: 'En la ficha de la reparación, «Avisar por WhatsApp»: abre WhatsApp con el mensaje y el enlace ya escritos.', acceso: ['reparaciones'] },
+  { p: '¿Cómo sé si el área técnica actualizó un equipo?', r: 'En Reparaciones, debajo del estado dice cuándo se actualizó y quién. Los cambios de las últimas 24 h hechos por otra persona aparecen en verde con ●.', acceso: ['reparaciones'] },
+  { p: '¿Quién cambia el estado de las reparaciones?', r: 'El área técnica, desde su usuario (pantalla «Área técnica»). Las sucursales reciben, avisan al cliente, cobran y entregan.', acceso: ['reparaciones', 'reparaciones_estado'] },
   { p: '¿Se puede cambiar el texto de las cláusulas?', r: 'Sí, en Reparaciones → Configuración → Comprobantes y garantía (quien tenga ese permiso).', acceso: ['reparaciones'] },
   { p: 'Llegó un envío con menos cosas, ¿qué hago?', r: 'Contá lo que llegó de verdad y confirmá. Queda «con diferencias» y Supervisión decide si se perdió o vuelve.' },
   { p: '¿Funciona en el celular?', r: 'Sí. El menú queda abajo. Para vender con escáner conviene la PC del local, pero todo lo demás anda igual en el celular.' },
@@ -835,6 +891,7 @@ export const GLOSARIO: [string, string][] = [
   ['Transferencia directa', 'Movimiento de stock entre depósitos sin envío ni conteo.'],
   ['Ajuste de stock', 'Corrección por recuento, rotura o pérdida.'],
   ['Entrega de venta', 'Producto vendido en una sucursal que sale de otra.'],
+  ['Área técnica (perfil)', 'Usuario de los técnicos: ven los equipos de todas las sucursales e informan su estado, y nada más del sistema.'],
   ['Estado del taller', 'Paso de la reparación que se informa al cliente (En revisión, En proceso, Listo…).'],
   ['Enlace de seguimiento', 'Página pública donde el cliente ve el estado de su equipo sin llamar.'],
   ['Reingreso', 'Reparación que vuelve por garantía, vinculada a la anterior.'],

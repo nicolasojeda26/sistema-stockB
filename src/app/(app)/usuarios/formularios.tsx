@@ -6,7 +6,7 @@ import { FormAccion } from '@/components/form-accion'
 import { Aviso, Boton, Campo, Input, Select } from '@/components/ui'
 import { NOMBRE_BASE, PERMISOS, permisosDeRol, permitidoEnBase } from '@/lib/permisos'
 import { cambiarPassword, codigoAcceso, crearUsuario, editarUsuario, moverUsuario } from './actions'
-import type { RolOpcion, SucursalOpcion, UsuarioFila } from './page'
+import type { RolOpcion, SucursalOpcion, TecnicoOpcion, UsuarioFila } from './page'
 
 function CamposRol({
   rolInicial,
@@ -15,6 +15,9 @@ function CamposRol({
   sucursales,
   roles,
   propios,
+  tecnicos,
+  tecnicoInicial = null,
+  usuarioId = null,
 }: {
   rolInicial: number | null
   sucursalInicial?: number | null
@@ -24,12 +27,18 @@ function CamposRol({
   roles: RolOpcion[]
   /** Al editar: los permisos que la persona tiene de más o de menos que su rol. */
   propios?: { extra: string[]; quitados: string[] }
+  tecnicos: TecnicoOpcion[]
+  tecnicoInicial?: number | null
+  usuarioId?: number | null
 }) {
   const [rolId, setRolId] = useState<number | null>(rolInicial)
   const rol = roles.find((r) => r.id === rolId)
   const base = rol?.base
   const opciones = sucursales.filter((s) => (base === 'deposito' ? s.tipo === 'deposito' : base === 'vendedora' ? s.tipo !== 'deposito' : true))
   const vende = rol ? permisosDeRol(rol).includes('vender') && !permisosDeRol(rol).includes('descuento_libre') : false
+  // Rol de técnico: informa estados y no vende.
+  const tecnico = rol ? permisosDeRol(rol).includes('reparaciones_estado') && !permisosDeRol(rol).includes('vender') : false
+  const libres = tecnicos.filter((t) => t.usuario_id == null || t.usuario_id === usuarioId)
   return (
     <>
       <Campo etiqueta="Rol" ayuda={rol?.descripcion ?? 'Los roles y sus permisos se arman en "Roles y permisos".'}>
@@ -75,6 +84,21 @@ function CamposRol({
         </Campo>
       ) : (
         <input type="hidden" name="descuento_max" value={descuentoInicial ?? ''} />
+      )}
+      {tecnico ? (
+        <Campo etiqueta="Técnico de la lista" ayuda="Cuando informa un estado, queda como el técnico que lo reparó.">
+          <Select name="tecnico" key={`t${rol?.id}`} defaultValue={tecnicoInicial ?? (usuarioId ? '' : 'nuevo')}>
+            <option value="nuevo">Sumarlo a la lista con su nombre</option>
+            {libres.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.nombre}
+              </option>
+            ))}
+            <option value="">No figura como técnico</option>
+          </Select>
+        </Campo>
+      ) : (
+        <input type="hidden" name="tecnico" value={tecnicoInicial ?? ''} />
       )}
       {propios && rol && <PermisosPersona key={rol.id} rol={rol} propios={rol.id === rolInicial ? propios : { extra: [], quitados: [] }} />}
     </>
@@ -150,7 +174,7 @@ const sugerirUsuario = (nombre: string) =>
     .toLowerCase()
     .replace(/[^a-z0-9._-]/g, '') ?? ''
 
-export function NuevoUsuario({ sucursales, roles }: { sucursales: SucursalOpcion[]; roles: RolOpcion[] }) {
+export function NuevoUsuario({ sucursales, roles, tecnicos }: { sucursales: SucursalOpcion[]; roles: RolOpcion[]; tecnicos: TecnicoOpcion[] }) {
   const [nombre, setNombre] = useState('')
   const [usuario, setUsuario] = useState('')
   const [tocado, setTocado] = useState(false)
@@ -195,7 +219,7 @@ export function NuevoUsuario({ sucursales, roles }: { sucursales: SucursalOpcion
               required
             />
           </Campo>
-          <CamposRol rolInicial={roles.find((r) => r.sistema && r.base === 'vendedora')?.id ?? null} sucursales={sucursales} roles={roles} />
+          <CamposRol rolInicial={roles.find((r) => r.sistema && r.base === 'vendedora')?.id ?? null} sucursales={sucursales} roles={roles} tecnicos={tecnicos} />
           {conClave ? (
             <Campo etiqueta="Contraseña" ayuda="Al menos 6 caracteres. Mejor dejá que la cree la persona con el código.">
               <Input name="password" type="text" autoComplete="new-password" minLength={6} />
@@ -238,12 +262,14 @@ export function FilaUsuario({
   usuario,
   sucursales,
   roles,
+  tecnicos,
   esYo,
   children,
 }: {
   usuario: UsuarioFila
   sucursales: SucursalOpcion[]
   roles: RolOpcion[]
+  tecnicos: TecnicoOpcion[]
   esYo: boolean
   children: ReactNode
 }) {
@@ -365,6 +391,9 @@ export function FilaUsuario({
                 sucursales={sucursales}
                 roles={roles}
                 propios={{ extra: usuario.permisos_extra, quitados: usuario.permisos_quitados }}
+                tecnicos={tecnicos}
+                tecnicoInicial={usuario.tecnico_id}
+                usuarioId={usuario.id}
               />
               <label className="flex items-center gap-2 text-sm sm:col-span-2">
                 <input type="checkbox" name="activo" defaultChecked={usuario.activo} disabled={esYo} className="h-4 w-4 accent-marca" />

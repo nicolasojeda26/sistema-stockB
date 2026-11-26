@@ -1,10 +1,10 @@
 import 'server-only'
 import { cache } from 'react'
-import { cookies } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { db } from './db'
 import { COOKIE_SESION, leerSesion } from './sesion'
-import { permisosDePersona, tienePermiso, type Base, type Permiso } from './permisos'
+import { permisosDePersona, soloTaller, tienePermiso, type Base, type Permiso } from './permisos'
 
 export type Usuario = {
   id: number
@@ -23,6 +23,8 @@ export type Usuario = {
   descuento_max: number
   /** Tope de descuento al cobrar reparaciones (el de su rol). */
   descuento_max_reparacion: number
+  /** Si es uno de los técnicos de la lista: al informar un estado queda como técnico. */
+  tecnico_id: number | null
 }
 
 /** Usuario logueado, verificado contra la base en cada pedido (así un cambio de permisos rige al instante). */
@@ -48,12 +50,13 @@ export const usuarioActual = cache(async (): Promise<Usuario | null> => {
       permisos_quitados: string[]
       descuento_max: number
       descuento_max_reparacion: number
+      tecnico_id: number | null
     }[]
   >`
     select u.id, u.usuario, u.nombre, r.base as rol, r.id as rol_id, r.nombre as rol_nombre, r.sistema as rol_sistema,
       r.permisos as rol_permisos, u.sucursal_id, s.nombre as sucursal_nombre, s.tipo as sucursal_tipo, u.activo, u.version_sesion,
       u.permisos_extra, u.permisos_quitados, coalesce(u.descuento_max, r.descuento_max)::float as descuento_max,
-      r.descuento_max_reparacion::float as descuento_max_reparacion
+      r.descuento_max_reparacion::float as descuento_max_reparacion, u.tecnico_id
     from usuarios u
     join roles r on r.id = u.rol_id
     left join sucursales s on s.id = u.sucursal_id
@@ -72,14 +75,27 @@ export const usuarioActual = cache(async (): Promise<Usuario | null> => {
     sucursal_id: u.sucursal_id,
     sucursal_nombre: u.sucursal_nombre,
     sucursal_tipo: u.sucursal_tipo,
+    tecnico_id: u.tecnico_id,
   }
 })
 
-export async function requerirUsuario(): Promise<Usuario> {
+/** Lo que puede abrir un técnico (perfil «Área técnica»); el resto lo manda a su pantalla. */
+const RUTAS_TALLER = [/^\/taller$/, /^\/reparaciones\/(\d+|reporte|configuracion)$/, /^\/guia$/, /^\/solicitudes(\/.*)?$/]
+
+/**
+ * `guardia`: a un técnico lo devuelve al área técnica si abre otra pantalla. El layout la apaga
+ * (un redirect desde el layout deja la página en blanco al navegar): la hace cada página.
+ */
+export async function requerirUsuario(guardia = true): Promise<Usuario> {
   const u = await usuarioActual()
   // La cookie puede seguir firmada aunque la sesión ya no valga (persona desactivada,
   // movida de sucursal o con otra contraseña): el login la borra, si no quedaría en un bucle.
   if (!u) redirect('/login?salir=1')
+  // Un técnico solo ve el área técnica. `x-ruta` la pone el proxy en cada pedido (no la manda el navegador).
+  if (guardia && soloTaller(u)) {
+    const ruta = (await headers()).get('x-ruta')
+    if (ruta && !RUTAS_TALLER.some((r) => r.test(ruta))) redirect('/taller')
+  }
   return u
 }
 

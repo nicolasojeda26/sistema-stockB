@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { db } from '@/lib/db'
-import { puede, requerirPermiso } from '@/lib/dal'
+import { puede, requerirAlguno } from '@/lib/dal'
 import { formatoPesos } from '@/lib/formato'
 import { reporteTaller } from '@/lib/reparaciones'
 import { BotonLink, Encabezado, Input, Select, Tarjeta, TituloTarjeta, tablaCls as t } from '@/components/ui'
@@ -11,7 +11,7 @@ const hoyAR = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/
 const esFecha = (v: unknown): v is string => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v)
 
 export default async function ReporteTallerPage(props: PageProps<'/reparaciones/reporte'>) {
-  const u = await requerirPermiso('reparaciones')
+  const u = await requerirAlguno('reparaciones', 'reparaciones_estado')
   const sp = await props.searchParams
   const hoy = hoyAR()
   const desde = esFecha(sp.desde) ? sp.desde : `${hoy.slice(0, 8)}01`

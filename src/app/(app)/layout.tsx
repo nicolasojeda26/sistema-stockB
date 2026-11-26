@@ -1,5 +1,5 @@
 import { puede, puedeVender, requerirUsuario } from '@/lib/dal'
-import type { Permiso } from '@/lib/permisos'
+import { soloTaller, type Permiso } from '@/lib/permisos'
 import { db } from '@/lib/db'
 import { estiloMarca, leerAjustes, urlLogo } from '@/lib/ajustes'
 import { salir } from '@/app/login/actions'
@@ -8,13 +8,13 @@ import { AyudaPantalla } from '@/components/ayuda-pantalla'
 import { Navegacion, type ItemNav } from './navegacion'
 
 export default async function AppLayout({ children }: LayoutProps<'/'>) {
-  const u = await requerirUsuario()
+  const u = await requerirUsuario(false)
   const ajustes = await leerAjustes()
   const { nombre_negocio } = ajustes
   const estilo = estiloMarca(ajustes.color_marca)
   const vende = puedeVender(u)
   // Avisos del menú: pedidos sin atender, envíos por recibir y diferencias sin resolver.
-  const [avisos] = await db()<{ pedidos: number; por_recibir: number; diferencias: number; reparaciones: number; entregas: number }[]>`
+  const [avisos] = await db()<{ pedidos: number; por_recibir: number; diferencias: number; reparaciones: number; taller: number; entregas: number }[]>`
     select
       (select count(*)::int from pedidos where estado in ('pendiente', 'parcial')
         ${u.rol === 'vendedora' ? db()`and sucursal_id = ${u.sucursal_id}` : db()``}) as pedidos,
@@ -22,6 +22,7 @@ export default async function AppLayout({ children }: LayoutProps<'/'>) {
         where e.estado = 'en_camino' ${u.rol === 'admin' ? db()`` : db()`and d.sucursal_id = ${u.sucursal_id}`}) as por_recibir,
       ${puede(u, 'diferencias') ? db()`(select count(*)::int from envios where estado = 'con_diferencias' and resuelto_en is null)` : db()`0`} as diferencias,
       ${puede(u, 'reparaciones') ? db()`(select count(*)::int from reparaciones where estado in ('listo', 'sin_reparacion') ${u.rol === 'admin' ? db()`` : db()`and sucursal_id = ${u.sucursal_id}`})` : db()`0`} as reparaciones,
+      ${puede(u, 'reparaciones_estado') ? db()`(select count(*)::int from reparaciones where estado = 'ingresado' ${u.rol === 'admin' ? db()`` : db()`and sucursal_id = ${u.sucursal_id}`})` : db()`0`} as taller,
       ${vende || puede(u, 'envios') ? db()`(select count(*)::int from venta_items i join ventas v on v.id = i.venta_id and v.estado <> 'anulada'
           join depositos dd on dd.id = i.deposito_id
           where i.entrega is not null and ${
@@ -30,7 +31,16 @@ export default async function AppLayout({ children }: LayoutProps<'/'>) {
               : db()`((i.entrega_estado = 'pendiente' and dd.sucursal_id = ${u.sucursal_id}) or (i.entrega_estado = 'enviado' and v.sucursal_id = ${u.sucursal_id}))`
           })` : db()`0`} as entregas`
   const p = (x: Permiso) => puede(u, x)
-  const items: ItemNav[] = [
+  // Pantalla del área técnica: para los técnicos y para quien ve todas las sucursales (en un local ya está «Reparaciones»).
+  const itemTaller: ItemNav[] =
+    p('reparaciones_estado') && (!p('reparaciones') || u.rol === 'admin') ? [{ href: '/taller', texto: 'Área técnica', icono: 'reparaciones', aviso: avisos.taller }] : []
+  const ayuda: ItemNav[] = [
+    { href: '/guia', texto: 'Guía del sistema', icono: 'guia' },
+    { href: '/solicitudes', texto: 'Ayuda y solicitudes', icono: 'ajustes' },
+  ]
+  const config: ItemNav[] = p('reparaciones_config') ? [{ href: '/reparaciones/configuracion', texto: 'Configurar área técnica', icono: 'ajustes' }] : []
+  // Un técnico ve solo el área técnica (el resto de las pantallas lo devuelve ahí).
+  const items: ItemNav[] = soloTaller(u) ? [...itemTaller, ...config, ...ayuda] : [
     { href: '/', texto: 'Inicio', icono: 'inicio', exacto: true },
     ...(vende
       ? ([
@@ -41,6 +51,7 @@ export default async function AppLayout({ children }: LayoutProps<'/'>) {
         ] as ItemNav[])
       : []),
     ...(p('reparaciones') ? [{ href: '/reparaciones', texto: 'Reparaciones', icono: 'reparaciones', aviso: avisos.reparaciones } as ItemNav] : []),
+    ...itemTaller,
     ...(!vende && p('anular_ventas') ? [{ href: '/ventas', texto: 'Corregir ventas', icono: 'ventas' } as ItemNav] : []),
     { href: '/productos', texto: 'Productos', icono: 'productos' },
     ...(p('clientes') ? [{ href: '/clientes', texto: 'Clientes', icono: 'clientes' } as ItemNav] : []),
@@ -62,8 +73,7 @@ export default async function AppLayout({ children }: LayoutProps<'/'>) {
     ...(p('configuracion') ? [{ href: '/sucursales', texto: 'Sucursales y depósitos', icono: 'sucursales' } as ItemNav] : []),
     ...(p('personal') ? [{ href: '/usuarios', texto: 'Personal y permisos', icono: 'usuarios' } as ItemNav] : []),
     ...(p('configuracion') ? [{ href: '/importar', texto: 'Importar desde Dux', icono: 'importar' } as ItemNav, { href: '/ajustes', texto: 'Ajustes del negocio', icono: 'ajustes' } as ItemNav] : []),
-    { href: '/guia', texto: 'Guía del sistema', icono: 'guia' },
-    { href: '/solicitudes', texto: 'Ayuda y solicitudes', icono: 'ajustes' },
+    ...ayuda,
   ]
   // Títulos de sección: se ponen en el primer ítem de cada grupo que la persona ve.
   const secciones: [string, string[]][] = [

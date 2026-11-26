@@ -2,16 +2,14 @@ import { randomBytes } from 'node:crypto'
 import type { Sql, TransactionSql } from 'postgres'
 
 type Tx = Sql | TransactionSql
-type Quien = { id: number; rol: 'admin' | 'vendedora' | 'deposito'; sucursal_id: number | null }
+/** Quién hace el cambio. `permisos`: los de la persona (sin ellos, los del rol de fábrica). `tecnico_id`: si es un técnico de la lista. */
+type Quien = { id: number; rol: 'admin' | 'vendedora' | 'deposito'; sucursal_id: number | null; permisos?: readonly string[]; tecnico_id?: number | null }
 
 export * from './reparaciones-texto'
+import { puedeEn } from './permisos'
 import { ESTADOS_REPARACION, MOTIVOS_CIERRE, numeroReparacion, type EstadoReparacion, type FaseEtapa, type MotivoCierre } from './reparaciones-texto'
 
 export class ErrorReparacion extends Error {}
-
-
-
-
 /** Enlace de seguimiento: 24 caracteres al azar, imposible de adivinar. */
 export const nuevoToken = () => randomBytes(18).toString('base64url')
 
@@ -52,6 +50,7 @@ export async function ingresarReparacion(sql: Sql, d: DatosIngreso): Promise<num
   if (!equipo) throw new ErrorReparacion('Poné la marca y el modelo del equipo.')
   if (!falla) throw new ErrorReparacion('Contá qué le pasa al equipo.')
   if (d.presupuesto != null && !(d.presupuesto >= 0)) throw new ErrorReparacion('El presupuesto no es válido.')
+  if (!puedeEn(d.usuario, 'reparaciones')) throw new ErrorReparacion('Los equipos los recibe la sucursal.')
   if (d.usuario.rol !== 'admin' && d.usuario.sucursal_id !== d.sucursalId) throw new ErrorReparacion('Solo podés recibir equipos en tu sucursal.')
   return sql.begin(async (tx) => {
     const [s] = await tx<{ tipo: string; activa: boolean }[]>`select tipo, activa from sucursales where id = ${d.sucursalId}`
@@ -102,11 +101,20 @@ export async function cambiarEstadoReparacion(sql: Sql, d: { usuario: Quien; id:
       tx`insert into reparacion_eventos (reparacion_id, estado, nota, usuario_id, etapa_id, tecnico_id)
         values (${r.id}, ${estado}, ${nota}, ${d.usuario.id}, ${etapaId}, ${tecnicoId})`
     const tecnico = async (id: number | null | undefined) => {
-      if (!id) return null
+      if (!id) {
+        // Si lo informa un técnico con usuario, queda él (si sigue activo en la lista).
+        if (!d.usuario.tecnico_id) return null
+        const [yo] = await tx<{ id: number }[]>`select id from tecnicos where id = ${d.usuario.tecnico_id} and activo`
+        return yo?.id ?? null
+      }
       const [t] = await tx<{ id: number }[]>`select id from tecnicos where id = ${id} and activo`
       if (!t) throw new ErrorReparacion('Ese técnico no está en la lista.')
       return t.id
     }
+    if (['empezar', 'etapa', 'listo', 'sin_reparacion'].includes(c.accion) && !puedeEn(d.usuario, 'reparaciones_estado'))
+      throw new ErrorReparacion('El estado lo informa el área técnica.')
+    if (['entregar_sin_cobro', 'cancelar'].includes(c.accion) && !puedeEn(d.usuario, 'reparaciones'))
+      throw new ErrorReparacion('Entregar o cancelar lo hace la sucursal.')
     if (r.estado === 'entregado' || r.estado === 'cancelado') {
       if (c.accion !== 'nota') throw new ErrorReparacion('Esta reparación ya está cerrada.')
     }

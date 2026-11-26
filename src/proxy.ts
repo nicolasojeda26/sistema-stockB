@@ -18,7 +18,11 @@ export async function proxy(req: NextRequest) {
     }
     return NextResponse.redirect(new URL('/', req.url))
   }
-  return NextResponse.next()
+  // La ruta, para que las páginas sepan dónde está la persona (los técnicos solo ven el área técnica).
+  // Se pisa siempre: no se puede mandar desde el navegador.
+  const cabeceras = new Headers(req.headers)
+  cabeceras.set('x-ruta', req.nextUrl.pathname)
+  return NextResponse.next({ request: { headers: cabeceras } })
 }
 
 export const config = {

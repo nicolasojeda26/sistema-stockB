@@ -8,9 +8,11 @@ export const PERMISOS = [
   { clave: 'clientes', grupo: 'Ventas', texto: 'Clientes y cuenta corriente', detalle: 'Ver y cargar clientes, cobrar y vender en cuenta corriente.' },
   { clave: 'credito', grupo: 'Ventas', texto: 'Límites de crédito y saldos', detalle: 'Poner el límite de crédito de un cliente, ajustar saldos y pasar el límite al vender.' },
   { clave: 'anular_ventas', grupo: 'Ventas', texto: 'Anular ventas', detalle: 'Anular una venta completa.' },
-  { clave: 'reparaciones', grupo: 'Ventas', texto: 'Reparaciones', detalle: 'Recibir equipos para reparar, actualizar su estado y avisar al cliente.' },
-  { clave: 'reparaciones_config', grupo: 'Ventas', texto: 'Configurar el área técnica', detalle: 'Estados del taller, técnicos, lista de precios de reparación y cláusulas de los comprobantes.', soloTodas: true },
   { clave: 'descuento_libre', grupo: 'Ventas', texto: 'Descuentos sin tope', detalle: 'Hacer cualquier descuento, sin el tope de cada persona.' },
+
+  { clave: 'reparaciones', grupo: 'Área técnica', texto: 'Recibir y entregar reparaciones', detalle: 'Recibir equipos en su sucursal, imprimir los comprobantes, avisar al cliente y entregarlos.' },
+  { clave: 'reparaciones_estado', grupo: 'Área técnica', texto: 'Informar el estado de las reparaciones', detalle: 'Ver los equipos en reparación e informar en qué estado está cada uno: en revisión, lista, sin reparación.' },
+  { clave: 'reparaciones_config', grupo: 'Área técnica', texto: 'Configurar el área técnica', detalle: 'Estados del taller, técnicos, lista de precios de reparación y cláusulas de los comprobantes.', soloTodas: true },
 
   { clave: 'productos', grupo: 'Mercadería', texto: 'Productos, precios y categorías', detalle: 'Crear y editar productos, cambiar precios y manejar categorías.' },
   { clave: 'ingreso', grupo: 'Mercadería', texto: 'Ingreso de mercadería', detalle: 'Cargar la mercadería que llega en los depósitos de su lugar.' },
@@ -76,10 +78,16 @@ export function permisosDePersona(
 
 export const tienePermiso = (u: { permisos: readonly string[] }, p: Permiso) => u.permisos.includes(p)
 
+/** Permisos del área técnica: con solo estos, la persona ve únicamente el área técnica. */
+const DEL_TALLER = new Set<string>(['reparaciones_estado', 'reparaciones_config'])
+
+/** Técnico: solo informa estados (y quizás configura el área). No ve ventas, stock ni nada más. */
+export const soloTaller = (u: { permisos: readonly string[] }) => u.permisos.includes('reparaciones_estado') && u.permisos.every((p) => DEL_TALLER.has(p))
+
 /** Permisos de los roles del sistema tal como vienen de fábrica (migración 015). */
 export const PERMISOS_DE_FABRICA: Record<Base, Permiso[]> = {
   admin: [...TODOS],
-  vendedora: ['vender', 'pedidos', 'reparaciones'],
+  vendedora: ['vender', 'pedidos', 'reparaciones', 'reparaciones_estado'],
   deposito: ['envios', 'ingreso'],
 }
 

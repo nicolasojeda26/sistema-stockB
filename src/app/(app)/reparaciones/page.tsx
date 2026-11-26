@@ -18,6 +18,15 @@ const VISTAS = [
 const fecha = (d: Date) =>
   new Intl.DateTimeFormat('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(d)
 const dias = (d: Date) => Math.max(0, Math.floor((Date.now() - d.getTime()) / 86_400_000))
+/** «hace 5 min», «hace 3 h», «ayer», «el 12/11». */
+function hace(d: Date) {
+  const min = Math.floor((Date.now() - d.getTime()) / 60_000)
+  if (min < 1) return 'recién'
+  if (min < 60) return `hace ${min} min`
+  if (min < 24 * 60) return `hace ${Math.floor(min / 60)} h`
+  if (min < 48 * 60) return 'ayer'
+  return `el ${new Intl.DateTimeFormat('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', day: '2-digit', month: '2-digit' }).format(d)}`
+}
 
 export default async function ReparacionesPage(props: PageProps<'/reparaciones'>) {
   const u = await requerirPermiso('reparaciones')
@@ -50,11 +59,23 @@ export default async function ReparacionesPage(props: PageProps<'/reparaciones'>
       presupuesto: number | null
       sucursal: string
       prometido: string | null
+      ult_creado: Date | null
+      ult_usuario: string | null
+      ult_yo: boolean
+      /** Lo cambió otra persona en las últimas 24 h: se destaca. */
+      novedad: boolean
     }[]>`
       select r.id, r.creado, r.cliente_nombre, r.cliente_telefono, r.equipo, r.falla, r.estado, e.nombre as etapa, r.motivo_cierre, t.nombre as tecnico,
-        r.garantia_de, r.precio, r.presupuesto, s.nombre as sucursal, to_char(r.prometido, 'DD/MM') as prometido
+        r.garantia_de, r.precio, r.presupuesto, s.nombre as sucursal, to_char(r.prometido, 'DD/MM') as prometido,
+        ult.creado as ult_creado, ult.usuario as ult_usuario, coalesce(ult.usuario_id = ${u.id}, false) as ult_yo,
+        coalesce(ult.usuario_id is distinct from ${u.id} and ult.creado > now() - interval '24 hours', false) as novedad
       from reparaciones r join sucursales s on s.id = r.sucursal_id
       left join reparacion_etapas e on e.id = r.etapa_id left join tecnicos t on t.id = r.tecnico_id
+      -- Último cambio de estado (las notas no cuentan): así la sucursal ve qué informó el área técnica y cuándo.
+      left join lateral (
+        select ev.creado, ev.usuario_id, us.nombre as usuario from reparacion_eventos ev left join usuarios us on us.id = ev.usuario_id
+        where ev.reparacion_id = r.id and ev.estado <> 'nota' order by ev.creado desc, ev.id desc limit 1
+      ) ult on true
       where r.estado = any(${vista.estados as unknown as string[]}::text[]) ${deSucursal} ${busqueda}
       order by case r.estado when 'listo' then 0 when 'sin_reparacion' then 1 when 'en_reparacion' then 2 when 'ingresado' then 3 else 4 end,
         ${vista.clave === 'entregadas' || vista.clave === 'todas' ? sql`r.creado desc` : sql`r.creado`}
@@ -183,6 +204,12 @@ export default async function ReparacionesPage(props: PageProps<'/reparaciones'>
                       <td className={t.td}>
                         <Etiqueta tono={e.tono}>{estadoVisible(r)}</Etiqueta>
                         {r.tecnico && <span className="mt-1 block text-xs text-apagado">Técnico: {r.tecnico}</span>}
+                        {r.ult_creado && ['ingresado', 'en_reparacion', 'listo', 'sin_reparacion'].includes(r.estado) && (
+                          <span className={`mt-1 block text-xs ${r.novedad ? 'font-semibold text-marca' : 'text-apagado'}`}>
+                            {r.novedad && '● '}Actualizado {hace(r.ult_creado)}
+                            {r.ult_usuario && !r.ult_yo ? ` por ${r.ult_usuario}` : ''}
+                          </span>
+                        )}
                         {r.garantia_de && <span className="mt-1 block text-xs font-medium text-alerta">Garantía de {numeroReparacion(r.garantia_de)}</span>}
                         {r.prometido && ['ingresado', 'en_reparacion'].includes(r.estado) && <span className="mt-1 block text-xs text-apagado">Prometido {r.prometido}</span>}
                       </td>

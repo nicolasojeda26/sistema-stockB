@@ -64,6 +64,30 @@ async function verificarQueQuedaAdministracion(tx: TransactionSql) {
     throw new ErrorPersonal('Tiene que quedar al menos una persona activa que pueda manejar el personal.')
 }
 
+/**
+ * Técnico de la lista que es esta persona (campo «tecnico»): vacío = ninguno, «nuevo» = se suma con su nombre.
+ * Un técnico tiene un solo usuario. Sin el campo en el formulario, `undefined` (no se toca).
+ */
+async function tecnicoElegido(tx: Consulta, f: FormData, nombre: string, usuarioId: number | null): Promise<number | null | undefined> {
+  if (!f.has('tecnico')) return undefined
+  const v = String(f.get('tecnico') ?? '')
+  if (!v) return null
+  let id: number
+  if (v === 'nuevo') {
+    const [t] = await tx<{ id: number }[]>`
+      insert into tecnicos (nombre) values (${nombre.slice(0, 80)})
+      on conflict ((lower(nombre))) do update set activo = true returning id`
+    id = t.id
+  } else {
+    id = Number(v)
+    const [t] = await tx<{ id: number }[]>`select id from tecnicos where id = ${Number.isInteger(id) ? id : 0}`
+    if (!t) throw new ErrorPersonal('Ese técnico no está en la lista.')
+  }
+  const [otro] = await tx<{ nombre: string }[]>`select nombre from usuarios where tecnico_id = ${id} and id <> ${usuarioId ?? 0}`
+  if (otro) throw new ErrorPersonal(`Ese técnico ya es el usuario de ${otro.nombre}.`)
+  return id
+}
+
 const anotar = (sql: Consulta, usuarioId: number, cambio: string, detalle: string, hechoPor: number) =>
   sql`insert into personal_historial (usuario_id, cambio, detalle, hecho_por) values (${usuarioId}, ${cambio}, ${detalle}, ${hechoPor})`
 
@@ -104,10 +128,12 @@ export async function crearUsuario(_: Resultado, f: FormData): Promise<Resultado
         values (${usuario}, ${nombre}, ${password ? await hashPassword(password) : null}, ${rol.base}, ${rol.id}, ${sucursalId}, ${descuentoMax})
         returning id`
       await anotar(tx, u.id, 'alta', `Alta como ${rol.nombre} en ${await nombreSucursal(tx, sucursalId)}.`, yo.id)
+      const tecnico = await tecnicoElegido(tx, f, nombre, u.id)
+      if (tecnico) await tx`update usuarios set tecnico_id = ${tecnico} where id = ${u.id}`
       return u.id
     })
   } catch (e) {
-    return { error: mensajeError(e, `Ya existe el usuario "${usuario}".`) }
+    return { error: e instanceof ErrorPersonal ? e.message : mensajeError(e, `Ya existe el usuario "${usuario}".`) }
   }
   refrescar()
   if (password) return { ok: `Usuario "${usuario}" creado. Ya puede entrar con su contraseña.` }
@@ -143,10 +169,19 @@ export async function editarUsuario(_: Resultado, f: FormData): Promise<Resultad
         descuento_max: number | null
         permisos_extra: string[]
         permisos_quitados: string[]
+        tecnico_id: number | null
+        tecnico: string | null
       }[]>`
-        select u.nombre, u.rol_id, r.nombre as rol_nombre, u.sucursal_id, u.activo, u.descuento_max::float as descuento_max, u.permisos_extra, u.permisos_quitados
-        from usuarios u join roles r on r.id = u.rol_id where u.id = ${id} for update of u`
+        select u.nombre, u.rol_id, r.nombre as rol_nombre, u.sucursal_id, u.activo, u.descuento_max::float as descuento_max, u.permisos_extra, u.permisos_quitados,
+          u.tecnico_id, t.nombre as tecnico
+        from usuarios u join roles r on r.id = u.rol_id left join tecnicos t on t.id = u.tecnico_id where u.id = ${id} for update of u`
       if (!antes) throw new ErrorPersonal('Esa persona no existe.')
+      const tecnico = await tecnicoElegido(tx, f, nombre, id)
+      if (tecnico !== undefined && tecnico !== antes.tecnico_id) {
+        await tx`update usuarios set tecnico_id = ${tecnico} where id = ${id}`
+        const [t] = tecnico ? await tx<{ nombre: string }[]>`select nombre from tecnicos where id = ${tecnico}` : []
+        await anotar(tx, id, 'datos', t ? `Es el técnico «${t.nombre}» del área técnica.` : `Ya no figura como técnico${antes.tecnico ? ` («${antes.tecnico}»)` : ''}.`, yo.id)
+      }
       await tx`
         update usuarios set
           nombre = ${nombre}, rol_id = ${rol.id}, sucursal_id = ${sucursalId}, activo = ${activo}, descuento_max = ${descuentoMax},

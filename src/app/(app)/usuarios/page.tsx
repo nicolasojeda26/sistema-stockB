@@ -25,7 +25,11 @@ export type UsuarioFila = {
   permisos_quitados: string[]
   sin_clave: boolean
   codigo_pendiente: boolean
+  tecnico_id: number | null
+  tecnico: string | null
 }
+/** Técnicos de la lista del área técnica, con el usuario que tienen (si tienen). */
+export type TecnicoOpcion = { id: number; nombre: string; usuario_id: number | null }
 export type SucursalOpcion = { id: number; nombre: string; tipo: 'local' | 'online' | 'deposito' }
 export type RolOpcion = {
   id: number
@@ -53,17 +57,21 @@ export default async function UsuariosPage(props: PageProps<'/usuarios'>) {
   const sp = await props.searchParams
   const ver = PESTANAS.find((p) => p.clave === sp.ver)?.clave ?? 'personal'
   const sql = db()
-  const [usuarios, sucursales, roles] = await Promise.all([
+  const [usuarios, sucursales, roles, tecnicos] = await Promise.all([
     sql<UsuarioFila[]>`
       select u.id, u.usuario, u.nombre, r.base as rol, u.rol_id, r.nombre as rol_nombre, u.sucursal_id, s.nombre as sucursal, u.activo, u.descuento_max::float as descuento_max,
-        u.permisos_extra, u.permisos_quitados, u.password_hash is null as sin_clave, (u.codigo_acceso is not null and u.codigo_vence > now()) as codigo_pendiente
-      from usuarios u join roles r on r.id = u.rol_id left join sucursales s on s.id = u.sucursal_id
+        u.permisos_extra, u.permisos_quitados, u.password_hash is null as sin_clave, (u.codigo_acceso is not null and u.codigo_vence > now()) as codigo_pendiente,
+        u.tecnico_id, t.nombre as tecnico
+      from usuarios u join roles r on r.id = u.rol_id left join sucursales s on s.id = u.sucursal_id left join tecnicos t on t.id = u.tecnico_id
       order by u.activo desc, lower(u.nombre)`,
     sql<SucursalOpcion[]>`select id, nombre, tipo from sucursales where activa order by case tipo when 'deposito' then 0 when 'local' then 1 else 2 end, nombre`,
     sql<RolOpcion[]>`
       select r.id, r.nombre, r.descripcion, r.base, r.sistema, r.permisos, r.descuento_max::float as descuento_max,
         r.descuento_max_reparacion::float as descuento_max_reparacion, (select count(*)::int from usuarios u where u.rol_id = r.id and u.activo) as personas
       from roles r order by r.sistema desc, case r.base when 'admin' then 0 when 'vendedora' then 1 else 2 end, lower(r.nombre)`,
+    sql<TecnicoOpcion[]>`
+      select t.id, t.nombre, (select u.id from usuarios u where u.tecnico_id = t.id) as usuario_id
+      from tecnicos t where t.activo order by lower(t.nombre)`,
   ])
 
   const movidoId = Number(sp.movido) || null
@@ -95,14 +103,26 @@ export default async function UsuariosPage(props: PageProps<'/usuarios'>) {
           </Aviso>
         </div>
       )}
-      {ver === 'personal' && <Personal usuarios={usuarios} sucursales={sucursales} roles={roles} yoId={yo.id} />}
+      {ver === 'personal' && <Personal usuarios={usuarios} sucursales={sucursales} roles={roles} tecnicos={tecnicos} yoId={yo.id} />}
       {ver === 'roles' && <Roles roles={roles} />}
       {ver === 'historial' && <Historial />}
     </>
   )
 }
 
-function Personal({ usuarios, sucursales, roles, yoId }: { usuarios: UsuarioFila[]; sucursales: SucursalOpcion[]; roles: RolOpcion[]; yoId: number }) {
+function Personal({
+  usuarios,
+  sucursales,
+  roles,
+  tecnicos,
+  yoId,
+}: {
+  usuarios: UsuarioFila[]
+  sucursales: SucursalOpcion[]
+  roles: RolOpcion[]
+  tecnicos: TecnicoOpcion[]
+  yoId: number
+}) {
   // Grupos: todas las sucursales, cada punto (depósito, locales, online) y los que no tienen acceso.
   const grupos = [
     { clave: 'admin', titulo: 'Todas las sucursales', personas: usuarios.filter((u) => u.activo && u.rol === 'admin') },
@@ -141,7 +161,7 @@ function Personal({ usuarios, sucursales, roles, yoId }: { usuarios: UsuarioFila
               <ul className="divide-y divide-linea">
                 {g.personas.map((u) => (
                   <li key={u.id} className="px-5 py-3.5">
-                    <FilaUsuario usuario={u} sucursales={sucursales} roles={roles} esYo={u.id === yoId}>
+                    <FilaUsuario usuario={u} sucursales={sucursales} roles={roles} tecnicos={tecnicos} esYo={u.id === yoId}>
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className={`font-medium ${u.activo ? '' : 'text-apagado'}`}>{u.nombre}</span>
@@ -157,6 +177,7 @@ function Personal({ usuarios, sucursales, roles, yoId }: { usuarios: UsuarioFila
                           {u.permisos_extra.length + u.permisos_quitados.length > 0 &&
                             ` · ${[u.permisos_extra.length && `+${u.permisos_extra.length}`, u.permisos_quitados.length && `−${u.permisos_quitados.length}`].filter(Boolean).join(' ')} permisos propios`}
                           {!u.activo && u.sucursal ? ` · era de ${u.sucursal}` : ''}
+                          {u.tecnico ? ` · técnico «${u.tecnico}»` : ''}
                         </p>
                       </div>
                     </FilaUsuario>
@@ -170,7 +191,7 @@ function Personal({ usuarios, sucursales, roles, yoId }: { usuarios: UsuarioFila
       <div className="min-w-0">
         <Tarjeta className="lg:sticky lg:top-6">
           <TituloTarjeta>Sumar a alguien</TituloTarjeta>
-          <NuevoUsuario sucursales={sucursales} roles={roles} />
+          <NuevoUsuario sucursales={sucursales} roles={roles} tecnicos={tecnicos} />
         </Tarjeta>
       </div>
     </div>

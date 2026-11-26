@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { db } from '@/lib/db'
-import { puede, requerirPermiso } from '@/lib/dal'
+import { puede, requerirAlguno } from '@/lib/dal'
 import { leerAjustes } from '@/lib/ajustes'
 import { formatoPesos } from '@/lib/formato'
 import {
@@ -27,7 +27,9 @@ const fechaHora = (d: Date) =>
 const fecha = (d: Date) => new Intl.DateTimeFormat('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', day: '2-digit', month: '2-digit', year: 'numeric' }).format(d)
 
 export default async function ReparacionPage(props: PageProps<'/reparaciones/[id]'>) {
-  const u = await requerirPermiso('reparaciones')
+  const u = await requerirAlguno('reparaciones', 'reparaciones_estado')
+  // La sucursal recibe, avisa y entrega; el área técnica informa el estado.
+  const recibe = puede(u, 'reparaciones')
   const id = Number((await props.params).id)
   const sp = await props.searchParams
   if (!Number.isInteger(id) || id <= 0) notFound()
@@ -67,9 +69,10 @@ export default async function ReparacionPage(props: PageProps<'/reparaciones/[id
   return (
     <>
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <BotonLink href="/reparaciones" variante="secundario">
-          ← Reparaciones
+        <BotonLink href={recibe ? '/reparaciones' : '/taller'} variante="secundario">
+          {recibe ? '← Reparaciones' : '← Área técnica'}
         </BotonLink>
+        {recibe && (
         <div className="flex flex-wrap items-center gap-2">
           {whatsapp && (
             <a href={whatsapp} target="_blank" rel="noopener noreferrer" className="inline-flex h-10 items-center rounded-lg border border-linea bg-papel px-4 text-sm font-semibold hover:bg-fondo">
@@ -90,8 +93,9 @@ export default async function ReparacionPage(props: PageProps<'/reparaciones/[id
             </BotonLink>
           )}
         </div>
+        )}
       </div>
-      {sp.nueva === '1' && (
+      {recibe && sp.nueva === '1' && (
         <div className="mb-4">
           <Aviso tipo="ok">
             <span className="flex flex-wrap items-center justify-between gap-3">
@@ -105,7 +109,7 @@ export default async function ReparacionPage(props: PageProps<'/reparaciones/[id
           </Aviso>
         </div>
       )}
-      {sp.entregada === '1' && (r.estado === 'entregado' || r.estado === 'listo') && (
+      {recibe && sp.entregada === '1' && (r.estado === 'entregado' || r.estado === 'listo') && (
         <div className="mb-4">
           <Aviso tipo="ok">
             <span className="flex flex-wrap items-center justify-between gap-3">
@@ -245,7 +249,11 @@ export default async function ReparacionPage(props: PageProps<'/reparaciones/[id
             etapas={etapas}
             tecnicos={tecnicos}
             puedeCobrar={puede(u, 'vender')}
-            puedeReingresar={reparadoEntregado}
+            puedeReingresar={recibe && reparadoEntregado}
+            puedeInformar={puede(u, 'reparaciones_estado')}
+            puedeEntregar={recibe}
+            tecnicoPropio={u.tecnico_id}
+            abrir={sp.hacer === 'listo' || sp.hacer === 'sin_reparacion' || sp.hacer === 'estado' ? sp.hacer : null}
           />
           {r.venta_id && (
             <Aviso tipo="ok">
